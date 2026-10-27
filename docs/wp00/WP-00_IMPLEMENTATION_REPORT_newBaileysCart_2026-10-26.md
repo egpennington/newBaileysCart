@@ -146,3 +146,71 @@ GAI PASS and green CI do not authorize a merge. The PL retains the merge and nex
 2. **R-01:** disposition of the Lint tool vulnerabilities.
 3. **R-05:** how to commit the handoff.
 4. **WP00-OPEN-01 and -03:** applicationId, and whether to create `develop`.
+
+---
+
+## Post-closure addendum (2026-10-27): fixes, merge and closure
+
+**Added by CODI on 2026-10-27, after the Project Lead formally closed WP-00.** Everything above this line is the original 2026-10-26 record and its remediation addendum, preserved as written. Statements there such as "local only", "FORGE CI has not run" and "NOT_RUN" were true when written; this addendum supersedes them. The evidence manifest is the detailed record.
+
+### Fixes after the original report
+
+| Fix | Commit | Purpose |
+|---|---|---|
+| Fix A | `92f83a3` | Verification metadata complete for clean caches |
+| Fix B | `64c4d1c` | Lint-tool-only patched Bouncy Castle, Commons Lang, HttpClient (resolves R-01 / WP00-OPEN-02) |
+| JAR hard gate | `39fa9a7` | `:core:model` JAR must be byte-identical across two clean CI builds (WP00-REPRO-01) |
+| Evidence | `50c1a64`, `30c1457` | FORGE run #2 evidence, GAI handoff, hard-gate positive control and PL-PP-WP00-03 negative CI runs |
+| Trigger hardening | `27da4dc` | FORGE also runs on pushes to `develop`/`main`; integration-branch runs are never cancelled |
+| Fix C | `acb9b42` | Lint-tool-only Guava 33.4.0-jre → 33.7.2-jre for GHSA-xxph-c9ww-hj94 / CVE-2026-102554 (WP00-MAINT-01) |
+
+### FORGE run history (all `FORGE WP-00`)
+
+| # | Run | Event / ref | Commit | Result |
+|---|---|---|---|---|
+| 1 | 40447910773 | push `feature/wp00-foundations` | `0cb99e5` | failure (clean-cache metadata; R-01) |
+| 2 | 40455233810 | push | `64c4d1c` | success |
+| 3 | 40457802694 | push | `50c1a64` | success |
+| 4 | 40461844217 | push | `39fa9a7` | success (hard-gate positive control) |
+| 5–7 | 40462443414, 40462880987, 40463371956 | push `feature/wp00-pp03-gate-negative` | `658a5fa`, `3595e26`, `581e2ba` | failure, **as intended** (PL-PP-WP00-03 negative variants A–C) |
+| 8 | 40464229862 | push | `30c1457` | success |
+| 9 | 40559437781 | push | `27da4dc` | failure: new Guava advisory (lockfiles unchanged since run 8) |
+| 10 | 40565182382 | push | `acb9b42` | success |
+| 11 | 40571030265 | pull_request (PR #1 → `develop`) | `acb9b42` | success |
+| 12 | 40573451935 | push `develop` | `c6afe30` | success, the first push-triggered run on `develop` |
+
+### Integration and closure
+
+- **`develop`:** created 2026-10-27 from `b6ac365` and protected by ruleset 25981594. This resolves WP00-OPEN-03 / R-04 of this report.
+- **PR #1:** `develop` ← `feature/wp00-foundations` at `acb9b42`, 10 commits and 52 files. The Project Lead created it and merged it at 2026-10-27T19:55:31Z.
+- **Merge commit:** `c6afe30acbd9b53016314ca6662420dde2b4e72b`, with parents `b6ac365` and `acb9b42`. Its tree is identical to `acb9b42`.
+- **`main`:** unchanged at `b6ac365`.
+- **Closure:** GAI's closure verdict was PASS, and the Project Lead formally closed WP-00.
+
+### ProofPoint status at closure (supersedes section (g))
+
+| ProofPoint | Status | Basis |
+|---|---|---|
+| PL-PP-WP00-01 Clean repeat build | PASS | JAR `cf6d0b16…0024` byte-identical in runs 10, 11 and 12, and locally |
+| PL-PP-WP00-02 Secret absence | PASS | gitleaks job, runs 10–12 |
+| PL-PP-WP00-03 CI failure gate | PASS | Negative runs 5–7; real block in run 9 |
+| PL-PP-WP00-04 Dependency integrity | PASS | After Fixes A, B and C; osv-scanner and strict verification, runs 10–12 |
+| PL-PP-WP00-05 No real Firebase | PASS | Guard job, runs 10–12 |
+| PS-BUILD-SUPPLY-CHAIN | PASS | All 8 jobs green on `c6afe30` (run 12) |
+
+### Limitations that remain open
+
+- **NOT_RUN:**
+  - Required-check blocking of a PR with a red `FORGE gate`.
+  - The skipped-upstream-job gate scenario.
+  - No-cancel concurrency under overlapping pushes to `develop`.
+- **NOT_VERIFIED:**
+  - Ruleset bypass actors.
+  - Authenticated job logs (evidence comes from conclusions and annotations).
+- **Carried forward:**
+  - WP00-OPEN-01: permanent applicationId.
+  - WP00-MAINT-01: Guava override review on AGP upgrades.
+  - R-04: canonical API incorporation.
+  - Stale Guava 33.4.0-jre entries in verification metadata.
+  - R-05: handoff commit policy.
+  - R-08: Node 22 runtime review.

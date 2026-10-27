@@ -76,7 +76,15 @@ bash scripts/check-no-real-firebase.sh
 
 ## CI (FORGE, GitHub Actions)
 
-`.github/workflows/forge-wp00.yml` runs on pushes to `feature/**` and `fix/**`, on pull requests to `main` and `develop`, and on manual dispatch. The jobs are:
+`.github/workflows/forge-wp00.yml` runs on:
+
+- pushes to `feature/**`, `fix/**`, `develop` and `main`
+- pull requests targeting `main` or `develop`
+- manual dispatch (`workflow_dispatch`)
+
+Runs on `main` and `develop` are never cancelled or superseded by later runs, because each gets its own concurrency group. Runs for `feature/**` and `fix/**` branches and for pull requests cancel an in-progress run for the same ref.
+
+The jobs are:
 
 1. Wrapper validation
 2. Android compile, lint and unit tests
