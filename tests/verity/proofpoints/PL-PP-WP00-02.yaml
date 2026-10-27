@@ -1,0 +1,27 @@
+id: PL-PP-WP00-02
+name: Secret absence and redaction
+feature: Build supply chain
+suite: PS-BUILD-SUPPLY-CHAIN
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+preconditions:
+  - .gitleaks.toml uses the default ruleset with no allowlist
+  - .gitignore excludes .env, keystores, google-services.json and service-account files
+steps:
+  - gitleaks git --config .gitleaks.toml --redact on full history
+  - gitleaks dir --config .gitleaks.toml --redact on the tracked tree (CI checkout)
+  - Negative check - a synthetic token-shaped fixture must be detected, then removed
+expected:
+  - No leaks in history or tracked tree
+  - Synthetic fixture detected (exit 1) and reported redacted
+  - No credentials committed as test fixtures
+evidence:
+  - gitleaks logs (redacted); FORGE secrets job
+depths:
+  D1: not applicable
+  D2: local scan and negative fixture; CI scan
+  D3: not applicable
+  D4: GAI review
+status: see docs/wp00/evidence/EVIDENCE_MANIFEST.md

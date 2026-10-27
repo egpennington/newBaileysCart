@@ -1,0 +1,27 @@
+id: PL-PP-WP00-01
+name: Clean repeat build with pinned dependencies
+feature: Build supply chain
+suite: PS-BUILD-SUPPLY-CHAIN
+risk: medium
+owner: CODI
+independent_reviewer: GAI
+level: integration
+preconditions:
+  - Pinned toolchain per docs/wp00/VERSION_DECISION_RECORD.md
+  - Strict Gradle lockfiles and verification-metadata.xml present
+steps:
+  - Run ./gradlew clean :app:assembleRelease :core:model:jar --no-build-cache --rerun-tasks
+  - Record SHA-256 of the unsigned APK and model.jar
+  - Repeat from clean and compare hashes
+expected:
+  - Both builds succeed with no dependency or lock mismatch
+  - Hashes recorded; any difference is explained (byte-identical output is measured, not promised)
+evidence:
+  - Local run logs and hashes (see docs/wp00/evidence/EVIDENCE_MANIFEST.md)
+  - FORGE repeat-build job summary
+depths:
+  D1: not applicable
+  D2: local two-run comparison; CI two-run comparison
+  D3: not applicable
+  D4: GAI review
+status: see docs/wp00/evidence/EVIDENCE_MANIFEST.md

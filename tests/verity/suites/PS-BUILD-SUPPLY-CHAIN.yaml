@@ -1,0 +1,13 @@
+id: PS-BUILD-SUPPLY-CHAIN
+name: Build and supply-chain foundations
+work_package: WP-00
+owner: CODI
+independent_reviewer: GAI
+executed_by: FORGE (GitHub Actions workflow forge-wp00.yml) and local CODI runs
+proofpoints:
+  - PL-PP-WP00-01
+  - PL-PP-WP00-02
+  - PL-PP-WP00-03
+  - PL-PP-WP00-04
+  - PL-PP-WP00-05
+status_source: docs/wp00/evidence/EVIDENCE_MANIFEST.md

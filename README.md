@@ -53,7 +53,7 @@ Phase 1 product definition received GAI's **conditional pass**, and the Project 
 
 ## Getting started
 
-This repository is being initialized. Android Studio setup, build commands, development environment requirements, and test instructions will be added once the architecture and toolchain are selected and verified.
+WP-00 (Android foundations and FORGE build contract) is in progress on `feature/wp00-foundations`. See [`docs/BUILD.md`](docs/BUILD.md) for the pinned toolchain, local build and check commands, CI behavior, and the demo-only Firebase emulator plan. Approved decisions are recorded in [`docs/decisions/DECISION_REGISTER.md`](docs/decisions/DECISION_REGISTER.md).
 
 ## License
 

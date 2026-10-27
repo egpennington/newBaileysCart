@@ -1,0 +1,219 @@
+# FORGE — WP-00 build and supply-chain gates (ProofSuite PS-BUILD-SUPPLY-CHAIN).
+# Every job is blocking. The `forge-gate` job is the single required status check.
+# Third-party actions and downloaded tools are pinned by commit SHA / SHA-256.
+name: FORGE WP-00
+
+on:
+  push:
+    branches: ["feature/**", "fix/**"]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "21.0.12+8"
+  NODE_VERSION: "22"
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  OSV_SCANNER_VERSION: "2.7.0"
+  OSV_SCANNER_SHA256: "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+  ANDROID_PACKAGES: "platforms;android-37.0 build-tools;36.0.0"
+
+jobs:
+  wrapper-validation:
+    name: Gradle wrapper integrity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+  android:
+    name: Android compile, lint, unit tests
+    needs: wrapper-validation
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Install pinned Android SDK packages
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" $ANDROID_PACKAGES > /dev/null
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-disabled: true
+      - name: Toolchain inventory
+        run: |
+          java -version
+          ./gradlew --version
+      # Dependency verification (gradle/verification-metadata.xml) and strict lockfiles are
+      # enforced on every resolution; a checksum or lock mismatch fails this step.
+      - name: Build, lint, unit tests
+        run: ./gradlew assembleDebug assembleRelease test lint --no-daemon --stacktrace
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-reports
+          path: |
+            android/app/build/reports/
+            android/core/model/build/reports/
+            android/app/build/test-results/
+            android/core/model/build/test-results/
+          retention-days: 14
+
+  repeat-build:
+    name: Clean repeat build (PL-PP-WP00-01)
+    needs: wrapper-validation
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Install pinned Android SDK packages
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" $ANDROID_PACKAGES > /dev/null
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-disabled: true
+      # Builds the unsigned release twice from clean and records hashes. Byte-identical APKs are
+      # not guaranteed by AGP; differences are reported for review, while a build failure blocks.
+      - name: Two clean builds and hash comparison
+        run: |
+          set -euo pipefail
+          for run in 1 2; do
+            ./gradlew clean :app:assembleRelease :core:model:jar --no-daemon --no-build-cache --rerun-tasks
+            mkdir -p "$RUNNER_TEMP/run$run"
+            cp app/build/outputs/apk/release/*.apk core/model/build/libs/*.jar "$RUNNER_TEMP/run$run/"
+          done
+          {
+            echo "### PL-PP-WP00-01 repeat-build hashes"
+            echo '```'
+            (cd "$RUNNER_TEMP/run1" && sha256sum *) | sed 's/^/run1 /'
+            (cd "$RUNNER_TEMP/run2" && sha256sum *) | sed 's/^/run2 /'
+            echo '```'
+            if diff <(cd "$RUNNER_TEMP/run1" && sha256sum *) <(cd "$RUNNER_TEMP/run2" && sha256sum *) > /dev/null; then
+              echo "Result: byte-identical across runs."
+            else
+              echo "Result: DIFFERENCES between runs (review required; not a gate failure)."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  backend:
+    name: Backend typecheck, tests, npm audit
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend/functions
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node --version && npm --version
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm audit --audit-level=high
+
+  dependency-audit:
+    name: Dependency vulnerability scan and SBOM (PL-PP-WP00-04)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install osv-scanner (checksum pinned)
+        run: |
+          set -euo pipefail
+          curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c -
+          chmod +x osv-scanner
+      - name: Scan lockfiles
+        run: >
+          ./osv-scanner scan source
+          -L android/app/gradle.lockfile
+          -L android/core/model/gradle.lockfile
+          -L backend/functions/package-lock.json
+      - name: CycloneDX SBOM
+        if: always()
+        run: >
+          ./osv-scanner scan source --all-packages --format cyclonedx-1-6 --output-file sbom.cdx.json
+          -L android/app/gradle.lockfile
+          -L android/core/model/gradle.lockfile
+          -L backend/functions/package-lock.json || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sbom
+          path: sbom.cdx.json
+          retention-days: 14
+
+  secrets:
+    name: Secret scan (PL-PP-WP00-02)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks (checksum pinned)
+        run: |
+          set -euo pipefail
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      - name: Scan full git history
+        run: ./gitleaks git --config .gitleaks.toml --redact --verbose .
+      - name: Scan working tree
+        run: ./gitleaks dir --config .gitleaks.toml --redact --verbose .
+
+  firebase-guard:
+    name: No real Firebase configuration (PL-PP-WP00-05)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-no-real-firebase.sh
+
+  forge-gate:
+    name: FORGE gate
+    if: always()
+    needs: [wrapper-validation, android, repeat-build, backend, dependency-audit, secrets, firebase-guard]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every upstream job to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Upstream results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != "success" ]; then
+              echo "FORGE gate FAILED"
+              exit 1
+            fi
+          done
+          echo "FORGE gate passed"
