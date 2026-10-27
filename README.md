@@ -3,7 +3,7 @@
 **A simple, offline-first grocery list for families.**  
 *Software built for the real world.* — Pennington Labs
 
-> **Project status:** Phase 2 — Architecture & Technical Design. The application is not yet implemented or released.
+> **Project status:** WP-00 (Android and backend foundations, FORGE build contract) is complete and merged into `develop`. The application's product features are not yet implemented or released.
 
 Bailey's Cart is being rebuilt as a native Android app designed to make shared grocery shopping straightforward. The goal is to preserve the speed and familiarity of the original experience while improving reliability, accessibility, privacy, and offline synchronization.
 
@@ -49,11 +49,27 @@ Phase 1 product definition received GAI's **conditional pass**, and the Project 
 - Auditing the legacy app for behavior and potential data-migration needs.
 - Defining retention, purge, account-deletion, and accessibility verification contracts.
 
-**Implementation, production deployment, and release are not yet authorized.**
+Since then, the Phase 4 planning reconciliation was certified, and the Project Lead authorized work package WP-00 (see the decision register). WP-00 was merged into `develop` through PR #1 on 2026-10-27, and the Project Lead formally closed it.
+
+**Implementation beyond Project Lead-authorized work packages, production deployment, and release are not authorized.**
 
 ## Getting started
 
-WP-00 (Android foundations and FORGE build contract) is in progress on `feature/wp00-foundations`. See [`docs/BUILD.md`](docs/BUILD.md) for the pinned toolchain, local build and check commands, CI behavior, and the demo-only Firebase emulator plan. Approved decisions are recorded in [`docs/decisions/DECISION_REGISTER.md`](docs/decisions/DECISION_REGISTER.md).
+WP-00 provides the Android foundation (`android/`: `:app` and `:core:model`), a TypeScript backend skeleton (`backend/functions`, demo-only Firebase emulator configuration), and the FORGE CI pipeline. It contains placeholder code only; no product features yet.
+
+- **Build and verify locally:** [`docs/BUILD.md`](docs/BUILD.md) covers the pinned toolchain, build and check commands, dependency regeneration, the repeat-build check and the demo-only Firebase emulator plan.
+- **Versions and dependency decisions:** [`docs/wp00/VERSION_DECISION_RECORD.md`](docs/wp00/VERSION_DECISION_RECORD.md).
+- **Approved decisions:** [`docs/decisions/DECISION_REGISTER.md`](docs/decisions/DECISION_REGISTER.md).
+- **Verification evidence:** [`docs/wp00/evidence/EVIDENCE_MANIFEST.md`](docs/wp00/evidence/EVIDENCE_MANIFEST.md) and the Verity ProofPoints in [`tests/verity/`](tests/verity/).
+
+## Branches and integration
+
+- **`develop`** is the integration branch. It is protected, and work reaches it only by pull request.
+- **`main`** is protected and remains at the initial baseline. No release has been made.
+- **New work** branches from `develop` as `feature/*` or `fix/*` and returns by a pull request into `develop`.
+- **Merging** requires a passing `FORGE gate` status check, a branch that is up to date with `develop`, and resolved conversations. Only the merge-commit method is allowed, and force pushes and branch deletion are blocked.
+- **Authority:** the Project Lead performs every merge. Agents do not approve or merge pull requests.
+- **FORGE** (`.github/workflows/forge-wp00.yml`) runs on pushes to `feature/**`, `fix/**`, `develop` and `main`, and on pull requests into `develop` and `main`.
 
 ## License
 

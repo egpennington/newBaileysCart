@@ -1,9 +1,10 @@
 # WP-00 Version Decision Record
 
-- **Version:** 1.0
-- **Date:** 2026-10-26
+- **Version:** 1.1. Adds Fix C (Guava, WP00-MAINT-01) and a reconciliation against the merged repository. v1.0 dated 2026-10-26.
+- **Date:** 2026-10-26 (v1.0); 2026-10-27 (v1.1)
 - **Owner:** CODI
 - **Rule:** every pinned version below was checked against an official source on 2026-10-26. Nothing is pinned from memory.
+- **Reconciliation (2026-10-27):** after WP-00 merged into `develop` (merge commit `c6afe30acbd9b53016314ca6662420dde2b4e72b`), each pin in this record was compared with the repository files: `libs.versions.toml`, the wrapper properties, `forge-wp00.yml`, `package.json`, `.nvmrc`, the root `build.gradle.kts` and the lockfiles. All match. The only change since v1.0 is Fix C, below.
 
 ## Toolchain
 
@@ -27,6 +28,8 @@
 
 ## Android Lint tool dependency overrides (Fix B, PL-authorized 2026-10-26)
 
+The current override set is Fix B (below) plus Fix C (next section).
+
 AGP 9.4.0's Lint tool (`androidLintTool` configuration) resolves versions with known vulnerabilities. The root `build.gradle.kts` forces patched versions **for that configuration only**. The application compile and runtime classpaths don't change; the release APK hash is identical before and after.
 
 | Package | AGP default | Pinned for lint tool | Advisories addressed |
@@ -38,6 +41,30 @@ AGP 9.4.0's Lint tool (`androidLintTool` configuration) resolves versions with k
 | org.apache.httpcomponents:httpclient | 4.5.6 | 4.5.13 | osv-scanner finding |
 
 Newer releases exist (bcprov 1.86, commons-lang3 3.21.0, httpclient 4.5.14). The PL authorized the versions validated in the scratch-clone trial. Revisit these overrides on every AGP upgrade, and remove them once AGP ships patched versions.
+
+## Android Lint tool Guava override (Fix C, PL-authorized 2026-10-27, WP00-MAINT-01)
+
+GHSA-xxph-c9ww-hj94 / CVE-2026-102554 (HIGH; uncontrolled memory allocation during deserialization; affects Guava `>= 4.0, < 33.7.2`) was published on 2026-10-27. The osv-scanner gate then failed FORGE run [40559437781](https://github.com/egpennington/newBaileysCart/actions/runs/40559437781) on unchanged lockfiles. Fix C (`acb9b42`) adds Guava to the same `androidLintTool`-only override block as Fix B.
+
+| Package | AGP default | Pinned for lint tool | Advisory addressed |
+|---|---|---|---|
+| com.google.guava:guava | 33.4.0-jre | 33.7.2-jre | GHSA-xxph-c9ww-hj94 / CVE-2026-102554 |
+
+Guava 33.7.2-jre declares a different dependency set, so these `androidLintTool` lock entries changed as a direct result:
+
+- `failureaccess` 1.0.2 → 1.0.3
+- `error_prone_annotations` 2.36.0 → 2.50.0
+- `j2objc-annotations` 3.0.0 → 3.1
+- `jspecify` 1.0.1 added
+- `jsr305` 3.0.2 and `checker-qual` 3.43.0 removed
+
+No app compile or runtime classpath changed.
+
+- **Verification metadata:** additions only, regenerated from an empty Gradle cache. All 13 new checksums match Maven Central's `.sha1`, and the 8 artifacts that publish a `.sha256` match that too.
+- **CI evidence:** the dependency scan passed in FORGE runs 40565182382 (push), 40571030265 (PR #1) and 40573451935 (post-merge `develop`).
+- **Local JDK note:** the local Fix C regeneration ran on JBR 21.0.11 because Temurin 21.0.12+8 was not installed on that machine. The pin is unchanged, and CI used Temurin 21.0.12+8. The `:core:model` JAR hash was identical locally and in CI (`cf6d0b16…0024`).
+- **Stale metadata entries:** the old Guava 33.4.0-jre entries, and those for its dropped dependencies, remain in `verification-metadata.xml` under the additions-only policy. They are inert. Removing them is a separate, PL-approved cleanup.
+- **Maintenance (WP00-MAINT-01):** on every AGP or Lint upgrade, check the Guava version AGP bundles. Remove this override once AGP ships 33.7.2-jre or later, and never pin below the bundled version.
 
 ## GitHub Actions (pinned by commit SHA)
 
