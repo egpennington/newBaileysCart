@@ -1,6 +1,6 @@
 # Building newBaileysCart (WP-00 foundations)
 
-These steps reproduce the WP-00 build on a clean machine. Pinned versions and their sources are in `docs/wp00/VERSION_DECISION_RECORD.md`.
+These steps reproduce the WP-00 build on a clean machine. A clean-cache build was verified locally on 2026-10-27, after the Fix A repair. Pinned versions and their sources are in `docs/wp00/VERSION_DECISION_RECORD.md`.
 
 ## Prerequisites
 
@@ -22,7 +22,25 @@ cd android
 ```
 
 - The release APK is **unsigned** (`app/build/outputs/apk/release/app-release-unsigned.apk`). No signing material exists in WP-00.
-- Lockfiles are strict and checksums are verified on every resolution. A dependency change therefore needs `--write-locks` and `--write-verification-metadata sha256`. A lock or checksum mismatch fails the build. This is intentional and must be reviewed.
+- Lockfiles are strict and checksums are verified on every resolution. A lock or checksum mismatch, or an artifact with no recorded checksum, fails the build. This is intentional and must be reviewed.
+
+### Changing dependencies: regenerate from an empty Gradle cache
+
+Always regenerate locks and verification metadata from an **empty** `GRADLE_USER_HOME`. A warm cache hides parent POM and BOM files that a clean machine downloads. Gradle never records those files, and clean builds then fail verification. That is exactly what broke FORGE run 40447910773 (see the evidence manifest).
+
+```sh
+cd android
+export GRADLE_USER_HOME="$(mktemp -d)"   # empty cache, deleted afterwards
+./gradlew assembleDebug assembleRelease test lint :app:dependencies :core:model:dependencies \
+  --write-locks --write-verification-metadata sha256
+```
+
+Then:
+1. Check that the diff of `verification-metadata.xml` only *adds* entries. No existing checksum may change.
+2. Validate new checksums against publisher metadata (for example, Maven Central `.sha1`).
+3. Prove the result with a full build from a *second* empty cache: `./gradlew clean assembleDebug assembleRelease test lint`.
+
+The Linux and macOS `aapt2` entries were added by hand. A regeneration on Windows keeps existing entries, so they remain.
 
 ### Repeat-build check (PL-PP-WP00-01)
 

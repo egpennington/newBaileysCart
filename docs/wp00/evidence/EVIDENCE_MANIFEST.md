@@ -1,12 +1,14 @@
 # WP-00 Evidence Manifest: PS-BUILD-SUPPLY-CHAIN
 
-- **Version:** 1.0
+- **Version:** 1.1. Adds the FORGE run 1 result and the Fix A clean-environment correction.
 - **Collected by:** CODI
 - **Branch:** `feature/wp00-foundations`
 - **Base:** `b6ac365a471f77e0b0dcfb488dc064c106e782c4`
 - **Implementation commits:**
   - `27de6506bece09c75ffc28192056b6c397feeef3` (implementation)
   - `8c91f74` (executable bits only)
+  - `0cb99e5` (report and manifest v1.0; pushed, FORGE run 1)
+  - Fix A commit: verification metadata repair (this revision)
 - **Local environment:** Windows 11 (amd64), Git Bash
   - Temurin 21.0.12+8
   - Gradle 9.8.2 (wrapper; embedded Kotlin 2.4.10)
@@ -16,21 +18,58 @@
 - **Local TLS note:** Gradle ran with `JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStoreType=Windows-ROOT` because local antivirus inspects TLS. This changes transport trust only. Artifact integrity is enforced by `verification-metadata.xml`.
 - **Raw logs:** retained outside the repository. They contain local machine paths, and Workflow v2.4 §9 says not to commit large logs. Available to GAI on request.
 
-All local runs happened on 2026-10-27 between 03:35Z and 03:50Z (2026-10-26 Pacific).
+The v1.0 local runs happened on 2026-10-27 between 03:35Z and 03:50Z (2026-10-26 Pacific). Fix A runs happened between 04:41Z and 05:02Z.
+
+## Correction: clean-environment build (Fix A)
+
+**Original defect:**
+- v1.0 evidence was collected only against a warm local Gradle cache. No build from an empty cache was run, so handoff acceptance criterion 5 ("reproducible on a clean environment") was claimed without being demonstrated.
+- FORGE run 1 (https://github.com/egpennington/newBaileysCart/actions/runs/40447910773, commit `0cb99e5`) failed in both Android jobs during Gradle configuration.
+- A fresh clone of `0cb99e5` with an empty `GRADLE_USER_HOME` reproduced the failure locally:
+
+```
+> Dependency verification failed for configuration 'classpath'
+  4 artifacts failed verification:
+    - guava-parent-33.4.0-jre.pom
+    - junit-bom-5.10.2.module
+    - junit-bom-5.11.0-M2.module
+    - kotlinx-coroutines-bom-1.8.0.pom
+```
+
+The CI job logs themselves were not readable (they need a signed-in account). The reproduction is local evidence.
+
+**Repair:**
+- `verification-metadata.xml` was regenerated from an empty cache. It now has **5 added artifact entries** and no existing checksum changed or removed.
+- Every new SHA-256 entry comes from a file whose SHA-1 matches the `.sha1` published on Maven Central.
+
+| Added artifact | SHA-256 | Maven Central SHA-1 |
+|---|---|---|
+| `com.google.guava:guava-parent:33.4.0-jre` `.pom` | `3a499ed34a0d9ee0f1bcc39230021a1cd4e2f7dd0426ab6844f585465d41dcd7` | match |
+| `org.apache.groovy:groovy-bom:4.0.29` `.pom` | `c24277dec93f146bcda25f5ae4391d6527e384e2132efa32184c1e852b42bca9` | match |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.8.0` `.pom` | `1239e9dbe1397cd5971342956b2511bc3ace7b641842e4372a088dcfa8b9ad55` | match |
+| `org.junit:junit-bom:5.10.2` `.module` | `de23b114b3e4119a8fe6eb17bed5a3852816698bace67071579d6d927ebb080a` | match |
+| `org.junit:junit-bom:5.11.0-M2` `.module` | `86477abcf490d6ca059aa9973cb108d22a506f49d1a5569bb32cc6cbf43c2cce` | match |
+
+| Repair run (local) | Cache | Result |
+|---|---|---|
+| Regenerate: `--write-verification-metadata sha256 assembleDebug assembleRelease test lint :app:dependencies :core:model:dependencies` | empty | BUILD SUCCESSFUL in 8m 42s |
+| Verify: `clean assembleDebug assembleRelease test lint` | second empty cache | BUILD SUCCESSFUL in 5m 35s (108 tasks executed, 0 verification failures) |
+
+The scratch-clone trial also added `junit-bom-5.13.3.pom`. The authoritative clean regeneration did not need it, and the second empty-cache build proves it isn't required.
 
 ## Status matrix
 
-Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes.
+Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes. FORGE results are taken only from GitHub Actions job conclusions.
 
-| ProofPoint | D2 local (CODI) | D2 CI (FORGE) | D4 (GAI) | Overall |
-|---|---|---|---|---|
-| PL-PP-WP00-01 Clean repeat build | **PASS** | NOT_RUN | NOT_RUN | Incomplete: CI not run |
-| PL-PP-WP00-02 Secret absence | **PASS** | NOT_RUN | NOT_RUN | Incomplete: CI not run |
-| PL-PP-WP00-03 CI failure gate | **PASS** (local negatives) | NOT_RUN | NOT_RUN | Incomplete: CI negative run not done |
-| PL-PP-WP00-04 Dependency integrity / inventory | **FAIL** (vulnerability scan); integrity enforcement PASS | NOT_RUN | NOT_RUN | **FAIL**, pending PL disposition (WP00-OPEN-02) |
-| PL-PP-WP00-05 No real Firebase | **PASS** | NOT_RUN | NOT_RUN | Incomplete: CI not run |
+| ProofPoint | D2 local (CODI) | D2 CI (FORGE run 1, `0cb99e5`) | D4 (GAI) |
+|---|---|---|---|
+| PL-PP-WP00-01 Clean repeat build | PASS (warm cache); clean-cache build PASS after Fix A | **FAIL** (verification, see correction) | NOT_RUN |
+| PL-PP-WP00-02 Secret absence | PASS | **PASS** | NOT_RUN |
+| PL-PP-WP00-03 CI failure gate | PASS (local negatives) | NOT_RUN (no deliberate-fixture CI run) | NOT_RUN |
+| PL-PP-WP00-04 Dependency integrity / inventory | **FAIL** (vulnerability scan); integrity enforcement PASS | **FAIL** (Scan lockfiles step) | NOT_RUN |
+| PL-PP-WP00-05 No real Firebase | PASS | **PASS** | NOT_RUN |
 
-D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run. FORGE CI has **never executed**: the branch has not been pushed, because pushing needs PL approval.
+D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run. Results after the remediation commits are recorded once the next FORGE run completes.
 
 ## PL-PP-WP00-01: Clean repeat build
 
