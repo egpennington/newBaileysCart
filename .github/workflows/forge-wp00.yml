@@ -96,28 +96,62 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-disabled: true
-      # Builds the unsigned release twice from clean and records hashes. Byte-identical APKs are
-      # not guaranteed by AGP; differences are reported for review, while a build failure blocks.
-      - name: Two clean builds and hash comparison
+      # Two independent clean builds. The :core:model JAR must be byte-identical (hard gate,
+      # PL-approved 2026-10-26, GAI-WP00-MAJ-01). The APK comparison is informational for WP-00.
+      - name: Two independent clean builds
         run: |
           set -euo pipefail
+          evidence="$RUNNER_TEMP/repeat-build-evidence"
           for run in 1 2; do
-            ./gradlew clean :app:assembleRelease :core:model:jar --no-daemon --no-build-cache --rerun-tasks
-            mkdir -p "$RUNNER_TEMP/run$run"
-            cp app/build/outputs/apk/release/*.apk core/model/build/libs/*.jar "$RUNNER_TEMP/run$run/"
+            ./gradlew clean --no-daemon
+            # Independence check: clean must remove every output of the previous run.
+            if [ -e core/model/build/libs/model.jar ] || compgen -G "app/build/outputs/apk/release/*.apk" > /dev/null; then
+              echo "::error title=Repeat build not independent::outputs survived clean before run $run"
+              exit 1
+            fi
+            ./gradlew :app:assembleRelease :core:model:jar --no-daemon --no-build-cache --rerun-tasks
+            mkdir -p "$evidence/run$run"
+            cp core/model/build/libs/model.jar app/build/outputs/apk/release/app-release-unsigned.apk "$evidence/run$run/"
+            stat -c "run$run %n mtime=%y size=%s" core/model/build/libs/model.jar >> "$evidence/build-provenance.txt"
           done
+      - name: Compare hashes (JAR hard gate, APK informational)
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/repeat-build-evidence"
+          jar1=$(sha256sum "$evidence/run1/model.jar" | cut -d' ' -f1)
+          jar2=$(sha256sum "$evidence/run2/model.jar" | cut -d' ' -f1)
+          apk1=$(sha256sum "$evidence/run1/app-release-unsigned.apk" | cut -d' ' -f1)
+          apk2=$(sha256sum "$evidence/run2/app-release-unsigned.apk" | cut -d' ' -f1)
+          {
+            echo "core:model JAR run1 $jar1"
+            echo "core:model JAR run2 $jar2"
+            echo "APK (informational) run1 $apk1"
+            echo "APK (informational) run2 $apk2"
+          } | tee "$evidence/hashes.txt"
           {
             echo "### PL-PP-WP00-01 repeat-build hashes"
             echo '```'
-            (cd "$RUNNER_TEMP/run1" && sha256sum *) | sed 's/^/run1 /'
-            (cd "$RUNNER_TEMP/run2" && sha256sum *) | sed 's/^/run2 /'
+            cat "$evidence/hashes.txt" "$evidence/build-provenance.txt"
             echo '```'
-            if diff <(cd "$RUNNER_TEMP/run1" && sha256sum *) <(cd "$RUNNER_TEMP/run2" && sha256sum *) > /dev/null; then
-              echo "Result: byte-identical across runs."
-            else
-              echo "Result: DIFFERENCES between runs (review required; not a gate failure)."
-            fi
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=core:model JAR hashes (hard gate)::run1=$jar1 run2=$jar2"
+          echo "::notice title=APK hashes (informational)::run1=$apk1 run2=$apk2"
+          if [ "$apk1" != "$apk2" ]; then
+            echo "::warning title=APK not byte-identical::informational for WP-00; not a gate failure"
+          fi
+          if [ "$jar1" != "$jar2" ]; then
+            echo "::error title=core:model JAR not byte-identical::run1=$jar1 run2=$jar2"
+            echo "Result: FAIL - core:model JAR differs between independent clean builds" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Result: PASS - core:model JAR byte-identical across independent clean builds" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload repeat-build evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: repeat-build-evidence
+          path: ${{ runner.temp }}/repeat-build-evidence
+          retention-days: 14
 
   backend:
     name: Backend typecheck, tests, npm audit

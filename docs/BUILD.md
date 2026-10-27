@@ -80,7 +80,7 @@ bash scripts/check-no-real-firebase.sh
 
 1. Wrapper validation
 2. Android compile, lint and unit tests
-3. Clean repeat build with hash report
+3. Clean repeat build: two independent clean builds. The `core:model` JAR must be byte-identical or the job fails (hard gate). The APK comparison only warns (informational for WP-00). Hashes go to notice annotations, the job summary and the `repeat-build-evidence` artifact.
 4. Backend typecheck, tests and npm audit
 5. osv-scanner plus CycloneDX SBOM
 6. gitleaks (full history and working tree)
