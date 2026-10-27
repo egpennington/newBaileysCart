@@ -25,6 +25,20 @@
 | gitleaks | **8.30.1** (SHA-256 pinned) | Secret scanning. | GitHub release checksums file |
 | osv-scanner | **2.7.0** (SHA-256 pinned) | Vulnerability scanning of Gradle lockfiles and package-lock.json; CycloneDX SBOM output. | GitHub release SHA256SUMS |
 
+## Android Lint tool dependency overrides (Fix B, PL-authorized 2026-10-26)
+
+AGP 9.4.0's Lint tool (`androidLintTool` configuration) resolves versions with known vulnerabilities. The root `build.gradle.kts` forces patched versions **for that configuration only**. The application compile and runtime classpaths don't change; the release APK hash is identical before and after.
+
+| Package | AGP default | Pinned for lint tool | Advisories addressed |
+|---|---|---|---|
+| org.bouncycastle:bcprov-jdk18on | 1.80.2 | 1.85 | GHSA-9pwp-9qqc-pr26, GHSA-qp49-qgx5-5m26, GHSA-c3fc-8qff-9hwx |
+| org.bouncycastle:bcpkix-jdk18on | 1.80.2 | 1.85 | GHSA-wg6q-6289-32hp |
+| org.bouncycastle:bcutil-jdk18on | 1.80.2 | 1.85 | aligned with bcprov/bcpkix |
+| org.apache.commons:commons-lang3 | 3.16.0 | 3.18.0 | osv-scanner finding |
+| org.apache.httpcomponents:httpclient | 4.5.6 | 4.5.13 | osv-scanner finding |
+
+Newer releases exist (bcprov 1.86, commons-lang3 3.21.0, httpclient 4.5.14). The PL authorized the versions validated in the scratch-clone trial. Revisit these overrides on every AGP upgrade, and remove them once AGP ships patched versions.
+
 ## GitHub Actions (pinned by commit SHA)
 
 | Action | Tag | Commit |

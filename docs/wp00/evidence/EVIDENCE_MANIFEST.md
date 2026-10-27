@@ -1,6 +1,6 @@
 # WP-00 Evidence Manifest: PS-BUILD-SUPPLY-CHAIN
 
-- **Version:** 1.1. Adds the FORGE run 1 result and the Fix A clean-environment correction.
+- **Version:** 1.2. Adds the FORGE run 1 result, the Fix A clean-environment correction, and Fix B lint-tool dependency remediation.
 - **Collected by:** CODI
 - **Branch:** `feature/wp00-foundations`
 - **Base:** `b6ac365a471f77e0b0dcfb488dc064c106e782c4`
@@ -8,7 +8,8 @@
   - `27de6506bece09c75ffc28192056b6c397feeef3` (implementation)
   - `8c91f74` (executable bits only)
   - `0cb99e5` (report and manifest v1.0; pushed, FORGE run 1)
-  - Fix A commit: verification metadata repair (this revision)
+  - `92f83a3` Fix A: verification metadata repair
+  - Fix B commit: lint-tool dependency remediation (this revision)
 - **Local environment:** Windows 11 (amd64), Git Bash
   - Temurin 21.0.12+8
   - Gradle 9.8.2 (wrapper; embedded Kotlin 2.4.10)
@@ -57,16 +58,37 @@ The CI job logs themselves were not readable (they need a signed-in account). Th
 
 The scratch-clone trial also added `junit-bom-5.13.3.pom`. The authoritative clean regeneration did not need it, and the second empty-cache build proves it isn't required.
 
+## Fix B: Android Lint tool dependency remediation
+
+- **Change:** `android/build.gradle.kts` forces patched versions for the `androidLintTool` configuration only:
+  - bcprov/bcpkix/bcutil-jdk18on 1.80.2 → 1.85
+  - commons-lang3 3.16.0 → 3.18.0
+  - httpclient 4.5.6 → 4.5.13
+- **No suppression:** no exclusions, ignores or gate changes.
+
+| Check (local, 2026-10-27 05:09Z–05:25Z) | Result |
+|---|---|
+| Regenerate locks and metadata from an empty cache (`clean … --write-locks --write-verification-metadata sha256`) | BUILD SUCCESSFUL. Two earlier attempts failed on local network/TLS drops to `dl.google.com` and services.gradle.org; their partial outputs were discarded. |
+| Lockfile diff | Only the 5 `=androidLintTool` lines above changed, in `app` and `core/model`. `settings-gradle.lockfile` unchanged. |
+| Verification metadata diff | 42 artifacts added, 0 removed or changed. **42/42** match the publisher's `.sha1` (Google Maven or Maven Central), and their SHA-256 matches the recorded entry. Additions: the 10 patched jars/POMs, 3 parent POMs (apache-35, commons-parent-85, httpcomponents-client-4.5.13), and 29 metadata files (22 AndroidX `.module`/`.pom`, 4 kotlinx-coroutines, 3 junit-bom). The second empty-cache build after Fix A did not need those 29. This cold resolution fetched and recorded them, and why it differs between runs was not determined. Extra validated entries add no trust beyond those exact checksums. |
+| Full build from a second empty cache: `clean assembleDebug assembleRelease test lint` | BUILD SUCCESSFUL (108 tasks executed) |
+| Release APK SHA-256 after Fix B | `aa78c065…0587`, **identical** to before Fix B, so the app runtime is unchanged |
+| `osv-scanner scan source` (all 3 lockfiles: 201 + 100 Maven, 3 npm packages) | exit 0: **No issues found** |
+| `./gradlew lint --rerun-tasks` | exit 0; 11 lint tasks executed with the patched tool classpath |
+| Lint negative: hardcoded manifest label in `:app` | exit 1: `[UnusedResources]` error detected |
+| Lint negative: `String.format` without locale in `:core:model` | exit 1: `[DefaultLocale]` error detected |
+| Lint after reverting both fixtures | exit 0 |
+
 ## Status matrix
 
 Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes. FORGE results are taken only from GitHub Actions job conclusions.
 
-| ProofPoint | D2 local (CODI) | D2 CI (FORGE run 1, `0cb99e5`) | D4 (GAI) |
+| ProofPoint | D2 local (CODI, after Fix A+B) | D2 CI (FORGE run 1, `0cb99e5`) | D4 (GAI) |
 |---|---|---|---|
-| PL-PP-WP00-01 Clean repeat build | PASS (warm cache); clean-cache build PASS after Fix A | **FAIL** (verification, see correction) | NOT_RUN |
+| PL-PP-WP00-01 Clean repeat build | PASS (identical hashes; clean-cache builds pass) | **FAIL** (verification, see correction) | NOT_RUN |
 | PL-PP-WP00-02 Secret absence | PASS | **PASS** | NOT_RUN |
 | PL-PP-WP00-03 CI failure gate | PASS (local negatives) | NOT_RUN (no deliberate-fixture CI run) | NOT_RUN |
-| PL-PP-WP00-04 Dependency integrity / inventory | **FAIL** (vulnerability scan); integrity enforcement PASS | **FAIL** (Scan lockfiles step) | NOT_RUN |
+| PL-PP-WP00-04 Dependency integrity / inventory | PASS (osv clean; integrity enforced) | **FAIL** (Scan lockfiles step) | NOT_RUN |
 | PL-PP-WP00-05 No real Firebase | PASS | **PASS** | NOT_RUN |
 
 D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run. Results after the remediation commits are recorded once the next FORGE run completes.

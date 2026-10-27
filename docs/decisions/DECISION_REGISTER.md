@@ -1,6 +1,6 @@
 # newBaileysCart Decision Register
 
-- **Register version:** 1.0
+- **Register version:** 1.1. WP00-OPEN-02 resolved by PL remediation authorization.
 - **Created:** 2026-10-26 by CODI, recording Project Lead (penguinPrime) decisions
 - **Rule:** entries record decisions and their sources. They do not change the API contract. Canonical API incorporation is a separate, controlled CipherMuse change that must be recorded here when it happens.
 
@@ -32,5 +32,6 @@ The document headers of R-02 still read "REVISED PROPOSAL … NOT AN APPROVED AP
 | ID | Question | Raised by | Notes |
 |---|---|---|---|
 | WP00-OPEN-01 | Permanent Play `applicationId` | CODI | WP-00 uses the nonproduction placeholder `com.penningtonlabs.baileyscart.wp00placeholder`. An applicationId cannot change after Play publication. |
-| WP00-OPEN-02 | Disposition of vulnerabilities in Android Lint tool dependencies (`androidLintTool` configuration, bundled by AGP 9.4.0) | CODI | See WP-00 implementation report. Not in app runtime classpath. Requires PL risk decision; no suppression applied. |
+| WP00-OPEN-02 | Disposition of vulnerabilities in Android Lint tool dependencies (`androidLintTool` configuration, bundled by AGP 9.4.0) | CODI | **RESOLVED 2026-10-26.** The PL authorized Fix B: patched versions for the lint tool configuration only. No suppression or exception was applied. See the version decision record. |
+| WP00-FIX-A | Repair verification metadata after FORGE run 40447910773 clean-cache failure | PL AUTHORIZED 2026-10-26 | Additions only. Each new checksum validated against publisher SHA-1. |
 | WP00-OPEN-03 | Branch target: Workflow v2.4 §10 creates `feature/*` from `develop`, but `develop` does not exist; handoff specifies `main` at the baseline | CODI | No merge in WP-00. PL to decide whether to create `develop` before the WP-00 PR. |

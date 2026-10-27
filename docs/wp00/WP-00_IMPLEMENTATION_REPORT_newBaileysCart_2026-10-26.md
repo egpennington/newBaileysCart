@@ -127,6 +127,19 @@ GAI PASS and green CI do not authorize a merge. The PL retains the merge and nex
 
 `docs/wp00/WP-00_IMPLEMENTATION_REPORT_newBaileysCart_2026-10-26.md` (this file)
 
+## Remediation addendum (after FORGE run 1)
+
+- **FORGE run 1** (https://github.com/egpennington/newBaileysCart/actions/runs/40447910773, `0cb99e5`) failed three ways:
+  - Android build: incomplete verification metadata for clean caches.
+  - Repeat build: same cause.
+  - Dependency scan: R-01.
+- **Fixes:** the PL authorized two fixes on 2026-10-26.
+  - **Fix A** (`92f83a3`): cold-cache metadata regeneration.
+  - **Fix B:** lint-tool-only patched dependencies. This resolves R-01 and WP00-OPEN-02.
+- **Evidence:** local results for both fixes are in evidence manifest v1.2.
+- **CI status:** CI results after the fixes come only from the next FORGE run and are reported separately.
+- **Correction:** this report's original claim of a reproducible clean-environment build (AC-5) was not demonstrated until Fix A.
+
 ## Decisions requested from the PL
 
 1. **Push approval:** push `feature/wp00-foundations` to origin so FORGE runs. No PR and no merge.
