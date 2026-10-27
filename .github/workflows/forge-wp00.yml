@@ -5,7 +5,7 @@ name: FORGE WP-00
 
 on:
   push:
-    branches: ["feature/**", "fix/**"]
+    branches: ["feature/**", "fix/**", develop, main]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -13,9 +13,11 @@ on:
 permissions:
   contents: read
 
+# Integration-branch runs (main, develop) get a per-run group and are never cancelled or
+# superseded; feature/fix branches and pull requests keep cancel-superseded-runs behavior.
 concurrency:
-  group: forge-${{ github.ref }}
-  cancel-in-progress: true
+  group: forge-${{ github.ref }}${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
 env:
   JAVA_VERSION: "21.0.12+8"
