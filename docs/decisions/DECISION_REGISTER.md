@@ -1,6 +1,6 @@
 # newBaileysCart Decision Register
 
-- **Register version:** 1.2. Adds WP00-REPRO-01 (JAR reproducibility hard gate). v1.1 resolved WP00-OPEN-02.
+- **Register version:** 1.3. Adds WP00-MAINT-01 (Guava override for the Android Lint tool). v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
 - **Created:** 2026-10-26 by CODI, recording Project Lead (penguinPrime) decisions
 - **Rule:** entries record decisions and their sources. They do not change the API contract. Canonical API incorporation is a separate, controlled CipherMuse change that must be recorded here when it happens.
 
@@ -35,4 +35,5 @@ The document headers of R-02 still read "REVISED PROPOSAL … NOT AN APPROVED AP
 | WP00-OPEN-02 | Disposition of vulnerabilities in Android Lint tool dependencies (`androidLintTool` configuration, bundled by AGP 9.4.0) | CODI | **RESOLVED 2026-10-26.** The PL authorized Fix B: patched versions for the lint tool configuration only. No suppression or exception was applied. See the version decision record. |
 | WP00-FIX-A | Repair verification metadata after FORGE run 40447910773 clean-cache failure | PL AUTHORIZED 2026-10-26 | Additions only. Each new checksum validated against publisher SHA-1. |
 | WP00-REPRO-01 | Reproducibility policy (GAI-WP00-MAJ-01): the `:core:model` JAR must be byte-identical across two independent clean CI builds (hard gate). APK hash comparison is informational for WP-00. | PL APPROVED 2026-10-26 | Source: `CODI_WP00_HARD_GATE_NEGATIVE_CI_AUTHORIZATION_v1.0.md` (code `9361742805`). Implemented in the `repeat-build` job of `forge-wp00.yml`. |
+| WP00-MAINT-01 | Fix C: override `com.google.guava:guava` from `33.4.0-jre` to `33.7.2-jre` on the Android Lint tool classpath (`androidLintTool` configuration only), for **GHSA-xxph-c9ww-hj94 / CVE-2026-102554** (HIGH; uncontrolled memory allocation in deserialization; fixed in 33.7.2). | PL AUTHORIZED 2026-10-27 | Found by the osv-scanner gate in FORGE run 40559437781; the advisory was published 2026-10-27, after the last green run. Build-time Lint tooling only; the shipped APK and application runtime dependencies are unaffected. No suppression or exception was applied. Implemented in `android/build.gradle.kts` next to the Fix B overrides. **Maintenance obligation:** on every Android Gradle Plugin or Lint upgrade, check the Guava version that AGP bundles. Remove this override once AGP ships 33.7.2-jre or later; never let it pin Guava below the bundled version. |
 | WP00-OPEN-03 | Branch target: Workflow v2.4 §10 creates `feature/*` from `develop`, but `develop` does not exist; handoff specifies `main` at the baseline | CODI | No merge in WP-00. PL to decide whether to create `develop` before the WP-00 PR. |

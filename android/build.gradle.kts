@@ -33,6 +33,11 @@ subprojects {
                     useVersion("4.5.13")
                     because("osv-scanner finding against 4.5.6")
                 }
+                // WP-00 Fix C (PL-authorized, WP00-MAINT-01): FORGE run 40559437781.
+                "com.google.guava:guava" -> {
+                    useVersion("33.7.2-jre")
+                    because("GHSA-xxph-c9ww-hj94 / CVE-2026-102554 against 33.4.0-jre")
+                }
             }
         }
     }
