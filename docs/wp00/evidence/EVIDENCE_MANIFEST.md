@@ -1,6 +1,6 @@
 # WP-00 Evidence Manifest: PS-BUILD-SUPPLY-CHAIN
 
-- **Version:** 1.2. Adds the FORGE run 1 result, the Fix A clean-environment correction, and Fix B lint-tool dependency remediation.
+- **Version:** 1.3. Records FORGE run 2 (first fully successful CI run). v1.2 added Fix A/Fix B; v1.1 added FORGE run 1 and the Fix A correction.
 - **Collected by:** CODI
 - **Branch:** `feature/wp00-foundations`
 - **Base:** `b6ac365a471f77e0b0dcfb488dc064c106e782c4`
@@ -8,8 +8,9 @@
   - `27de6506bece09c75ffc28192056b6c397feeef3` (implementation)
   - `8c91f74` (executable bits only)
   - `0cb99e5` (report and manifest v1.0; pushed, FORGE run 1)
-  - `92f83a3` Fix A: verification metadata repair
-  - Fix B commit: lint-tool dependency remediation (this revision)
+  - `92f83a3939c2749260a4684b5d4cbedd68a81968` Fix A: verification metadata repair
+  - `64c4d1c0ff5954e2fe8a273778fd41aa72fa2dd1` Fix B: lint-tool dependency remediation (FORGE run 2)
+  - Documentation-only commit recording this revision (no code or dependency changes)
 - **Local environment:** Windows 11 (amd64), Git Bash
   - Temurin 21.0.12+8
   - Gradle 9.8.2 (wrapper; embedded Kotlin 2.4.10)
@@ -79,19 +80,58 @@ The scratch-clone trial also added `junit-bom-5.13.3.pom`. The authoritative cle
 | Lint negative: `String.format` without locale in `:core:model` | exit 1: `[DefaultLocale]` error detected |
 | Lint after reverting both fixtures | exit 0 |
 
+## FORGE (GitHub Actions) results
+
+These come from GitHub Actions job conclusions read through the public GitHub REST API. They are **not** CODI local results, and **GAI has not verified them**.
+
+| Run | Commit | Event | Started (UTC) | Conclusion | URL |
+|---|---|---|---|---|---|
+| #1 | `0cb99e5` | push | 2026-10-27T04:06Z | **failure** | https://github.com/egpennington/newBaileysCart/actions/runs/40447910773 |
+| **#2** | **`64c4d1c`** | push | 2026-10-27T05:25:27Z | **success** | https://github.com/egpennington/newBaileysCart/actions/runs/40455233810 |
+
+### Run #2 job results (`64c4d1c`)
+
+| Job | Job ID | Conclusion | Duration |
+|---|---|---|---|
+| Gradle wrapper integrity | 122026895456 | success | 7 s |
+| Android compile, lint, unit tests | 122026939408 | success | 169 s |
+| Clean repeat build (PL-PP-WP00-01) | 122026939345 | success | 185 s |
+| Backend typecheck, tests, npm audit | 122026895405 | success | 15 s |
+| Dependency vulnerability scan and SBOM (PL-PP-WP00-04) | 122026895639 | success | 6 s |
+| Secret scan (PL-PP-WP00-02) | 122026895201 | success | 6 s |
+| No real Firebase configuration (PL-PP-WP00-05) | 122026895506 | success | 5 s |
+| FORGE gate (aggregate) | 122027875549 | success | 2 s |
+
+### Run #2 artifacts (retention until 2026-11-10)
+
+| Artifact | ID | Size (zip) | Digest |
+|---|---|---|---|
+| `android-reports` (lint and unit-test reports) | 12712306369 | 22,888 B | `sha256:a0096994d68f75f75bec39152b61d2588d0632c04dda9871efc63bcfc39cc17a` |
+| `sbom` (CycloneDX 1.6, `--all-packages`) | 12712028867 | 4,418 B | `sha256:b0b272e585232fd199435c9e63b0791b960bcc531bfb66b9255aac39ec7a78e1` |
+
+### Incomplete CI evidence (not retrieved)
+
+CODI has no signed-in GitHub access. Job logs, job summaries and artifact downloads all need a signed-in account; the API returns 403 and exposes no check-run summary. So:
+
+- **CI repeat-build hashes: NOT RETRIEVED.** They are written to the job summary of job 122026939345 (run #2 → "Clean repeat build" → Summary). That job builds twice and reports whether the hashes match, but **does not fail on a mismatch**. A green job therefore proves both clean builds succeeded, not that their outputs were identical. The local hashes are `aa78c065…0587` (APK) and `cf6d0b16…0024` (`model.jar`). Whether CI hashes match each other, or match the local ones, is unverified.
+- **CI SBOM contents: NOT INSPECTED.** Locally, the same command produces 209 components.
+- **CI job logs: NOT READ.** The run #1 root cause was established by local reproduction (see correction above).
+
+A signed-in reviewer (GAI or the PL) can retrieve all three from the run #2 page.
+
 ## Status matrix
 
-Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes. FORGE results are taken only from GitHub Actions job conclusions.
+Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes. **CI columns reflect GitHub Actions job conclusions only. No ProofPoint has GAI verification.**
 
-| ProofPoint | D2 local (CODI, after Fix A+B) | D2 CI (FORGE run 1, `0cb99e5`) | D4 (GAI) |
-|---|---|---|---|
-| PL-PP-WP00-01 Clean repeat build | PASS (identical hashes; clean-cache builds pass) | **FAIL** (verification, see correction) | NOT_RUN |
-| PL-PP-WP00-02 Secret absence | PASS | **PASS** | NOT_RUN |
-| PL-PP-WP00-03 CI failure gate | PASS (local negatives) | NOT_RUN (no deliberate-fixture CI run) | NOT_RUN |
-| PL-PP-WP00-04 Dependency integrity / inventory | PASS (osv clean; integrity enforced) | **FAIL** (Scan lockfiles step) | NOT_RUN |
-| PL-PP-WP00-05 No real Firebase | PASS | **PASS** | NOT_RUN |
+| ProofPoint | D2 local (CODI, after Fix A+B) | D2 CI run #1 (`0cb99e5`) | D2 CI run #2 (`64c4d1c`) | D4 (GAI) |
+|---|---|---|---|---|
+| PL-PP-WP00-01 Clean repeat build | PASS (3 identical builds; 2 clean-cache builds) | FAIL | PASS: two clean builds succeeded. Hash identity not retrieved. | NOT_RUN |
+| PL-PP-WP00-02 Secret absence | PASS | PASS | PASS | NOT_RUN |
+| PL-PP-WP00-03 CI failure gate | PASS (10 local negative fixtures) | not a deliberate-fixture run | **NOT_RUN** (no deliberate-fixture CI run authorized) | NOT_RUN |
+| PL-PP-WP00-04 Dependency integrity / inventory | PASS (osv clean; tamper/drift fail) | FAIL (12 vulnerabilities) | PASS: scan step succeeded. SBOM contents not inspected. | NOT_RUN |
+| PL-PP-WP00-05 No real Firebase | PASS | PASS | PASS | NOT_RUN |
 
-D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run. Results after the remediation commits are recorded once the next FORGE run completes.
+D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run. Run #1's aggregate gate did fail on real upstream failures. That shows blocking behavior, but it isn't the planned deliberate-fixture CI test, so PL-PP-WP00-03 CI stays NOT_RUN.
 
 ## PL-PP-WP00-01: Clean repeat build
 
@@ -104,7 +144,7 @@ Command: `./gradlew clean :app:assembleRelease :core:model:jar --no-daemon --no-
 | 3 | 03:50Z | committed HEAD `8c91f74` | BUILD SUCCESSFUL | `aa78c065…0587` (identical) | `cf6d0b16…0024` (identical) |
 
 - **Result:** byte-identical across three clean builds on one machine.
-- **Limitation:** this doesn't show cross-machine or cross-OS identity. The CI repeat-build job will record Linux hashes.
+- **Limitation:** this doesn't show cross-machine or cross-OS identity. The CI repeat-build job records Linux hashes in its job summary, but those were not retrieved (see FORGE results). A post-Fix-B local rebuild produced the same APK hash.
 - **Also checked:** `zipalign -c -P 16 -v 4` passes for `libandroidx.graphics.path.so` in all four ABIs (16 KB zip alignment). ELF segment alignment was not inspected.
 
 ## PL-PP-WP00-02: Secret absence and redaction
@@ -163,7 +203,7 @@ Vulnerability findings. All of them sit **only** in the `androidLintTool` config
 | org.apache.commons:commons-lang3 | 3.16.0 | 6.5 | 3.18.0 |
 | org.apache.httpcomponents:httpclient | 4.5.6 | 5.3 | 4.5.13 |
 
-No suppression or allowlist was applied. Disposition is a PL risk decision (decision register WP00-OPEN-02).
+No suppression or allowlist was applied. **Superseded:** this table is the v1.0 state. The findings were remediated by Fix B (`64c4d1c`): local osv-scanner reports no issues, and the FORGE run #2 scan job succeeded.
 
 ## PL-PP-WP00-05: No real Firebase connectivity
 
