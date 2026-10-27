@@ -1,0 +1,35 @@
+# Gradle / Android
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+captures/
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+.kotlin/
+
+# Node
+node_modules/
+backend/functions/lib/
+
+# Secrets and signing material: never commit (WP-00 AC-4)
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+
+# Firebase emulator runtime output
+*-debug.log
+.firebase/
+
+# OS
+.DS_Store
+Thumbs.db

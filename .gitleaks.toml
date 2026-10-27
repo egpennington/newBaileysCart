@@ -1,0 +1,6 @@
+# FORGE secret scan configuration (PL-PP-WP00-02).
+# Uses the gitleaks default ruleset. No allowlist entries: any finding blocks the gate.
+title = "newBaileysCart gitleaks config"
+
+[extend]
+useDefault = true
