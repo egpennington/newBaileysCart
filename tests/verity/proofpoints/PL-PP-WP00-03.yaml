@@ -9,18 +9,20 @@ level: integration
 preconditions:
   - FORGE workflow with blocking jobs and an aggregate forge-gate job
 steps:
-  - For each gate, introduce a nonproduction failing fixture (failing unit test, compiler warning, lint violation, backend test failure, synthetic secret, real-Firebase config, checksum tamper, lockfile drift)
-  - Run the gate command and record the exit code
-  - Revert the fixture and confirm the gate passes again
-  - In CI, push a failing fixture on a disposable branch and confirm forge-gate fails; revert before handoff
+  - Local - introduce each nonproduction failing fixture, run the gate command, record the exit code, revert
+  - CI - on the disposable branch feature/wp00-pp03-gate-negative only, push one fixture per commit (variant A failing unit test; B invalid dependency checksum; C per-build JAR stamp), waiting for each run to finish
+  - Each variant commit equals the canonical feature HEAD plus that fixture alone
+  - Record run ID, commit SHA, failing job and step, forge-gate result
+  - Preserve evidence, then delete the disposable branch and confirm the canonical branches are unchanged
 expected:
-  - Every fixture makes its gate exit non-zero
-  - No fixture remains in the handoff commit
+  - Every fixture makes its intended gate fail; forge-gate fails in every negative run
+  - No fixture ever reaches feature/wp00-foundations
 evidence:
-  - Local negative-run log; FORGE run link for the failing-fixture run
+  - Local negative-run log; FORGE runs 40462443414 (A), 40462880987 (B), 40463371956 (C); positive control 40461844217
+  - docs/wp00/evidence/EVIDENCE_MANIFEST.md (v1.4)
 depths:
   D1: not applicable
-  D2: local negative runs; CI negative run
+  D2: local negative runs; CI negative runs on the disposable branch
   D3: not applicable
   D4: GAI review
 status: see docs/wp00/evidence/EVIDENCE_MANIFEST.md

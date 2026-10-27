@@ -1,6 +1,6 @@
 # WP-00 Evidence Manifest: PS-BUILD-SUPPLY-CHAIN
 
-- **Version:** 1.3. Records FORGE run 2 (first fully successful CI run). v1.2 added Fix A/Fix B; v1.1 added FORGE run 1 and the Fix A correction.
+- **Version:** 1.4. Adds the JAR reproducibility hard gate, its positive control, and the PL-PP-WP00-03 negative CI runs. v1.3 recorded FORGE run 2; v1.2 added Fix A/Fix B; v1.1 added FORGE run 1 and the Fix A correction.
 - **Collected by:** CODI
 - **Branch:** `feature/wp00-foundations`
 - **Base:** `b6ac365a471f77e0b0dcfb488dc064c106e782c4`
@@ -10,7 +10,9 @@
   - `0cb99e5` (report and manifest v1.0; pushed, FORGE run 1)
   - `92f83a3939c2749260a4684b5d4cbedd68a81968` Fix A: verification metadata repair
   - `64c4d1c0ff5954e2fe8a273778fd41aa72fa2dd1` Fix B: lint-tool dependency remediation (FORGE run 2)
-  - Documentation-only commit recording this revision (no code or dependency changes)
+  - `50c1a64` manifest v1.3 + GAI handoff (docs only)
+  - `39fa9a74bdcfb6f4217312619c607db64b45c723` JAR reproducibility hard gate (positive control run 40461844217)
+  - Documentation-only commit recording this revision (v1.4)
 - **Local environment:** Windows 11 (amd64), Git Bash
   - Temurin 21.0.12+8
   - Gradle 9.8.2 (wrapper; embedded Kotlin 2.4.10)
@@ -119,19 +121,77 @@ CODI has no signed-in GitHub access. Job logs, job summaries and artifact downlo
 
 A signed-in reviewer (GAI or the PL) can retrieve all three from the run #2 page.
 
+## JAR reproducibility hard gate and negative CI proof (v1.4)
+
+- **Authorization:** `CODI_WP00_HARD_GATE_NEGATIVE_CI_AUTHORIZATION_v1.0.md` (code `9361742805`)
+- **Decision:** register entry WP00-REPRO-01
+- **Hard-gate commit:** `39fa9a74bdcfb6f4217312619c607db64b45c723`
+
+**Gate behavior (`repeat-build` job):**
+1. Step "Two independent clean builds" runs `./gradlew clean` and fails if any `model.jar` or release APK survives the clean. It then builds `:app:assembleRelease :core:model:jar` (`--no-build-cache --rerun-tasks`) and copies that run's `model.jar` and APK to `run1/` or `run2/`. It does this twice.
+2. Step "Compare hashes" compares the SHA-256 of the two `model.jar` copies, and exits 1 on mismatch with an `::error::` annotation (**hard gate**). It compares the two APK copies too, but a mismatch only raises `::warning::` (**informational for WP-00**).
+3. Both hash pairs are published as `::notice::` annotations, in the job summary, and in the `repeat-build-evidence` artifact (`hashes.txt`, `build-provenance.txt`, both JARs and APKs). The artifact upload uses `if: always()`, so the evidence survives a failure.
+4. A failed `repeat-build` propagates to `forge-gate`, which fails on any non-`success` upstream result.
+
+The annotations are readable through the public GitHub API, so CODI could read the CI hashes directly for this evidence. The job logs and summaries still need a signed-in account.
+
+### Run-by-run evidence
+
+| Run | Branch / commit | Fixture (diff vs `39fa9a7`) | Expected | Actual (GitHub API) | `forge-gate` | Result |
+|---|---|---|---|---|---|---|
+| **Positive control** [40461844217](https://github.com/egpennington/newBaileysCart/actions/runs/40461844217) | `feature/wp00-foundations` @ `39fa9a7` | none | all 8 jobs succeed; JAR hashes equal | all 8 success. JAR `cf6d0b16…0024` ×2; APK `aa78c065…0587` ×2 (notice annotations) | success | **PASS** |
+| **Variant A** [40462443414](https://github.com/egpennington/newBaileysCart/actions/runs/40462443414) | `feature/wp00-pp03-gate-negative` @ `658a5fa5f1e8fe94a49bca44c5281f0bee0cfd08` | +`Wp00Pp03NegativeTest.kt` (deliberate `assertEquals` failure) | `android` fails at "Build, lint, unit tests"; `forge-gate` fails | `android` **failure** at step 7 "Build, lint, unit tests"; other 6 jobs success; repeat-build JAR hashes equal | **failure** | **PASS** (negative) |
+| **Variant B** [40462880987](https://github.com/egpennington/newBaileysCart/actions/runs/40462880987) | same branch @ `3595e26854928f4ee87b0be09a7e5b779858d1e5` | `verification-metadata.xml`: `junit-4.13.2.jar` SHA-256 replaced with an invalid value | Gradle dependency verification fails in `android`; `forge-gate` fails | `android` **failure** at step 7; `repeat-build` success (junit is not on its classpaths, as predicted); other jobs success | **failure** | **PASS** (negative) |
+| **Variant C** [40463371956](https://github.com/egpennington/newBaileysCart/actions/runs/40463371956) | same branch @ `581e2baf99b97adb53d389b8ca1fcfc5823d19fa` | `core/model/build.gradle.kts`: per-build nanosecond stamp added to `model.jar` (build script only; no production source) | `repeat-build` fails at "Compare hashes" on differing JAR hashes; `forge-gate` fails | build step success (independence check passed). `repeat-build` **failure at step 7 "Compare hashes"**, `::error:: core:model JAR not byte-identical` run1 `7b925fc7f97503e5815ac98440f955e3f1a9d4cb9ea87634f8633ebadb108cc2` / run2 `c4c8170cf3db00b828042ae87b1bd5b547f47a5a17e6bfa7ff6bf40180499871`. APK warning only. All other jobs success; evidence artifact uploaded. | **failure** | **PASS** (negative) |
+
+Each variant's commit tree is `39fa9a7` plus that variant's fixture alone. Each later variant removed the previous fixture, so no failure could mask another. Runs were pushed one at a time, each after the previous run had finished.
+
+**Attribution limits:**
+- For variants A and B, CI attribution is at **step level** ("Build, lint, unit tests" failed). The log text that would show the assertion or verification message was not read; it needs a signed-in account.
+- The intended causes are supported by local reproduction of the identical fixtures on `39fa9a7`:
+  - A: `Wp00Pp03NegativeTest > deliberateFailureForForgeGateProof FAILED … ComparisonFailure`, 2 tests, 1 failed.
+  - B: `Dependency verification failed … junit-4.13.2.jar (junit:junit:4.13.2)`.
+- They are also consistent with the `android-reports` artifact sizes: A 14,409 B (tests ran, lint skipped); B 725 B (failed during resolution); baseline about 22.9 KB.
+- **Variant C's cause is shown directly in the CI annotations.**
+
+**Not tested:** a *skipped* upstream job. The planned wrapper-tamper variant was replaced by the non-executable checksum fixture, per the authorization §4B preference. The skipped path in `forge-gate` is covered by its code (`!= success`) and by GAI's code audit, but not by a CI run.
+
+### Local checks (CODI, 2026-10-27, before pushing)
+
+| Check | Result |
+|---|---|
+| Hard-gate step scripts extracted from the workflow and run locally with two real clean builds | positive: exit 0, JAR `cf6d0b16…0024` ×2 |
+| Same compare script on an altered `model.jar` copy | exit 1 with `::error::` |
+| Variant C fixture with the step scripts | build exit 0, compare exit 1 (different JAR hashes); other gates (`assembleDebug test lint`) exit 0 |
+| Workflow YAML parse (js-yaml 4.1.0) | 8 jobs; repeat-build has 7 steps; upload `if: always()` |
+
+### Cross-OS observation
+
+The positive-control CI hashes on Linux (`ubuntu-24.04`) are **identical** to CODI's local Windows hashes: JAR `cf6d0b16…0024`, APK `aa78c065…0587`. That makes the WP-00 build byte-reproducible across those two environments, which is observed, not promised.
+
+### Disposable branch cleanup
+
+1. Before deletion: all 3 run records, the job results, annotations and artifact IDs were captured, and a verified `git bundle` plus patches of `39fa9a7..581e2ba` were saved by CODI outside the repository.
+2. `feature/wp00-pp03-gate-negative` was deleted locally and on `origin` at **2026-10-27T06:56:04Z**.
+3. After deletion:
+   - `feature/wp00-foundations` = `39fa9a7` and `main` = `b6ac365`, both unchanged; no other branches exist.
+   - All 3 negative runs, and their 3 artifacts each, are still retrievable.
+   - Commit `581e2ba` still resolves through the GitHub API.
+   - The canonical tree contains none of the fixtures.
+
 ## Status matrix
 
-Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes. **CI columns reflect GitHub Actions job conclusions only. No ProofPoint has GAI verification.**
+Statuses follow Workflow v2.4 §9. `NOT_RUN` and `BLOCKED` are not passes. The CI columns reflect GitHub Actions results only. **GAI has not reviewed the hard gate or the negative runs.**
 
-| ProofPoint | D2 local (CODI, after Fix A+B) | D2 CI run #1 (`0cb99e5`) | D2 CI run #2 (`64c4d1c`) | D4 (GAI) |
-|---|---|---|---|---|
-| PL-PP-WP00-01 Clean repeat build | PASS (3 identical builds; 2 clean-cache builds) | FAIL | PASS: two clean builds succeeded. Hash identity not retrieved. | NOT_RUN |
-| PL-PP-WP00-02 Secret absence | PASS | PASS | PASS | NOT_RUN |
-| PL-PP-WP00-03 CI failure gate | PASS (10 local negative fixtures) | not a deliberate-fixture run | **NOT_RUN** (no deliberate-fixture CI run authorized) | NOT_RUN |
-| PL-PP-WP00-04 Dependency integrity / inventory | PASS (osv clean; tamper/drift fail) | FAIL (12 vulnerabilities) | PASS: scan step succeeded. SBOM contents not inspected. | NOT_RUN |
-| PL-PP-WP00-05 No real Firebase | PASS | PASS | PASS | NOT_RUN |
+| ProofPoint | D2 local (CODI) | D2 CI (FORGE) | D4 (GAI) |
+|---|---|---|---|
+| PL-PP-WP00-01 Clean repeat build | PASS (identical hashes; clean-cache builds; hard-gate scripts pass on match, fail on mismatch) | **PASS**: positive control 40461844217, JAR hard gate passed on equal hashes. Gate effectiveness shown by variant C (40463371956). | NOT_RUN for the hard gate (GAI's earlier CONDITIONAL PASS predates it) |
+| PL-PP-WP00-02 Secret absence | PASS | PASS (runs #2, #3, positive control) | GAI-reported PASS (code and CI inspection, per GAI reconciliation report; not a bare-metal reproduction) |
+| PL-PP-WP00-03 CI failure gate | PASS (10 local negative fixtures) | **PASS**: variants A, B and C each failed their intended gate, and `forge-gate` failed each time (A/B attributed at step level; C by annotation). Skipped-job path not exercised in CI. | NOT_RUN |
+| PL-PP-WP00-04 Dependency integrity / inventory | PASS | PASS (scan job succeeded). Verification gate effectiveness shown by variant B. SBOM contents not inspected by CODI. | GAI-reported PASS (inspection) |
+| PL-PP-WP00-05 No real Firebase | PASS | PASS | GAI-reported PASS (inspection) |
 
-D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run. Run #1's aggregate gate did fail on real upstream failures. That shows blocking behavior, but it isn't the planned deliberate-fixture CI test, so PL-PP-WP00-03 CI stays NOT_RUN.
+D1 (unit) and D3 (device) were not applicable to these ProofPoints and were not run.
 
 ## PL-PP-WP00-01: Clean repeat build
 
@@ -144,7 +204,7 @@ Command: `./gradlew clean :app:assembleRelease :core:model:jar --no-daemon --no-
 | 3 | 03:50Z | committed HEAD `8c91f74` | BUILD SUCCESSFUL | `aa78c065…0587` (identical) | `cf6d0b16…0024` (identical) |
 
 - **Result:** byte-identical across three clean builds on one machine.
-- **Limitation:** this doesn't show cross-machine or cross-OS identity. The CI repeat-build job records Linux hashes in its job summary, but those were not retrieved (see FORGE results). A post-Fix-B local rebuild produced the same APK hash.
+- **Limitation:** these three local runs alone don't show cross-machine identity. Since the hard gate (`39fa9a7`), CI hashes are published as annotations: the Linux CI hashes equal the local Windows hashes (see the cross-OS observation). A post-Fix-B local rebuild also produced the same APK hash.
 - **Also checked:** `zipalign -c -P 16 -v 4` passes for `libandroidx.graphics.path.so` in all four ABIs (16 KB zip alignment). ELF segment alignment was not inspected.
 
 ## PL-PP-WP00-02: Secret absence and redaction
@@ -181,7 +241,7 @@ Each fixture was temporary, the gate command was run, and the fixture was then r
 
 The original unexpected passes are recorded in the raw logs.
 
-**CI negative run: NOT_RUN.** It requires pushing a disposable failing-fixture branch, which needs PL approval.
+**CI negative runs: executed 2026-10-27 on a disposable branch (variants A, B, C). See "JAR reproducibility hard gate and negative CI proof" above.
 
 ## PL-PP-WP00-04: Dependency integrity and inventory
 
