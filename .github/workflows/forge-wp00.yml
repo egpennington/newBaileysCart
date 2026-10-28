@@ -197,6 +197,7 @@ jobs:
       - run: node --version && java -version
       - run: npm ci --ignore-scripts
       - name: Emulator tests (D2 Firestore + rules, D3 callables; 50-iteration concurrency stress)
+        shell: bash
         env:
           NO_UPDATE_NOTIFIER: "1"
         run: npm run test:emulator 2>&1 | tee "$RUNNER_TEMP/emulator-tests.log"
