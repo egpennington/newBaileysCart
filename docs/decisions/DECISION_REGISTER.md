@@ -1,6 +1,6 @@
 # newBaileysCart Decision Register
 
-- **Register version:** 1.4. Resolves WP00-OPEN-03 (`develop` branch and integration workflow). v1.3 added WP00-MAINT-01; v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
+- **Register version:** 1.5. Records R-04 ratification: the R-04 v0.4 four-document specification baseline. v1.4 resolved WP00-OPEN-03; v1.3 added WP00-MAINT-01; v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
 - **Created:** 2026-10-26 by CODI, recording Project Lead (penguinPrime) decisions
 - **Rule:** entries record decisions and their sources. They do not change the API contract. Canonical API incorporation is a separate, controlled CipherMuse change that must be recorded here when it happens.
 
@@ -11,9 +11,17 @@
 | R-01 | Phase 4 planning reconciliation certified **PASS** | GAI (document review, not executed tests) | 2026-10-26 | GAI Phase 4 Focused Reconciliation Recheck Report |
 | R-02 | `API_SPEC_v0.3_PROPOSED_AMENDMENTS_REV1.md` (completeness code `8723434126`) **ratified as API v0.3 Rev 1** | PL, following GAI R-01 PASS | 2026-10-26 | CODI WP-00 Implementation Handoff v1.0 §1; PL clarification to CODI, 2026-10-26 |
 | R-03 | `API_SPEC_v0.3_RATIFIED_ADDENDUM_P4D10_P4D11_v0.1.md` received a separate **GAI PASS**; PL policy decisions approved | GAI; PL | 2026-10-26 | Handoff v1.0 §1; PL clarification, 2026-10-26 |
-| R-04 | Incorporation of R-02 and R-03 into a canonical API document | CipherMuse (owner); PL approval | **PENDING** | Handoff v1.0 §1 ("controlled incorporation into canonical API must be recorded") |
+| R-04 | Incorporation of R-02 and R-03 into a canonical API document. **RATIFIED** as the R-04 v0.4 four-document specification baseline: `API_SPEC_v0.4_CANONICAL.md`, `PRD_v1.0_R04_AMENDMENT.md`, `ARCHITECTURE_v1.1_R04_AMENDMENT.md`, `BaileysCart_R04_Authorization_Error_Matrix_v0.4.md` (in `docs/specs/R-04/`; SHA-256 manifest in the ratification record). Covers Decisions 33–47; D42 supersedes D33 on multi-family ownership only. Specification ratification only. | CipherMuse (owner); PL ratified, following GAI integration PASS on the prior unified package. The matrix H1 correction was accepted by the PL and not separately rechecked by GAI. | Not independently timestamped (see note below) | `docs/specs/R-04/R04_PROJECT_LEAD_RATIFICATION_RECORD_APPROVED.md`; `docs/specs/R-04/GAI_R04_v0.4_Unified_Ratification_Verification_Report.md`; Handoff v1.0 §1 |
 
 The document headers of R-02 still read "REVISED PROPOSAL … NOT AN APPROVED API BASELINE". Those headers predate ratification. Per PL direction (2026-10-26), the handoff and later PL decisions supersede older headers **only for the specific decisions amended**.
+
+The four ratified R-04 v0.4 documents still carry pre-ratification status headers (for example "NOT RATIFIED" and "consolidation candidate"). Those headers predate ratification. The files are kept byte-identical to the ratified SHA-256 manifest, so they are not edited. The approved ratification record is the record of their status. Historical R-04 candidates, the superseded signature-review record and `README_REVIEW_FIRST.md` are preserved unmodified as evidence. R-04 is specification ratification only. It does not authorize Gate C, WP-03 implementation, implementation branches, merges, builds, provisioning, test execution, deployment or release. Gate C remains CLOSED and WP-03 remains ON HOLD. These retained dependencies remain open, as do the other open gate items listed in the ratification record:
+- W-01/W-02: Firebase callable transport and SDK evidence
+- W-05: Google Play identity and billing evidence
+- G-01/G-03: reconciliation workers, ownership release and deletion retention
+- Verity ProofPoints PL-PP-WP03-01..30, which are NOT_RUN
+
+The ratification record has no independently verified approval timestamp, so the register records none.
 
 ## Product and architecture decisions
 
