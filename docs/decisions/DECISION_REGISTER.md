@@ -1,6 +1,6 @@
 # newBaileysCart Decision Register
 
-- **Register version:** 1.5. Records R-04 ratification: the R-04 v0.4 four-document specification baseline. v1.4 resolved WP00-OPEN-03; v1.3 added WP00-MAINT-01; v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
+- **Register version:** 1.6. Records Gate C for WP-03 Slice 1 and decisions PL-1..PL-10. v1.5 recorded R-04 ratification: the R-04 v0.4 four-document specification baseline. v1.4 resolved WP00-OPEN-03; v1.3 added WP00-MAINT-01; v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
 - **Created:** 2026-10-26 by CODI, recording Project Lead (penguinPrime) decisions
 - **Rule:** entries record decisions and their sources. They do not change the API contract. Canonical API incorporation is a separate, controlled CipherMuse change that must be recorded here when it happens.
 
@@ -34,6 +34,24 @@ The ratification record has no independently verified approval timestamp, so the
 | **P4-ADR-11** | **Android platform floor: minSdk = 26** | **PL APPROVED** | 2026-10-26 | PL clarification to CODI, 2026-10-26. Opened as P4-ADR-11 because ADR-07 is already used for branding rights (Addendum v0.4 §4.8). |
 | P4-CI-01 | **GitHub Actions** is the CI provider for FORGE WP-00 build and check workflows | **PL APPROVED** | 2026-10-26 | PL clarification to CODI, 2026-10-26 |
 | P4-WP00-SCOPE | WP-00 only, on `feature/wp00-foundations` from the certified baseline. No WP-03/WP-01/WP-02, SQLCipher spike, provisioning, merge or deploy. | PL AUTHORIZED | 2026-10-26 | Handoff v1.0 §2; PL WP-00 implementation authorization |
+
+## WP-03 Slice 1 (Family Ownership Core)
+
+Gate C is open for **WP-03 Slice 1 only**, on `feature/wp03-s1-family-ownership` from `develop` @ `f96e5376804facc2e01bcad7100e4574f05de3c3`. Source: PL "Gate C Authorization & CODI Implementation Handoff" and "WP-03 Slice 1 Implementation Authorization" (2026-10-28), following GAI `GAI_WP03_Slice1_Plan_Verification_Report.md` (CONDITIONAL GO) and `GAI_WP03_S1_Task1_W01_Verification_Report.md` (Task 1 PASS). Plan: `docs/workflow/CODI_WP03_SLICE1_IMPLEMENTATION_PLAN_v1.0.md`. The plan and both GAI reports are local untracked records, not committed. Push, PR, merge and deployment still need separate PL authorization.
+
+| ID | Decision | Status |
+|---|---|---|
+| PL-1 | W-01 handled as Slice 1 Task 1 (emulator evidence), with a review stop before further work | PL APPROVED; Task 1 PASS (GAI); checkpoint released |
+| PL-2 | An expired reservation keeps the owner claim (fail closed); no cleanup until G-01/W-05 define release | PL APPROVED |
+| PL-3 | Local and CI Firebase emulators (`demo-*` only) and the Firebase dependencies; Node 22 retained | PL APPROVED |
+| PL-4 | Emulator job added to `forge-wp00.yml`, feeding the single `FORGE gate` check | PL APPROVED |
+| PL-5 | `displayName`: optional; trimmed; max **50** code points; rejects control, line-break and invisible-format characters and empty values; no canonicalization | PL APPROVED as modified by GAI |
+| PL-6 | Trial eligibility = no `trialLedger/{uid}`; anti-abuse (G-05) deferred | PL APPROVED (accepted risk) |
+| PL-7 | Provisional names `OWNER_ALREADY_HAS_FAMILY` and `apiVersion` "v0.4" | PL APPROVED |
+| PL-8 | Idempotency retention: commit + 30 days + 7-day margin (37 days); TTL policy not configured | PL APPROVED |
+| PL-9 | `account.getSession` returns only the caller's own trial eligibility | PL APPROVED |
+| PL-10 | R-04 v0.4 sufficient for Slice 1 | PL APPROVED |
+| W01-D2 | Domain rejections are native `HttpsError` with the full v0.4 envelope in `details` (Option A), using GAI's mapping table | GAI mandated; PL directed |
 
 ## Open decisions raised by WP-00 (not decided)
 

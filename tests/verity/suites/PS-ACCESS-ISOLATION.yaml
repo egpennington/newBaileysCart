@@ -1,0 +1,14 @@
+id: PS-ACCESS-ISOLATION
+name: Family access isolation
+work_package: WP-03
+owner: CODI
+independent_reviewer: GAI
+executed_by: FORGE (forge-wp00.yml, job backend-emulator) and local CODI runs
+proofpoints_in_slice_1:
+  - PL-PP-WP03-14 (partial)
+  - PL-PP-WP03-30 (partial)
+proofpoints_later_slices:
+  - PL-PP-WP03-17
+  - PL-PP-WP03-19
+  - PL-PP-WP03-27
+status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md

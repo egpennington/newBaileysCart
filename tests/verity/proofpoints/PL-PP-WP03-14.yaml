@@ -1,0 +1,27 @@
+id: PL-PP-WP03-14
+name: Cross-family read, write and billing access denied
+feature: Family ownership core (rules, account.getSession)
+suite: PS-ACCESS-ISOLATION
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice_coverage: PARTIAL. Slice 1 covers deny-all client rules for every Slice 1 collection and getSession isolation for a UID owning one family and joined to others. Item and billing paths belong to later slices. Must not be reported as overall PASS.
+preconditions:
+  - Firestore emulator with backend/firestore.rules; seeded family, member, user, reverse-index, ledger and idempotency documents
+steps:
+  - As unauthenticated, as the owner, and as another user, attempt get, update, delete on every seeded document; list and create on every collection; a members collection-group query; a write to an unlisted collection
+  - getSession for a UID owning one family and seeded into two others; a fourth family exists
+expected:
+  - Every client attempt is HTTP 403; seeded data unchanged
+  - getSession returns exactly the owned and joined families; joined families carry no owner-only fields; stale or inactive reverse edges grant nothing
+evidence:
+  - backend/functions/test/rules/denyAll.test.ts
+  - backend/functions/test/emulator/accountGetSession.test.ts
+  - Negative controls NC-4, NC-7
+depths:
+  D1: not applicable
+  D2: emulator rules (REST, unsigned test tokens) and getSession isolation
+  D3: not applicable in Slice 1
+  D4: GAI review. The emulator does not verify token signatures (W-01 D-5).
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md

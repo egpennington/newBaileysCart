@@ -52,15 +52,18 @@ sha256sum app/build/outputs/apk/release/*.apk core/model/build/libs/*.jar
 
 Run this twice and compare hashes. Identical hashes show the procedure is deterministic on that machine. They don't guarantee identical binaries across machines.
 
-## Backend skeleton
+## Backend (WP-03 Slice 1)
 
 ```sh
 cd backend/functions
 npm ci --ignore-scripts
 npm run typecheck
-npm test
+npm test                     # D1 unit tests, no emulator
 npm audit --audit-level=high
+npm run test:emulator        # D2/D3: Auth, Firestore, Functions emulators (needs Java 21+)
 ```
+
+`test:emulator` takes about 10 minutes, mostly the three 50-iteration concurrency stress tests. Set `WP03_STRESS_ITERATIONS` to change the iteration count for local runs only; FORGE uses the default of 50. Dependency pins and overrides are recorded in `docs/wp03/VERSION_DECISION_RECORD.md`.
 
 ## Supply-chain and secret checks
 
@@ -90,10 +93,11 @@ The jobs are:
 2. Android compile, lint and unit tests
 3. Clean repeat build: two independent clean builds. The `core:model` JAR must be byte-identical or the job fails (hard gate). The APK comparison only warns (informational for WP-00). Hashes go to notice annotations, the job summary and the `repeat-build-evidence` artifact.
 4. Backend typecheck, tests and npm audit
-5. osv-scanner plus CycloneDX SBOM
-6. gitleaks (full history and working tree)
-7. Firebase guard
-8. `forge-gate`, which fails unless every upstream job succeeded
+5. Backend emulator tests (WP-03 Slice 1 D2/D3), with the log uploaded as `emulator-test-evidence`
+6. osv-scanner plus CycloneDX SBOM
+7. gitleaks (full history and working tree)
+8. Firebase guard
+9. `forge-gate`, which fails unless every upstream job succeeded
 
 Make `FORGE gate` the required status check in branch protection. That is a PL action in repository settings.
 
@@ -102,11 +106,12 @@ Platform limitations:
 - Local evidence for WP-00 was collected on Windows 11 with Git Bash.
 - The repeat-build job compares two builds on the same runner, not across operating systems.
 
-## Firebase emulators (demo-only plan)
+## Firebase emulators (demo-only)
 
-- `backend/firebase.json` defines Auth, Firestore and Functions emulator ports.
+- `backend/firebase.json` defines Auth, Firestore and Functions emulator ports, the functions codebase and `backend/firestore.rules` (deny all direct client access).
 - `backend/.firebaserc` names only `demo-newbaileyscart`. A `demo-*` project ID makes the Firebase emulators run offline-only, and they never contact real resources.
-- WP-00 does **not** install `firebase-tools` or run emulators, because there are no rules or callables to exercise yet. WP-03 will add the emulator job.
+- WP-03 Slice 1 installs `firebase-tools` as a test-only dependency and runs the emulators in the `backend-emulator` FORGE job.
+- The emulators do not verify ID-token or App Check signatures (W-01 evidence D-5). Emulator tests prove business logic, transactions and rule evaluation, not production authentication.
 - Emulator results never prove production behavior (for example TTL enforcement, contention or quotas).
 - `scripts/check-no-real-firebase.sh` fails if it finds any of these:
   - a `google-services.json`, `GoogleService-Info.plist` or service-account file (tracked, untracked or ignored)

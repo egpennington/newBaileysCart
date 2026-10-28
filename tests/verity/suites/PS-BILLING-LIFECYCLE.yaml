@@ -1,0 +1,16 @@
+id: PS-BILLING-LIFECYCLE
+name: Trial, reservation and billing lifecycle
+work_package: WP-03
+owner: CODI
+independent_reviewer: GAI
+executed_by: FORGE (forge-wp00.yml, job backend and backend-emulator) and local CODI runs
+proofpoints_in_slice_1:
+  - PL-PP-WP03-15
+  - PL-PP-WP03-25
+proofpoints_later_slices:
+  - PL-PP-WP03-16
+  - PL-PP-WP03-18
+  - PL-PP-WP03-24
+  - PL-PP-WP03-26
+  - PL-PP-WP03-28
+status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md
