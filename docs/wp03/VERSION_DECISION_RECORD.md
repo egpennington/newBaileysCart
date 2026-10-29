@@ -19,6 +19,7 @@
 | `@firebase/app` | **0.16.2** | 2026-09-09 | Modular official client SDK for D3, at the versions bundled in `firebase` 12.19.0 (W-01 probe client). Node ≥ 20. |
 | `@firebase/auth` | **1.13.6** | 2026-09-09 | As above. |
 | `@firebase/functions` | **0.14.0** | 2026-08-19 | As above. |
+| `ajv` | **8.20.0** | 2026-04-24 | JSON Schema 2020-12 validator (`ajv/dist/2020.js`) for T-GAP-1: validates live `account.getSession` responses against the ratified API Amendment A1 v0.2 §A1.5 schema. PL decision D-1 (2026-10-29). Already in the lockfile at this exact version as a dev dependency of `firebase-tools`, so the resolved tree is unchanged; only the root `devDependencies` entry is new. Installed with `--ignore-scripts`; `npm audit` 0. |
 
 **Rejected:**
 - The monolithic `firebase` 12.19.0. Its `@firebase/firestore` brings `@grpc/grpc-js ≤ 1.13.5`, with 4 high findings (W-01 D-11).

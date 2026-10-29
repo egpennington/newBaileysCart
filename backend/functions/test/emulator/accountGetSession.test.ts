@@ -1,19 +1,32 @@
 /**
  * D2: account.getSession against the Firestore emulator. Privacy (owned + joined only, no
  * owner-only fields for joined families), unpaid reservations (accessMode NONE), and
- * reverse-index cross-checking. ProofPoint PL-PP-WP03-14 (partial).
+ * reverse-index cross-checking. ProofPoint PL-PP-WP03-14 (partial). Every successful response is
+ * checked against API Amendment A1 v0.2 §A1.5 (T-GAP-1).
  */
 import { strict as assert } from "node:assert";
 import { before, describe, test } from "node:test";
 import { Timestamp } from "firebase-admin/firestore";
-import { accountGetSessionHandler } from "../../src/commands/accountGetSession.js";
+import { accountGetSessionHandler as rawSessionHandler } from "../../src/commands/accountGetSession.js";
+import type { SessionDeps } from "../../src/commands/accountGetSession.js";
 import { familiesCreateHandler } from "../../src/commands/familiesCreate.js";
 import { TRIAL_DURATION_MS } from "../../src/domain/family.js";
+import { assertSessionDataConformsToA1 } from "../support/a1Schema.js";
 import { FakeClock, clearFirestore, db, expectDomainError, newOpId, uniqueUid } from "../support/emulator.js";
 
 const T0 = Date.UTC(2026, 9, 28, 12, 0, 0, 0);
 const verified = (uid: string) => ({ uid, emailVerified: true });
 const SESSION_REQ = { apiVersion: "v0.4" };
+
+/** The real handler; every successful response must conform to A1 v0.2 §A1.5 (T-GAP-1). */
+function accountGetSessionHandler(deps: SessionDeps): ReturnType<typeof rawSessionHandler> {
+  const handler = rawSessionHandler(deps);
+  return async (actor, data) => {
+    const res = await handler(actor, data);
+    assertSessionDataConformsToA1(res.data);
+    return res;
+  };
+}
 
 /** Adds `uid` as a MEMBER of an existing family, writing both edges (what invites.accept will do). */
 async function seedMember(familyId: string, uid: string, state = "ACTIVE"): Promise<void> {
@@ -181,6 +194,57 @@ describe("account.getSession", () => {
     const f = (await accountGetSessionHandler({ db, clock })(verified(me), SESSION_REQ)).data.joinedFamilies[0];
     assert.equal(f?.role, "MEMBER");
     assert.equal(f && "lifecycleState" in f, false);
+  });
+
+  test("unverified email: getSession still succeeds (A1 §A1.5; T-GAP-5)", async () => {
+    const clock = new FakeClock(T0);
+    const session = accountGetSessionHandler({ db, clock });
+    const fresh = await session({ uid: uniqueUid("unv-new"), emailVerified: false }, SESSION_REQ);
+    assert.equal(fresh.status, "COMMITTED");
+    assert.deepEqual(fresh.data, { ownedFamilyId: null, joinedFamilies: [], trialEligible: true, selectedFamilySuggestion: null });
+
+    // An owner whose token is no longer verified still gets the full session.
+    const uid = uniqueUid("unv-owner");
+    const familyId = (await familiesCreateHandler({ db, clock })(verified(uid), { apiVersion: "v0.4", opId: newOpId(), payload: {} })).data
+      .familyId;
+    const owned = await session({ uid, emailVerified: false }, SESSION_REQ);
+    assert.equal(owned.status, "COMMITTED");
+    assert.deepEqual(owned.data, {
+      ownedFamilyId: familyId,
+      joinedFamilies: [
+        { familyId, role: "OWNER", accessMode: "READ_WRITE", lifecycleState: "ACTIVE", trialEndsAt: "2026-11-18T12:00:00.000Z" },
+      ],
+      trialEligible: false,
+      selectedFamilySuggestion: familyId,
+    });
+  });
+
+  test("joinedFamilies in UTF-16 code-unit order; suggestion is the first usable entry (A1 §A1.5; T-GAP-7)", async () => {
+    const clock = new FakeClock(T0);
+    const me = uniqueUid("order");
+    const tag = newOpId().slice(0, 8);
+    // Test fixtures written directly through the Admin SDK so the IDs are chosen: code-unit order
+    // (Z U+005A < a U+0061 < m) differs from locale order (a, m, Z) and from insertion order.
+    const upper = `Z-${tag}`;
+    const lower = `a-${tag}`;
+    const mid = `m-${tag}`;
+    const unpaid = `0-${tag}`;
+    const seedFamily = async (familyId: string, lifecycle: Record<string, unknown>) => {
+      await db.doc(`families/${familyId}`).set({ ownerUid: uniqueUid("host"), familyEpoch: 1, ...lifecycle });
+      await seedMember(familyId, me);
+    };
+    const trial = { lifecycleState: "ACTIVE", trialEndsAt: Timestamp.fromMillis(T0 + TRIAL_DURATION_MS) };
+    for (const id of [mid, lower, upper]) await seedFamily(id, trial);
+    // Sorts first but is not usable, so the suggestion must skip it.
+    await seedFamily(unpaid, { lifecycleState: "UNENTITLED_AWAITING_PAYMENT", reservationExpiresAt: Timestamp.fromMillis(T0 + 86_400_000) });
+
+    const data = (await accountGetSessionHandler({ db, clock })(verified(me), SESSION_REQ)).data;
+    assert.deepEqual(
+      data.joinedFamilies.map((f) => f.familyId),
+      [unpaid, upper, lower, mid],
+    );
+    assert.equal(data.ownedFamilyId, null);
+    assert.equal(data.selectedFamilySuggestion, upper);
   });
 
   test("validation: unknown field and bad version rejected", async () => {

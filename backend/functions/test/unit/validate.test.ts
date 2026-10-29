@@ -152,3 +152,13 @@ describe("account.getSession request", () => {
     rejects(() => parseGetSessionRequest({ apiVersion: "v0.4", uid: "other" }), "VALIDATION_FAILED"));
   test("unsupported version", () => rejects(() => parseGetSessionRequest({ apiVersion: "v9" }), "API_VERSION_UNSUPPORTED"));
 });
+
+describe("non-string apiVersion is VALIDATION_FAILED, never API_VERSION_UNSUPPORTED (A1 §A1.2; T-GAP-3)", () => {
+  const nonStrings: Record<string, unknown> = { number: 4, null: null, boolean: true, array: ["v0.4"], object: {} };
+  const details = { field: "apiVersion", reason: "NOT_A_STRING" };
+  for (const [name, apiVersion] of Object.entries(nonStrings)) {
+    test(`families.create: ${name}`, () =>
+      rejects(() => parseCreateFamilyRequest({ apiVersion, opId: OP, payload: {} }), "VALIDATION_FAILED", details));
+    test(`account.getSession: ${name}`, () => rejects(() => parseGetSessionRequest({ apiVersion }), "VALIDATION_FAILED", details));
+  }
+});

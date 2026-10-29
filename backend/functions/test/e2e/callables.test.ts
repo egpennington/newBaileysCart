@@ -12,6 +12,7 @@ import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut }
 import type { Auth, User } from "@firebase/auth";
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "@firebase/functions";
 import type { Functions } from "@firebase/functions";
+import { assertSessionDataConformsToA1 } from "../support/a1Schema.js";
 import { AUTH_HOST, PROJECT, adminAuth, clearAuth, clearFirestore, db, newOpId } from "../support/emulator.js";
 
 const FUNCTIONS_ORIGIN = "http://127.0.0.1:5001";
@@ -163,9 +164,48 @@ describe("families.create over the callable wire", () => {
     assert.equal(session.ok, true);
     if (!session.ok) return;
     const s = (session.data as { data: Record<string, unknown> }).data;
+    assertSessionDataConformsToA1(s); // T-GAP-1, over the callable wire
     assert.equal(s["ownedFamilyId"], env.data["familyId"]);
     assert.equal(s["trialEligible"], false);
     assert.equal((await db.doc(`users/${user.uid}`).get()).get("ownedFamilyId"), env.data["familyId"]);
+  });
+});
+
+describe("email verification over the callable wire", () => {
+  test("rejected while unverified, then verified: the same opId commits, then replays (A1 §A1.4; R-1 case 3; T-GAP-4)", async () => {
+    const user = await signUp("verifylater", false);
+    const request = { apiVersion: "v0.4", opId: newOpId(), payload: {} };
+
+    const rejected = await callSdk("familiesCreate", request);
+    assert.equal(rejected.ok, false);
+    if (rejected.ok) return;
+    assert.equal(rejected.err.code, "functions/failed-precondition");
+    assert.equal(rejected.err.details.error.code, "EMAIL_VERIFICATION_REQUIRED");
+
+    await adminAuth.updateUser(user.uid, { emailVerified: true });
+    await user.getIdToken(true);
+    const committed = await callSdk("familiesCreate", request);
+    assert.equal(committed.ok, true);
+    if (!committed.ok) return;
+    const env = committed.data as { opId: string; status: string; data: { familyId: string; lifecycleState: string } };
+    assert.equal(env.status, "COMMITTED");
+    assert.equal(env.opId, request.opId);
+    assert.equal(env.data.lifecycleState, "ACTIVE");
+
+    assert.deepEqual(await callSdk("familiesCreate", request), committed);
+    assert.equal((await db.collection("families").where("ownerUid", "==", user.uid).get()).size, 1);
+  });
+
+  test("account.getSession succeeds for an unverified caller (A1 §A1.5; T-GAP-5)", async () => {
+    await signUp("sessionunverified", false);
+    const r = await callSdk("accountGetSession", { apiVersion: "v0.4" });
+    assert.equal(r.ok, true);
+    if (!r.ok) return;
+    const env = r.data as { status: string; opId: string | null; data: unknown };
+    assert.equal(env.status, "COMMITTED");
+    assert.equal(env.opId, null);
+    assertSessionDataConformsToA1(env.data); // T-GAP-1, over the callable wire
+    assert.deepEqual(env.data, { ownedFamilyId: null, joinedFamilies: [], trialEligible: true, selectedFamilySuggestion: null });
   });
 });
 

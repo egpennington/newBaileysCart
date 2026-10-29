@@ -24,6 +24,7 @@
     "@firebase/auth": "1.13.6",
     "@firebase/functions": "0.14.0",
     "@types/node": "22.20.5",
+    "ajv": "8.20.0",
     "firebase-tools": "15.34.1",
     "typescript": "6.0.3"
   },

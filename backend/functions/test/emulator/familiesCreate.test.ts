@@ -66,6 +66,9 @@ describe("families.create: trial path", () => {
 
     const idem = await db.collection("idempotency").where("actorUid", "==", uid).get();
     assert.equal(idem.size, 1);
+    // A1 §A1.1: idempotency records store the logical command name, not the deployed callable name (T-GAP-8).
+    assert.equal(idem.docs[0]?.get("command"), "families.create");
+    assert.equal(idem.docs[0]?.get("actorUid"), uid);
     assert.equal((idem.docs[0]?.get("retainUntil") as Timestamp).toMillis(), T0 + IDEMPOTENCY_RETENTION_MS);
     assert.deepEqual(JSON.parse(idem.docs[0]?.get("responseJson") as string), res);
   });
@@ -121,6 +124,9 @@ describe("families.create: owner limit (D42) and reservation (D45, D46)", () => 
     assert.equal((family?.["reservationExpiresAt"] as Timestamp).toMillis(), T0 + RESERVATION_TTL_MS);
     assert.equal(family?.["trialEndsAt"], undefined);
     assert.deepEqual((await db.doc(`trialLedger/${uid}`).get()).data(), ledger);
+    const idem = await db.collection("idempotency").where("actorUid", "==", uid).get();
+    assert.equal(idem.size, 1);
+    assert.equal(idem.docs[0]?.get("command"), "families.create"); // T-GAP-8
   });
 
   test("PL-2 / PP-30 (partial): an expired, unreleased reservation still blocks create; trial stays consumed", async () => {
@@ -176,6 +182,42 @@ describe("families.create: idempotency (API §5; PP-25)", () => {
       assert.deepEqual(await docsForUid(uid), before);
     });
   }
+
+  test("rejected while unverified, then verified: the same opId commits once and then replays (A1 §A1.4; R-1 case 3; T-GAP-4)", async () => {
+    const clock = new FakeClock(T0);
+    const create = familiesCreateHandler({ db, clock });
+    const uid = uniqueUid("verify-later");
+    const request = req(newOpId(), { displayName: "Later" });
+
+    await expectDomainError(create({ uid, emailVerified: false }, request), "EMAIL_VERIFICATION_REQUIRED");
+    assert.deepEqual(await docsForUid(uid), [], "the rejection was not recorded");
+
+    clock.advance(60_000);
+    const committed = await create(verified(uid), request);
+    assert.equal(committed.status, "COMMITTED");
+    assert.equal(committed.opId, request.opId);
+    assert.equal(committed.data.lifecycleState, "ACTIVE");
+    assert.equal(committed.serverTime, "2026-10-28T12:01:00.000Z");
+
+    clock.advance(60_000);
+    assert.deepEqual(await create(verified(uid), request), committed);
+    assert.equal((await db.collection("families").where("ownerUid", "==", uid).get()).size, 1);
+    assert.equal((await db.collection("idempotency").where("actorUid", "==", uid).get()).size, 1);
+    assert.equal((await db.doc(`trialLedger/${uid}`).get()).get("familyId"), committed.data.familyId);
+  });
+
+  test("a committed opId is not replayed once the caller's email is no longer verified (R-1 case 2; T-GAP-10)", async () => {
+    const create = familiesCreateHandler({ db, clock: new FakeClock(T0) });
+    const uid = uniqueUid("unverified-later");
+    const request = req(newOpId());
+    const committed = await create(verified(uid), request);
+    const before = await docsForUid(uid);
+
+    await expectDomainError(create({ uid, emailVerified: false }, request), "EMAIL_VERIFICATION_REQUIRED");
+    assert.deepEqual(await docsForUid(uid), before, "no records added or removed");
+    // Verification restored: the original commit replays unchanged.
+    assert.deepEqual(await create(verified(uid), request), committed);
+  });
 
   test("same opId from a different user is a separate operation", async () => {
     const create = familiesCreateHandler({ db, clock: new FakeClock(T0) });
