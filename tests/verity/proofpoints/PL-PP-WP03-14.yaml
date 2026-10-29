@@ -1,0 +1,39 @@
+id: PL-PP-WP03-14
+name: Cross-family read, write and billing access denied
+feature: Family ownership core (rules, account.getSession)
+suite: PS-ACCESS-ISOLATION
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice_coverage: PARTIAL. Slice 1 covers deny-all client rules for every Slice 1 collection and getSession isolation for a UID owning one family and joined to others. Item and billing paths belong to later slices. Must not be reported as overall PASS.
+preconditions:
+  - Firestore emulator with backend/firestore.rules; seeded family, member, user, reverse-index, ledger and idempotency documents
+steps:
+  - As unauthenticated, as the owner, and as another user, attempt get, update, delete on every seeded document; list and create on every collection; a members collection-group query; a write to an unlisted collection
+  - getSession for a UID owning one family and seeded into two others; a fourth family exists
+expected:
+  - Every client attempt is HTTP 403; seeded data unchanged
+  - getSession returns exactly the owned and joined families; joined families carry no owner-only fields; stale or inactive reverse edges grant nothing
+evidence:
+  - backend/functions/test/rules/denyAll.test.ts
+  - backend/functions/test/emulator/accountGetSession.test.ts
+  - Negative controls NC-4, NC-7
+  - Phase B (commit 94d31d9) T-GAP-1 in backend/functions/test/support/a1Schema.ts, test/unit/a1Schema.test.ts, test/emulator/accountGetSession.test.ts and test/e2e/callables.test.ts; T-GAP-5 and T-GAP-7 in test/emulator/accountGetSession.test.ts; T-GAP-5 over the wire in test/e2e/callables.test.ts
+  - Phase B negative controls NC-10, NC-13, NC-14 (CODI-reported; docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.3)
+  - FORGE run 25 (40899889216) with PL-inspected totals D1 129/129 and emulator 143/143; run 26 (40899897542) green
+closed_test_gaps:
+  # Closed within Slice 1 scope (manifest v1.3; GAI Phase B D4 as corrected by its two addenda). Previously open in v1.2.
+  - T-GAP-1 live account.getSession responses validated against the A1 v0.2 §A1.5 JSON Schema and cross-entry rules - CLOSED, D1 D2 D3; consistent Slice 1-written data only, not HB-1/HB-2/HB-3 evidence
+  - T-GAP-5 account.getSession succeeds for an authenticated caller without verified email (A1 v0.2 §A1.5) - CLOSED, D2 and D3
+  - T-GAP-7 joinedFamilies ordered by familyId in UTF-16 code-unit order; selection is the first usable entry (A1 v0.2 §A1.5) - CLOSED, D2
+accepted_limitations:
+  - F-1, F-2, F-3 malformed or inconsistent stored family records; accepted only while families.create is the sole writer; HB-1..HB-3 not implemented and mandatory before any additional family-record writer is merged (ratification record v1.1)
+  - T-GAP-6 read-only consistent snapshot of account.getSession not asserted (open)
+traceability: docs/specs/R-04/CODI_WP03_S1_A1_CONTRACT_TRACEABILITY_REPORT_v1.0.md rows 5.1, 5.4, 5.10, 5.16, 5.17
+depths:
+  D1: not applicable
+  D2: emulator rules (REST, unsigned test tokens) and getSession isolation
+  D3: not applicable in Slice 1
+  D4: GAI review. The emulator does not verify token signatures (W-01 D-5).
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md

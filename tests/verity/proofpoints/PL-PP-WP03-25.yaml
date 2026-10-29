@@ -1,0 +1,41 @@
+id: PL-PP-WP03-25
+name: Reservation 24-hour server-time boundary, idempotent retry keeps the original expiry, concurrent create cannot bypass the owner claim
+feature: Family ownership core (families.create)
+suite: PS-BILLING-LIFECYCLE
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice_coverage: FULL for timestamps, retry and concurrency. Expiry effects on checkout are out of scope (no billing in Slice 1).
+preconditions:
+  - Auth and Firestore emulators, demo-newbaileyscart only; injectable FakeClock
+steps:
+  - Create a reservation at T0; check reservationExpiresAt = T0 + 86400 s, RFC 3339 UTC
+  - Replay the same opId at T0 + 25 h; compare the full response
+  - Same opId with a changed payload
+  - Concurrent creates (distinct and identical opIds), 50 iterations each
+  - Expiry boundary arithmetic at expiresAt - 1 ms, expiresAt, expiresAt + 1 ms
+expected:
+  - Replay returns the logically identical original response, compared as parsed JSON (deep equality; same keys and values, any key order; transport bytes not compared, per API Amendment A1 v0.2 §A1.6); TTL never extended; one family
+  - Changed payload is IDEMPOTENCY_KEY_REUSED with no writes
+  - Concurrency never yields two families for one UID
+evidence:
+  - backend/functions/test/unit/domain.test.ts
+  - backend/functions/test/emulator/familiesCreate.test.ts
+  - backend/functions/test/e2e/callables.test.ts (replay and reuse over the wire)
+  - Negative controls NC-2, NC-3
+  - Phase B (commit 94d31d9) T-GAP-4, T-GAP-8, T-GAP-10 in backend/functions/test/emulator/familiesCreate.test.ts; T-GAP-4 over the wire in backend/functions/test/e2e/callables.test.ts
+  - Phase B negative controls NC-12, NC-15, NC-16 (CODI-reported; docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.3)
+  - FORGE run 25 (40899889216) with PL-inspected totals D1 129/129 and emulator 143/143; run 26 (40899897542) green
+closed_test_gaps:
+  # Closed within Slice 1 scope (manifest v1.3; GAI Phase B D4 as corrected by its two addenda). Previously open in v1.2.
+  - T-GAP-4 verify then resubmit the same opId commits, then replays (A1 v0.2 §A1.4; clarification R-1 case 3) - CLOSED, D2 and D3
+  - T-GAP-8 stored idempotency command is the logical name families.create (A1 v0.2 §A1.1) - CLOSED, D2
+  - T-GAP-10 committed opId resubmitted without verified email is EMAIL_VERIFICATION_REQUIRED, not a replay (clarification R-1 case 2) - CLOSED, D2 handler level only (no dedicated D3 wire test)
+traceability: docs/specs/R-04/CODI_WP03_S1_A1_CONTRACT_TRACEABILITY_REPORT_v1.0.md rows 1.4, 4.10, 6.7, 6.9
+depths:
+  D1: time arithmetic, expiry boundary, canonical request hash
+  D2: emulator replay, reuse, concurrency stress
+  D3: replay and IDEMPOTENCY_KEY_REUSED through the client SDK
+  D4: GAI review
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md

@@ -1,0 +1,29 @@
+id: PL-PP-WP03-15
+name: Concurrent family creation claims at most one trial per UID
+feature: Family ownership core (families.create)
+suite: PS-BILLING-LIFECYCLE
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice_coverage: FULL for the trial-claim invariant. Per D42 the losing concurrent creates are OWNER_ALREADY_HAS_FAMILY rather than a second (unentitled) family.
+preconditions:
+  - Auth and Firestore emulators, demo-newbaileyscart only
+  - Verified-email actor; no trialLedger entry for the UID
+steps:
+  - Issue 5 parallel families.create calls with distinct opIds for one UID; repeat for 50 UIDs
+  - Repeat with a pre-consumed ledger (reservation path), 50 UIDs
+  - Sequential create after a consumed trial returns a reservation and leaves the ledger untouched
+expected:
+  - Exactly one success per UID; every other call is OWNER_ALREADY_HAS_FAMILY
+  - Exactly one family, one trialLedger entry and one owner claim per UID, all naming the winning familyId
+evidence:
+  - backend/functions/test/unit/domain.test.ts (decideCreate)
+  - backend/functions/test/emulator/familiesCreate.test.ts (concurrency stress, reservation path)
+  - Negative controls NC-1, NC-1b, NC-2 (docs/wp03/evidence/EVIDENCE_MANIFEST.md)
+depths:
+  D1: decideCreate decision table
+  D2: emulator transactions, 50-iteration x 5-parallel stress (distinct and same opId; trial and reservation paths)
+  D3: not applicable (covered at D2; D3 checks owner limit over the wire)
+  D4: GAI review. Emulator contention is not production contention evidence.
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md
