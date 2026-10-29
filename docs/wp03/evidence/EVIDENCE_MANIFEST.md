@@ -1,6 +1,11 @@
 # WP-03 Slice 1 Evidence Manifest: PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION
 
-- **Version:** 1.3 (2026-10-29). Changes from v1.2:
+- **Version:** 1.4 (2026-10-29). Changes from v1.3:
+  - records the merge of PR #4 into `develop` (merge commit `bb69c01`), post-merge FORGE run #29, and the PL's formal administrative closure of WP-03 Slice 1 ("Post-merge and closure" below)
+  - records the nine nonblocking administrative follow-ups, the VRIG-1 pilot result and GAI's accepted closure recommendation
+  - the v1.3 header lines for branch and PR state are kept and marked superseded
+
+  v1.3 (2026-10-29) changes from v1.2:
   - records the Phase B test commit `94d31d9`, its local evidence (D1 129/129; emulator 143/143; NC-10..NC-16) and FORGE runs #22–#26
   - records the PL-inspected run #25 totals
   - records the GAI Phase A and Phase B D4 reports and their correction addenda, in chronological order with their supersession relationships
@@ -9,9 +14,12 @@
   - records the Phase B local evidence archive and its SHA-256 (archived after the initial v1.3 preparation; the earlier "not yet archived" wording is replaced)
 
   v1.2 corrected stale branch, PR and D4 statements, recorded FORGE run #21 and GAI's 2026-10-28 final D4 determinations, and recorded the A1 v0.2 traceability result. v1.1 recorded FORGE runs #19 and #20 and the `shell: bash` repair. v1.0 recorded local evidence only.
-- **Collected by:** CODI, 2026-10-28 (v1.0–v1.1); 2026-10-29 (v1.2, v1.3)
-- **Branch:** `feature/wp03-s1-family-ownership`, pushed to `origin`. Remote head at the time of v1.3: `94d31d9a88ad14791e64d4945301983ba1653f92`. This v1.3 update is uncommitted until a commit is separately authorized.
-- **Pull request:** #4, **Draft**, `feature/wp03-s1-family-ownership` → `develop` (https://github.com/egpennington/newBaileysCart/pull/4). Merge is not authorized. GAI's corrected Phase B record places merge on **HOLD** pending the PL's decision.
+- **Collected by:** CODI, 2026-10-28 (v1.0–v1.1); 2026-10-29 (v1.2, v1.3, v1.4)
+- **Branch (v1.4):** merged into `develop` at `bb69c01f76048010d7d22db6ef457e221e89075b`. The feature branch `feature/wp03-s1-family-ownership` (`ca742f4…`) is preserved. This v1.4 update is uncommitted until a commit is separately authorized.
+- **Pull request (v1.4):** #4 **MERGED** into `develop` at 2026-10-29T22:14:55Z (https://github.com/egpennington/newBaileysCart/pull/4).
+- *Superseded v1.3 header lines (kept as history):*
+  - "Branch: `feature/wp03-s1-family-ownership`, pushed to `origin`. Remote head at the time of v1.3: `94d31d9…`."
+  - "Pull request: #4, Draft … Merge is not authorized. GAI's corrected Phase B record places merge on HOLD pending the PL's decision."
 - **Base:** `develop` @ `f96e5376804facc2e01bcad7100e4574f05de3c3`
 - **Implementation commits:**
   - `ac3a54e9b4575dd5d1cc13e69d39c0eaf775c5dd` dependencies, emulator config, deny-all rules
@@ -24,7 +32,9 @@
   - `e0f885d4abcd8187d6b2f62e1fba5835363cd25d` documentation: API Amendment A1 v0.2 (ratified, SHA-256 `616bd0eb…0572`), ratification record v1.1, clarification R-1, hardening backlog v1.1
   - `b12f0ea9965cbed41b2dbc96bce8d7e72a3588c6` documentation: this manifest v1.2 and the Verity YAML corrections
   - `94d31d9a88ad14791e64d4945301983ba1653f92` Phase B tests (test-only): T-GAP-1, 3, 4, 5, 7, 8, 10; `ajv` 8.20.0 exact devDependency; version record. 9 files; no production source change.
-  - A documentation commit recording this manifest v1.3 (pending authorization)
+  - `ca742f49a213af65673ada2784c89ce2711b22c8` documentation: this manifest v1.3 and the Verity gap-closure records
+  - `bb69c01f76048010d7d22db6ef457e221e89075b` **merge commit** of PR #4 into `develop` (parents `f96e537…`, `ca742f4…`)
+  - A documentation commit recording this manifest v1.4 on `develop` (pending authorization)
 - **Local environment:** Windows 11 (amd64), Git Bash
   - Node v22.18.0, npm 10.9.3
   - Firestore emulator on OpenJDK 25.0.3 (Android Studio JBR). CI pins Temurin 21.0.12+8.
@@ -52,6 +62,7 @@
   - Run #20, the gate-integrity negative control, failed as intended.
   - Runs #21 (`8d2bfa0`), #22 (`8d2bfa0`), #23 and #24 (`b12f0ea`) passed, 9/9 jobs each.
   - Runs #25 and #26 passed on the Phase B commit `94d31d9`, 9/9 jobs each. Run #25's totals were PL-inspected: D1 129/129, emulator 143/143.
+  - Run #29 (`40964381385`, `push` to `develop`, merge commit `bb69c01`) passed, 9/9 jobs. Its emulator totals come from PL screenshots; its D1 totals are NOT VERIFIED.
   - Run #18 (`fa5b329`) is superseded.
   - Details are in "FORGE CI evidence" below.
 
@@ -220,6 +231,54 @@ This control tests **the CI gate**, not application behavior. It is distinct fro
 - Totals: PL-inspected (run #25 only).
 - GAI's reports also state that the repeat-build hashes (`cf6d0b16…0024` JAR, `aa78c065…0587` APK) were identical in runs #23–#26. CODI did not see the job logs and records this as **GAI-reported**.
 
+### Run #29: post-merge on `develop` (merge commit `bb69c01`)
+| Field | Value | Class |
+|---|---|---|
+| Run / URL | 40964381385 (#29), attempt 1, https://github.com/egpennington/newBaileysCart/actions/runs/40964381385. The only run for this SHA. | CODI-inspected (public API) |
+| Event / branch / commit | `push` / `develop` / `bb69c01f76048010d7d22db6ef457e221e89075b` | CODI-inspected |
+| Conclusion | **SUCCESS**, 9/9 jobs. Every step succeeded; none skipped or cancelled. Jobs: backend typecheck/tests/audit (123765004676), **backend emulator tests** (123765004771, 550 s, under `pipefail`), dependency scan/SBOM (123765004524), secret scan (123765004913), Firebase guard (123765004749), wrapper integrity (123765004742), clean repeat build (123765071481), Android (123765071567), **FORGE gate** (123769132836) | CODI-inspected |
+| Repeat-build hard gate | Check-run annotations: core:model JAR `cf6d0b163ede0ec153dd6e07d01d86ba5eed229bcd155b7ffeb7aed85ec00024` ×2; APK (informational) `aa78c065341f31583c25f03da549219e150f73e73dab617edab3e92841580587` ×2 | CODI-inspected |
+| Emulator totals | 143 passed, 13 suites, 0 failed, 0 skipped, 0 cancelled | **PL screenshots**. Not inspected by CODI or GAI (logs return HTTP 403 without authentication). |
+| D1 totals | **NOT VERIFIED.** Job success only. | — |
+| Artifacts | `emulator-test-evidence` 12938176224 (`sha256:4ee2f363…71d8`), `repeat-build-evidence` 12936259857 (`sha256:df14e13a…25f0`), `android-reports` 12937941154 (`sha256:9bdd9d0a…2c23`), `sbom` 12937416780 (`sha256:0906b649…9f6e`). Not expired; retention until 2026-11-12. | CODI-inspected (metadata only) |
+
+Runs #27 (`40957738978`, `push`) and #28 (`40957745466`, `pull_request`) on `ca742f4` also passed 9/9. Their totals were not inspected.
+
+## Post-merge and closure (v1.4)
+
+| Item | Value | Class / source |
+|---|---|---|
+| PR #4 | **MERGED**, 2026-10-29T22:14:55Z, by `egpennington` | CODI-inspected (PR API) |
+| Merge commit | `bb69c01f76048010d7d22db6ef457e221e89075b`. Standard two-parent merge: first parent `f96e5376804facc2e01bcad7100e4574f05de3c3` (prior `develop`), second parent `ca742f49a213af65673ada2784c89ce2711b22c8` (feature HEAD). Its tree equals the tree of `ca742f4`. | CODI-inspected (`git cat-file`, `git rev-parse <sha>^{tree}`) |
+| `develop` HEAD | `bb69c01f76048010d7d22db6ef457e221e89075b` | CODI-inspected (`git ls-remote`) |
+| Post-merge CI | Run #29 SUCCESS, 9/9 (above) | CODI-inspected; totals per PL screenshots |
+| Contracts at `bb69c01` | A1 v0.2 `616bd0eb…0572`; the four canonical R-04 documents unchanged (`03718a0d…`, `5e71e0b8…`, `636161e4…`, `1890c589…`) | CODI-inspected (committed blobs) |
+| GAI final recommendation | "GO — Recommend Formal Administrative Closure of WP-03 Slice 1". `GAI_WP03_S1_VRIG1_Challenge_and_Closure_Correction_Addendum.md` (local, untracked; SHA-256 `baee3340c48545168cf3b06b726d8442bac119882ae294bf394539511d8ef5a7`). It supersedes `GAI_WP03_S1_PostMerge_Closure_Audit_Report.md` (`a9007ff8…75ca`) and its correction addendum (`0d897abb…7525`). **Accepted by the PL.** | GAI statement; PL decision |
+| VRIG-1 pilot | **Passed.** GAI reported the marker from §B of `VRIG1_WP03_S1_Controlled_Challenge_v1.0.md` (local, untracked; SHA-256 `c4b80faf…03f1`). CODI confirmed GAI's reported value matches the source; the value is not reproduced here. VRIG-1 = Verity Report Integrity Gate, a **pilot, not ratified policy**. Source retrieval establishes source access only; it is **not** proof of runtime correctness. | PL decision; CODI-inspected match |
+| **Closure** | **WP-03 Slice 1 formally closed administratively** (PL GO, 2026-10-29). Decision register v1.7, WP03-S1-CLOSE. | PL decision |
+| Slice 2 | **Gate C for WP-03 Slice 2 remains CLOSED.** No Slice 2 work, provisioning or deployment is authorized. | PL decision |
+| Untouched | `main` (`b6ac365…`), `feature/wp03-s1-family-ownership` (`ca742f4…`), `feature/wp03-s1-gate-negative` (`8d68199…`), production infrastructure; no deployment | CODI-inspected refs; PL decision |
+
+**GAI statements in the final addendum that are not adopted:**
+- **HB descriptions:** its HB-1/HB-2 descriptions ("membership transactional bounds", "dangling edge handling") differ from the ratified backlog. `WP03_S1_HARDENING_BACKLOG_v1.1.md` defines HB-1 as malformed `lifecycleState`, HB-2 as malformed `displayName` and HB-3 as cross-entry invariants. The backlog controls.
+- **Item (b):** it defers the README fix to Slice 2 kickoff. The PL directed the stale milestone status to be corrected in this closure record.
+- **Item (c):** it cites a "project policy" excluding reports from git. No such policy is recorded; committing them remains a PL decision.
+- **Item (h):** it states the artifact digests are preserved in committed manifests. Run #29's digests are first recorded here, in v1.4.
+
+### Administrative follow-ups (CODI post-merge closure report §5(3); all nonblocking)
+
+| # | Item | Status in v1.4 |
+|---|---|---|
+| (a) | Manifest described PR #4 as Draft and did not record the merge or run #29 | **Proposed resolution in this v1.4 change** (uncommitted). It stays outstanding until committed. |
+| (b) | `docs/specs/README.md` said "Gate C remains CLOSED and WP-03 remains ON HOLD" | **Proposed resolution in the accompanying README change** (uncommitted). It stays outstanding until committed. |
+| (c) | CODI/GAI reports, including cited sources, are untracked | **Outstanding.** Committing them is a PL decision. |
+| (d) | T-GAP-6 platform-guarantee acceptance not formally recorded | **Outstanding** (T-GAP-6 OPEN) |
+| (e) | Totals for runs #21, #22, #26, #27 and #28 not inspected; #23/#24 GAI-reported only. (Run #29 D1 is also NOT VERIFIED.) | **Outstanding** |
+| (f) | GAI has not inspected the Phase B raw NC logs | **Outstanding** |
+| (g) | No durable second copy of the Phase B archive recorded | **Outstanding** |
+| (h) | CI artifacts expire 2026-11-12 | **Outstanding.** Download before expiry if retention is wanted. |
+| (i) | Ratification record v1.1: "introduced" (conditions list) vs "merged" (§4) | **Outstanding.** The operative rule is "before any additional family-record writer is merged"; the record is unedited. |
+
 ## GAI D4 record: chronology and supersession
 
 All are untracked GAI files in `docs/specs/R-04/`, recorded as GAI's statements. Hashes were taken 2026-10-29.
@@ -313,7 +372,8 @@ R-1 case 1 (an unauthenticated resubmission of a committed `opId`) has no dedica
 - **Open gaps:** T-GAP-2, T-GAP-6 and T-GAP-9 remain open.
 - **T-GAP-10:** D2 handler-level evidence only.
 - **Run totals:**
-  - Run #26 totals were not separately inspected by the PL.
+  - Run #29 (post-merge): emulator totals are PL screenshot observations only; D1 totals are NOT VERIFIED.
+  - Runs #26, #27 and #28 totals were not inspected.
   - Runs #21–#24 totals were not confirmed to CODI (#23/#24 are GAI-reported as PL-observed).
 - **Local evidence storage:**
   - NC-10..16 and the Phase B local logs are CODI-reported. GAI did not inspect the raw logs.

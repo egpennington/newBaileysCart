@@ -17,7 +17,11 @@
   - historical candidates, GAI review reports and review packages, preserved unmodified
 - Files in `R-04/` whose headers read "NOT RATIFIED" or "CANDIDATE" predate ratification. This includes the four ratified documents and `README_REVIEW_FIRST.md`. The ratification record is authoritative for their status.
 - The four ratified files are byte-identical to the ratified SHA-256 manifest. Verify them against the committed blob, for example `git cat-file blob HEAD:docs/specs/R-04/API_SPEC_v0.4_CANONICAL.md | sha256sum`. A Windows working-copy checkout may change line endings.
-- R-04 ratification is specification-only. Gate C remains CLOSED and WP-03 remains ON HOLD.
+- R-04 ratification was specification-only. At ratification, Gate C was CLOSED and WP-03 was ON HOLD (historical).
+- **Current milestone status (2026-10-29):**
+  - Gate C was later opened for **WP-03 Slice 1 only** (decision register, "WP-03 Slice 1").
+  - Slice 1 was merged into `develop` at `bb69c01f76048010d7d22db6ef457e221e89075b` and **administratively closed** (register v1.7, WP03-S1-CLOSE).
+  - **Gate C for WP-03 Slice 2 remains CLOSED.** WP-03 as a whole is not complete.
 
 ## WP-03 Slice 1: API Amendment A1
 
