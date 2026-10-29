@@ -16,7 +16,7 @@ steps:
   - Concurrent creates (distinct and identical opIds), 50 iterations each
   - Expiry boundary arithmetic at expiresAt - 1 ms, expiresAt, expiresAt + 1 ms
 expected:
-  - Replay returns the byte-identical original response; TTL never extended; one family
+  - Replay returns the logically identical original response, compared as parsed JSON (deep equality; same keys and values, any key order; transport bytes not compared, per API Amendment A1 v0.2 §A1.6); TTL never extended; one family
   - Changed payload is IDEMPOTENCY_KEY_REUSED with no writes
   - Concurrency never yields two families for one UID
 evidence:
@@ -24,6 +24,12 @@ evidence:
   - backend/functions/test/emulator/familiesCreate.test.ts
   - backend/functions/test/e2e/callables.test.ts (replay and reuse over the wire)
   - Negative controls NC-2, NC-3
+open_test_gaps:
+  # Planned (execution plan v1.0, Phase B). NOT YET CLOSED; no test implemented.
+  - T-GAP-4 verify then resubmit the same opId commits (A1 v0.2 §A1.4; clarification R-1 case 3) - NOT YET CLOSED
+  - T-GAP-8 stored idempotency command is the logical name families.create (A1 v0.2 §A1.1) - NOT YET CLOSED
+  - T-GAP-10 committed opId resubmitted without verified email is EMAIL_VERIFICATION_REQUIRED, not a replay (clarification R-1 case 2) - NOT YET CLOSED
+traceability: docs/specs/R-04/CODI_WP03_S1_A1_CONTRACT_TRACEABILITY_REPORT_v1.0.md rows 1.4, 4.10, 6.7, 6.9
 depths:
   D1: time arithmetic, expiry boundary, canonical request hash
   D2: emulator replay, reuse, concurrency stress

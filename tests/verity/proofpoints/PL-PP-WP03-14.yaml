@@ -19,6 +19,14 @@ evidence:
   - backend/functions/test/rules/denyAll.test.ts
   - backend/functions/test/emulator/accountGetSession.test.ts
   - Negative controls NC-4, NC-7
+open_test_gaps:
+  # Planned (execution plan v1.0, Phase B). NOT YET CLOSED; no test implemented.
+  - T-GAP-1 live account.getSession responses validated against the A1 v0.2 §A1.5 JSON Schema and cross-entry rules - NOT YET CLOSED
+  - T-GAP-5 account.getSession succeeds for an authenticated caller without verified email (A1 v0.2 §A1.5) - NOT YET CLOSED
+  - T-GAP-7 joinedFamilies ordered by familyId in UTF-16 code-unit order (A1 v0.2 §A1.5) - NOT YET CLOSED
+accepted_limitations:
+  - F-1, F-2, F-3 malformed or inconsistent stored family records; accepted only while families.create is the sole writer; HB-1..HB-3 mandatory before any additional writer (ratification record v1.1)
+traceability: docs/specs/R-04/CODI_WP03_S1_A1_CONTRACT_TRACEABILITY_REPORT_v1.0.md rows 5.1, 5.4, 5.10, 5.16, 5.17
 depths:
   D1: not applicable
   D2: emulator rules (REST, unsigned test tokens) and getSession isolation
