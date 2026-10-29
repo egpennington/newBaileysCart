@@ -1,6 +1,6 @@
 # newBaileysCart Decision Register
 
-- **Register version:** 1.6. Records Gate C for WP-03 Slice 1 and decisions PL-1..PL-10. v1.5 recorded R-04 ratification: the R-04 v0.4 four-document specification baseline. v1.4 resolved WP00-OPEN-03; v1.3 added WP00-MAINT-01; v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
+- **Register version:** 1.7. Records the administrative closure of WP-03 Slice 1, and that Gate C for WP-03 Slice 2 remains CLOSED. v1.6 recorded Gate C for WP-03 Slice 1 and decisions PL-1..PL-10. v1.5 recorded R-04 ratification: the R-04 v0.4 four-document specification baseline. v1.4 resolved WP00-OPEN-03; v1.3 added WP00-MAINT-01; v1.2 added WP00-REPRO-01; v1.1 resolved WP00-OPEN-02.
 - **Created:** 2026-10-26 by CODI, recording Project Lead (penguinPrime) decisions
 - **Rule:** entries record decisions and their sources. They do not change the API contract. Canonical API incorporation is a separate, controlled CipherMuse change that must be recorded here when it happens.
 
@@ -52,6 +52,24 @@ Gate C is open for **WP-03 Slice 1 only**, on `feature/wp03-s1-family-ownership`
 | PL-9 | `account.getSession` returns only the caller's own trial eligibility | PL APPROVED |
 | PL-10 | R-04 v0.4 sufficient for Slice 1 | PL APPROVED |
 | W01-D2 | Domain rejections are native `HttpsError` with the full v0.4 envelope in `details` (Option A), using GAI's mapping table | GAI mandated; PL directed |
+
+### WP-03 Slice 1 closure (register v1.7)
+
+**Slice 1 is closed.** PR #4 was merged into `develop` and Slice 1 was administratively closed on 2026-10-29. The Gate C paragraph above (v1.6) is retained as the historical record of the Slice 1 authorization.
+
+| ID | Decision | Authority | Date | Source |
+|---|---|---|---|---|
+| WP03-S1-CLOSE | **WP-03 Slice 1 (Family Ownership Core) formally closed administratively.** PR #4 was merged into `develop` at merge commit `bb69c01f76048010d7d22db6ef457e221e89075b` (parents `f96e537…`, `ca742f4…`). Post-merge FORGE run #29 (`40964381385`) concluded success, 9/9 jobs. | PL **GO** | 2026-10-29 | PL "WP-03 Slice 1 Administrative Closure Record" handoff; evidence in `docs/wp03/evidence/EVIDENCE_MANIFEST.md` v1.4 |
+| WP03-S1-GAI | GAI's final D4 recommendation, "GO — Recommend Formal Administrative Closure of WP-03 Slice 1", **accepted** | PL | 2026-10-29 | `GAI_WP03_S1_VRIG1_Challenge_and_Closure_Correction_Addendum.md` (local, untracked; SHA-256 `baee3340…f5a7`) |
+| WP03-S1-VRIG1 | The VRIG-1 (Verity Report Integrity Gate) source-retrieval pilot **passed**: GAI reported the correct marker from the PL's controlled challenge document. This was a **pilot, not ratified workflow policy**. Retrieval shows source access only; it is **not** proof of runtime correctness. | PL | 2026-10-29 | `VRIG1_WP03_S1_Controlled_Challenge_v1.0.md` (local, untracked) |
+| WP03-S2-GATE | **Gate C for WP-03 Slice 2 remains CLOSED.** Slice 1 closure authorizes no Slice 2 work, provisioning or deployment. | PL | 2026-10-29 | PL closure handoff |
+
+**Carried forward from Slice 1 (unchanged):**
+- **Accepted limitations:** F-1, F-2 and F-3 apply only while `families.create` is the sole family-record writer.
+- **Hardening:** HB-1, HB-2 and HB-3 are mandatory before any additional family-record writer is merged (ratification record v1.1 §4).
+- **Open gaps:** T-GAP-2, T-GAP-6 and T-GAP-9 remain open.
+- **Administrative follow-ups:** the nine items from the CODI post-merge closure report §5(3)(a–i) are recorded as nonblocking in manifest v1.4.
+- **Untouched:** `main`, the preserved branches (`feature/wp03-s1-family-ownership`, `feature/wp03-s1-gate-negative`), production infrastructure and deployments.
 
 ## Open decisions raised by WP-00 (not decided)
 
