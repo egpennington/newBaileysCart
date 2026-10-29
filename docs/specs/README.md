@@ -18,3 +18,17 @@
 - Files in `R-04/` whose headers read "NOT RATIFIED" or "CANDIDATE" predate ratification. This includes the four ratified documents and `README_REVIEW_FIRST.md`. The ratification record is authoritative for their status.
 - The four ratified files are byte-identical to the ratified SHA-256 manifest. Verify them against the committed blob, for example `git cat-file blob HEAD:docs/specs/R-04/API_SPEC_v0.4_CANONICAL.md | sha256sum`. A Windows working-copy checkout may change line endings.
 - R-04 ratification is specification-only. Gate C remains CLOSED and WP-03 remains ON HOLD.
+
+## WP-03 Slice 1: API Amendment A1
+
+| File (`R-04/`) | Status | SHA-256 |
+|---|---|---|
+| `API_SPEC_v0.4_AMENDMENT_WP03_S1_PROPOSED_v0.2.md` | **Ratified** by the PL as API Amendment A1 v0.2, **WP-03 Slice 1 only**. Its "PROPOSED" header predates ratification and is left unedited to keep the hash fixed. | `616bd0eb75b191aa6dc9b7157bf07557ad9067c6025870d2b874a794b3e30572` |
+| `API_AMENDMENT_A1_v0.2_RATIFICATION_RECORD_v1.1.md` | **Authoritative** ratification record (adds R-1 and F-3/HB-3) | — |
+| `API_AMENDMENT_A1_v0.2_CLARIFICATION_R1_v1.0.md` | PL-approved interpretive clarification of §A1.6 (replay precedence). No API or runtime change. | — |
+| `WP03_S1_HARDENING_BACKLOG_v1.1.md` | Current hardening backlog (HB-1, HB-2, HB-3), mandatory before any additional family-record writer. Not implemented. | — |
+| `API_SPEC_v0.4_AMENDMENT_WP03_S1_PROPOSED_v0.1.md` | **Historical. Superseded by v0.2; not ratified; no normative force.** Kept unmodified. | `9982238fa1bed67a6d70edc8150c1b087141b3c39c9cf03ae0edd3b689c48529` |
+| `API_AMENDMENT_A1_v0.2_RATIFICATION_RECORD_v1.0.md` | **Historical.** Superseded by record v1.1. Kept unmodified. | — |
+| `WP03_S1_F1_F2_HARDENING_BACKLOG_v1.0.md` | **Historical.** Superseded by backlog v1.1. Kept unmodified. | — |
+
+- A1 v0.2 amends the R-04 v0.4 API for Slice 1. The four R-04 v0.4 documents above are unchanged.
