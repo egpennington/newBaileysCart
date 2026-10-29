@@ -19,13 +19,17 @@ evidence:
   - backend/functions/test/rules/denyAll.test.ts
   - backend/functions/test/emulator/accountGetSession.test.ts
   - Negative controls NC-4, NC-7
-open_test_gaps:
-  # Planned (execution plan v1.0, Phase B). NOT YET CLOSED; no test implemented.
-  - T-GAP-1 live account.getSession responses validated against the A1 v0.2 §A1.5 JSON Schema and cross-entry rules - NOT YET CLOSED
-  - T-GAP-5 account.getSession succeeds for an authenticated caller without verified email (A1 v0.2 §A1.5) - NOT YET CLOSED
-  - T-GAP-7 joinedFamilies ordered by familyId in UTF-16 code-unit order (A1 v0.2 §A1.5) - NOT YET CLOSED
+  - Phase B (commit 94d31d9) T-GAP-1 in backend/functions/test/support/a1Schema.ts, test/unit/a1Schema.test.ts, test/emulator/accountGetSession.test.ts and test/e2e/callables.test.ts; T-GAP-5 and T-GAP-7 in test/emulator/accountGetSession.test.ts; T-GAP-5 over the wire in test/e2e/callables.test.ts
+  - Phase B negative controls NC-10, NC-13, NC-14 (CODI-reported; docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.3)
+  - FORGE run 25 (40899889216) with PL-inspected totals D1 129/129 and emulator 143/143; run 26 (40899897542) green
+closed_test_gaps:
+  # Closed within Slice 1 scope (manifest v1.3; GAI Phase B D4 as corrected by its two addenda). Previously open in v1.2.
+  - T-GAP-1 live account.getSession responses validated against the A1 v0.2 §A1.5 JSON Schema and cross-entry rules - CLOSED, D1 D2 D3; consistent Slice 1-written data only, not HB-1/HB-2/HB-3 evidence
+  - T-GAP-5 account.getSession succeeds for an authenticated caller without verified email (A1 v0.2 §A1.5) - CLOSED, D2 and D3
+  - T-GAP-7 joinedFamilies ordered by familyId in UTF-16 code-unit order; selection is the first usable entry (A1 v0.2 §A1.5) - CLOSED, D2
 accepted_limitations:
-  - F-1, F-2, F-3 malformed or inconsistent stored family records; accepted only while families.create is the sole writer; HB-1..HB-3 mandatory before any additional writer (ratification record v1.1)
+  - F-1, F-2, F-3 malformed or inconsistent stored family records; accepted only while families.create is the sole writer; HB-1..HB-3 not implemented and mandatory before any additional family-record writer is merged (ratification record v1.1)
+  - T-GAP-6 read-only consistent snapshot of account.getSession not asserted (open)
 traceability: docs/specs/R-04/CODI_WP03_S1_A1_CONTRACT_TRACEABILITY_REPORT_v1.0.md rows 5.1, 5.4, 5.10, 5.16, 5.17
 depths:
   D1: not applicable

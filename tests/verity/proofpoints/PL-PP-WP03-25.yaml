@@ -24,11 +24,14 @@ evidence:
   - backend/functions/test/emulator/familiesCreate.test.ts
   - backend/functions/test/e2e/callables.test.ts (replay and reuse over the wire)
   - Negative controls NC-2, NC-3
-open_test_gaps:
-  # Planned (execution plan v1.0, Phase B). NOT YET CLOSED; no test implemented.
-  - T-GAP-4 verify then resubmit the same opId commits (A1 v0.2 §A1.4; clarification R-1 case 3) - NOT YET CLOSED
-  - T-GAP-8 stored idempotency command is the logical name families.create (A1 v0.2 §A1.1) - NOT YET CLOSED
-  - T-GAP-10 committed opId resubmitted without verified email is EMAIL_VERIFICATION_REQUIRED, not a replay (clarification R-1 case 2) - NOT YET CLOSED
+  - Phase B (commit 94d31d9) T-GAP-4, T-GAP-8, T-GAP-10 in backend/functions/test/emulator/familiesCreate.test.ts; T-GAP-4 over the wire in backend/functions/test/e2e/callables.test.ts
+  - Phase B negative controls NC-12, NC-15, NC-16 (CODI-reported; docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.3)
+  - FORGE run 25 (40899889216) with PL-inspected totals D1 129/129 and emulator 143/143; run 26 (40899897542) green
+closed_test_gaps:
+  # Closed within Slice 1 scope (manifest v1.3; GAI Phase B D4 as corrected by its two addenda). Previously open in v1.2.
+  - T-GAP-4 verify then resubmit the same opId commits, then replays (A1 v0.2 §A1.4; clarification R-1 case 3) - CLOSED, D2 and D3
+  - T-GAP-8 stored idempotency command is the logical name families.create (A1 v0.2 §A1.1) - CLOSED, D2
+  - T-GAP-10 committed opId resubmitted without verified email is EMAIL_VERIFICATION_REQUIRED, not a replay (clarification R-1 case 2) - CLOSED, D2 handler level only (no dedicated D3 wire test)
 traceability: docs/specs/R-04/CODI_WP03_S1_A1_CONTRACT_TRACEABILITY_REPORT_v1.0.md rows 1.4, 4.10, 6.7, 6.9
 depths:
   D1: time arithmetic, expiry boundary, canonical request hash
