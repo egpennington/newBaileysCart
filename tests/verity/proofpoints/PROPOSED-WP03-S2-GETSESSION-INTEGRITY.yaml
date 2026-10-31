@@ -1,0 +1,38 @@
+# PROPOSED ProofPoint. Canonical ID to be assigned by GAI from the master registry
+# (WP03_S1_HARDENING_BACKLOG_v1.1.md: "CODI does not invent canonical IDs"). Rename this file on assignment.
+id: PENDING-GAI-ASSIGNMENT
+name: account.getSession response integrity under malformed storage
+feature: Family ownership core (account.getSession read-path hardening HB-1, HB-2, HB-3)
+suite: PS-ACCESS-ISOLATION
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+decision_basis:
+  - HB-1 and HB-3 output = fail the call with INTERNAL (PL decision 2026-10-31, WP-03 Slice 2 sprint); no A1 contract change
+  - HB-2 output = omit displayName (backlog v1.1; no contract change)
+slice_coverage: FULL for the HB-1..HB-3 triggers listed in backlog v1.1 and the PL's four HB-3 properties, at D1, D2 and (HB-1 path) D3. Production logging sink and production Firestore are not exercised.
+preconditions:
+  - D1 none; D2 Firestore emulator with records seeded through the Admin SDK (fixtures, not writers); D3 Auth, Firestore and Functions emulators
+steps:
+  - HB-1 owner lifecycleState missing, null, "", 42, "active", "CLOSING"; the same on a MEMBER entry
+  - HB-2 displayName null, non-string, empty, whitespace, 51 code points, Cc, Cf, Zl, Zp, Cs, Hangul filler; OWNER and MEMBER entries
+  - HB-3 two OWNER memberships; claim without OWNER membership; OWNER membership without claim; claim naming another family; malformed claim; both timestamps; timestamp not matching lifecycleState; malformed timestamp; inconsistent joined family alongside a usable one
+  - Genuine Slice 1 records (families.create) for each shape, unchanged
+expected:
+  - HB-2 cases return an A1 v0.2 §A1.5-conformant session with displayName omitted and one non-fatal integrity event per family
+  - HB-1 and HB-3 cases reject with DomainError INTERNAL (callable functions/internal, retryable true, empty details); no session data, access or suggestion is produced
+  - Integrity events and their log records carry command, reason and familyId only (no UID, name or stored value)
+  - Genuine Slice 1 records produce no integrity events and the Slice 1 responses are unchanged
+evidence:
+  - backend/functions/src/domain/session.ts (buildSession), src/commands/accountGetSession.ts
+  - backend/functions/test/unit/session.test.ts (D1, incl. handler over a Firestore fake)
+  - backend/functions/test/emulator/accountGetSession.test.ts, describe "account.getSession over malformed storage (HB-1, HB-2, HB-3)" (D2)
+  - backend/functions/test/e2e/callables.test.ts, describe "account.getSession over malformed storage, over the wire" (D3)
+  - Negative controls NC-17..NC-23 (docs/specs/R-04/CODI_WP03_S2_Hardening_Sprint_Report_v1.0.md)
+depths:
+  D1: pure mapper decision table for every trigger; handler logging and INTERNAL over a fake
+  D2: emulator, seeded malformed and inconsistent records
+  D3: HB-1 trigger over the callable wire (raw HTTP and client SDK)
+  D4: GAI review (not performed)
+status: see docs/specs/R-04/CODI_WP03_S2_Hardening_Sprint_Report_v1.0.md until the evidence manifest is updated

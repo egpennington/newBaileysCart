@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
 import { HttpsError } from "firebase-functions/v2/https";
 import { authenticate, runCallable } from "../../src/callable/adapter.js";
+import type { FailureLog } from "../../src/callable/adapter.js";
 import { ERROR_SPECS } from "../../src/contract/errors.js";
 import type { DomainErrorCode } from "../../src/contract/errors.js";
 import { DomainError } from "../../src/contract/errors.js";
@@ -111,6 +112,51 @@ describe("rejection mapping (W-01 D-2, Option A)", () => {
       status: "REJECTED",
       error: { code: "INTERNAL", retryable: true, details: {} },
     });
+  });
+
+  test("T-GAP-9: an unexpected exception is logged server-side once, with command and cause", async () => {
+    const logged: Array<Parameters<FailureLog>> = [];
+    const secret = "db password=hunter2 at /srv/secret";
+    await runCallable(
+      "families.create",
+      { auth: verified, data: { opId: OP, payload: { displayName: "Private Name" } } },
+      async () => {
+        throw new Error(secret);
+      },
+      (message, record) => logged.push([message, record]),
+    ).catch((e: unknown) => assert.ok(e instanceof HttpsError && e.code === "internal"));
+    assert.equal(logged.length, 1);
+    const [message, record] = logged[0] ?? assert.fail("no log");
+    assert.equal(message, "Unhandled callable failure");
+    assert.deepEqual(Object.keys(record).sort(), ["command", "error"]);
+    assert.equal(record.command, "families.create");
+    assert.ok(record.error?.includes(secret), "the cause is kept server-side for diagnosis");
+    // The request body (including names) and the caller's token are not logged.
+    assert.ok(!JSON.stringify(record).includes("Private Name"));
+    assert.ok(!JSON.stringify(record).includes("email_verified"));
+  });
+
+  test("T-GAP-9: a non-Error throw is logged as text", async () => {
+    const logged: Array<Parameters<FailureLog>> = [];
+    await runCallable("test", { auth: verified, data: {} }, async () => Promise.reject("plain"), (m, r) => logged.push([m, r])).catch(
+      () => undefined,
+    );
+    assert.deepEqual(logged, [["Unhandled callable failure", { command: "test", error: "plain" }]]);
+  });
+
+  test("T-GAP-9: domain rejections are expected outcomes and are not logged as failures", async () => {
+    const logged: unknown[] = [];
+    for (const code of Object.keys(ERROR_SPECS) as DomainErrorCode[]) {
+      await runCallable(
+        "test",
+        { auth: verified, data: {} },
+        async () => {
+          throw new DomainError(code);
+        },
+        (m, r) => logged.push([m, r]),
+      ).catch(() => undefined);
+    }
+    assert.deepEqual(logged, []);
   });
 
   test("success passes the handler result through unchanged", async () => {

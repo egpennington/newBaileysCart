@@ -7,6 +7,8 @@ executed_by: FORGE (forge-wp00.yml, job backend-emulator) and local CODI runs
 proofpoints_in_slice_1:
   - PL-PP-WP03-14 (partial)
   - PL-PP-WP03-30 (partial)
+proofpoints_proposed_slice_2:
+  - PROPOSED-WP03-S2-GETSESSION-INTEGRITY (canonical ID pending GAI assignment)
 proofpoints_later_slices:
   - PL-PP-WP03-17
   - PL-PP-WP03-19

@@ -6,7 +6,7 @@
  */
 import { strict as assert } from "node:assert";
 import { before, describe, test } from "node:test";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { accountGetSessionHandler as rawSessionHandler } from "../../src/commands/accountGetSession.js";
 import type { SessionDeps } from "../../src/commands/accountGetSession.js";
 import { familiesCreateHandler } from "../../src/commands/familiesCreate.js";
@@ -251,5 +251,154 @@ describe("account.getSession", () => {
     const session = accountGetSessionHandler({ db, clock: new FakeClock(T0) });
     await expectDomainError(session(verified("x"), { apiVersion: "v0.4", uid: "victim" }), "VALIDATION_FAILED");
     await expectDomainError(session(verified("x"), { apiVersion: "v0.3" }), "API_VERSION_UNSUPPORTED");
+  });
+});
+
+/**
+ * D2 hardening (WP03_S1_HARDENING_BACKLOG_v1.1.md; PL output decision 2026-10-31). Malformed and
+ * inconsistent records are seeded through the Admin SDK (test fixtures, not writers). HB-2 cases
+ * must return an A1-conformant session; HB-1 and HB-3 cases must reject with INTERNAL and log
+ * an identifiers-only integrity event.
+ */
+describe("account.getSession over malformed storage (HB-1, HB-2, HB-3)", () => {
+  const clock = new FakeClock(T0);
+  const trialFields = { lifecycleState: "ACTIVE", trialEndsAt: Timestamp.fromMillis(T0 + TRIAL_DURATION_MS) };
+  type Logged = { reason: string; familyId: string | null; fatal: boolean };
+
+  /** A family with both ACTIVE membership edges for `uid`, written directly. */
+  async function seedFamily(familyId: string, uid: string, role: string, fields: Record<string, unknown>): Promise<void> {
+    await db.doc(`families/${familyId}`).set({ familyEpoch: 1, schemaVersion: 1, ...fields });
+    const edge = { role, state: "ACTIVE", joinedAt: Timestamp.fromMillis(T0) };
+    await db.doc(`families/${familyId}/members/${uid}`).set(edge);
+    await db.doc(`users/${uid}/memberships/${familyId}`).set(edge);
+  }
+
+  /** A genuine Slice 1 owner (families.create), so every record not altered by the test is real. */
+  async function realOwner(label: string): Promise<{ uid: string; familyId: string }> {
+    const uid = uniqueUid(label);
+    const created = await familiesCreateHandler({ db, clock })(verified(uid), {
+      apiVersion: "v0.4",
+      opId: newOpId(),
+      payload: { displayName: "Home" },
+    });
+    return { uid, familyId: created.data.familyId };
+  }
+
+  async function expectFailClosed(uid: string, expected: Array<[string, string | null]>): Promise<void> {
+    const logged: Logged[] = [];
+    await expectDomainError(rawSessionHandler({ db, clock, integrityLog: (e) => logged.push(e) })(verified(uid), SESSION_REQ), "INTERNAL");
+    assert.deepEqual(
+      logged.filter((e) => e.fatal).map((e) => [e.reason, e.familyId]),
+      expected,
+    );
+    assert.ok(!JSON.stringify(logged).includes(uid), "integrity events must not carry the UID");
+  }
+
+  const hb1: Record<string, unknown> = { missing: undefined, null: null, empty: "", number: 42, "wrong case": "active", unknown: "CLOSING" };
+  for (const [name, value] of Object.entries(hb1)) {
+    test(`HB-1: owner family lifecycleState ${name} -> INTERNAL`, async () => {
+      const { uid, familyId } = await realOwner("hb1");
+      await db.doc(`families/${familyId}`).update({ lifecycleState: value === undefined ? FieldValue.delete() : value });
+      await expectFailClosed(uid, [["OWNER_LIFECYCLE_STATE_INVALID", familyId]]);
+    });
+  }
+
+  test("HB-1: the same malformed state on a joined (MEMBER) family -> NONE, session succeeds", async () => {
+    const me = uniqueUid("hb1m");
+    const fam = `hb1m-${newOpId().slice(0, 8)}`;
+    await seedFamily(fam, me, "MEMBER", { ownerUid: uniqueUid("host"), ...trialFields, lifecycleState: null });
+    const data = (await accountGetSessionHandler({ db, clock })(verified(me), SESSION_REQ)).data;
+    assert.deepEqual(data.joinedFamilies, [{ familyId: fam, role: "MEMBER", accessMode: "NONE" }]);
+  });
+
+  const hb2: Record<string, unknown> = { null: null, number: 7, empty: "", "51 code points": "x".repeat(51), "zero-width space": "Ho​me" };
+  for (const [name, value] of Object.entries(hb2)) {
+    test(`HB-2: displayName ${name} on OWNER and MEMBER entries -> omitted, logged, session succeeds`, async () => {
+      const { uid, familyId } = await realOwner("hb2");
+      await db.doc(`families/${familyId}`).update({ displayName: value });
+      const joined = `hb2m-${newOpId().slice(0, 8)}`;
+      await seedFamily(joined, uid, "MEMBER", { ownerUid: uniqueUid("host"), ...trialFields, displayName: value });
+      const logged: Logged[] = [];
+      const res = await accountGetSessionHandler({ db, clock, integrityLog: (e) => logged.push(e) })(verified(uid), SESSION_REQ);
+      for (const f of res.data.joinedFamilies) assert.equal("displayName" in f, false, `displayName on ${f.familyId}`);
+      assert.equal(res.data.ownedFamilyId, familyId);
+      assert.deepEqual(
+        logged.map((e) => `${e.reason} ${String(e.familyId)} ${e.fatal}`).sort(),
+        [`DISPLAY_NAME_INVALID ${familyId} false`, `DISPLAY_NAME_INVALID ${joined} false`].sort(),
+      );
+    });
+  }
+
+  test("HB-3 (1): a second family whose ownerUid and OWNER edges name the caller -> INTERNAL", async () => {
+    const { uid, familyId } = await realOwner("hb3a");
+    const second = `hb3a-${newOpId().slice(0, 8)}`;
+    await seedFamily(second, uid, "OWNER", { ownerUid: uid, ...trialFields });
+    const [first, last] = [familyId, second].sort();
+    await expectFailClosed(uid, [
+      ["MULTIPLE_OWNER_ENTRIES", first ?? ""],
+      ["MULTIPLE_OWNER_ENTRIES", last ?? ""],
+      ["OWNER_ENTRY_WITHOUT_CLAIM", second],
+    ]);
+  });
+
+  test("HB-3 (2): ownedFamilyId claim with no OWNER membership -> INTERNAL", async () => {
+    const { uid, familyId } = await realOwner("hb3b");
+    await db.doc(`users/${uid}/memberships/${familyId}`).delete();
+    await expectFailClosed(uid, [["CLAIM_WITHOUT_OWNER_ENTRY", familyId]]);
+  });
+
+  test("HB-3 (2): OWNER membership with no ownedFamilyId claim -> INTERNAL", async () => {
+    const { uid, familyId } = await realOwner("hb3c");
+    await db.doc(`users/${uid}`).update({ ownedFamilyId: FieldValue.delete() });
+    await expectFailClosed(uid, [["OWNER_ENTRY_WITHOUT_CLAIM", familyId]]);
+  });
+
+  test("HB-3 (2): malformed ownedFamilyId -> INTERNAL, stored value not logged", async () => {
+    const { uid, familyId } = await realOwner("hb3d");
+    await db.doc(`users/${uid}`).update({ ownedFamilyId: 12345 });
+    await expectFailClosed(uid, [
+      ["CLAIM_WITHOUT_OWNER_ENTRY", null],
+      ["OWNER_ENTRY_WITHOUT_CLAIM", familyId],
+    ]);
+  });
+
+  test("HB-3 (3): both lifecycle timestamps on the owner's trial family -> INTERNAL", async () => {
+    const { uid, familyId } = await realOwner("hb3e");
+    await db.doc(`families/${familyId}`).update({ reservationExpiresAt: Timestamp.fromMillis(T0 + 86_400_000) });
+    await expectFailClosed(uid, [["LIFECYCLE_TIMESTAMPS_INCONSISTENT", familyId]]);
+  });
+
+  test("HB-3 (3): a timestamp that does not match lifecycleState -> INTERNAL", async () => {
+    const { uid, familyId } = await realOwner("hb3f");
+    // A reservation state over the trial family's trialEndsAt, with no reservationExpiresAt.
+    await db.doc(`families/${familyId}`).update({ lifecycleState: "UNENTITLED_AWAITING_PAYMENT" });
+    await expectFailClosed(uid, [["LIFECYCLE_TIMESTAMPS_INCONSISTENT", familyId]]);
+  });
+
+  test("HB-3 (3)+(4): a joined family with both timestamps grants nothing; the call fails closed", async () => {
+    const me = uniqueUid("hb3g");
+    const usable = `hb3g-ok-${newOpId().slice(0, 8)}`;
+    const bad = `hb3g-bad-${newOpId().slice(0, 8)}`;
+    await seedFamily(usable, me, "MEMBER", { ownerUid: uniqueUid("host"), ...trialFields });
+    await seedFamily(bad, me, "MEMBER", { ownerUid: uniqueUid("host"), ...trialFields, reservationExpiresAt: Timestamp.fromMillis(T0) });
+    await expectFailClosed(me, [["LIFECYCLE_TIMESTAMPS_INCONSISTENT", bad]]);
+  });
+
+  test("HB-3 (3): a non-Timestamp trialEndsAt -> INTERNAL", async () => {
+    const { uid, familyId } = await realOwner("hb3h");
+    await db.doc(`families/${familyId}`).update({ trialEndsAt: "2026-11-18T12:00:00.000Z" });
+    await expectFailClosed(uid, [
+      ["LIFECYCLE_TIMESTAMP_MALFORMED", familyId],
+      ["CLAIM_WITHOUT_OWNER_ENTRY", familyId],
+    ]);
+  });
+
+  test("genuine Slice 1 records produce no integrity events", async () => {
+    const { uid, familyId } = await realOwner("hbok");
+    const logged: unknown[] = [];
+    const res = await accountGetSessionHandler({ db, clock, integrityLog: (e) => logged.push(e) })(verified(uid), SESSION_REQ);
+    assert.deepEqual(logged, []);
+    assert.equal(res.data.ownedFamilyId, familyId);
+    assert.equal(res.data.joinedFamilies[0]?.displayName, "Home");
   });
 });

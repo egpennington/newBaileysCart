@@ -37,13 +37,23 @@ export function authenticate(input: CallableInput): Actor {
   return { uid, emailVerified: input.auth?.token?.["email_verified"] === true };
 }
 
-export async function runCallable<T>(command: string, input: CallableInput, handler: Handler<T>): Promise<T> {
+/** Server-side sink for unexpected failures; injectable so tests can assert what is logged (T-GAP-9). */
+export type FailureLog = (message: string, record: { readonly command: string; readonly error: string | undefined }) => void;
+
+const defaultFailureLog: FailureLog = (message, record) => logger.error(message, record);
+
+export async function runCallable<T>(
+  command: string,
+  input: CallableInput,
+  handler: Handler<T>,
+  log: FailureLog = defaultFailureLog,
+): Promise<T> {
   const opId = echoableOpId(input.data);
   try {
     return await handler(authenticate(input), input.data);
   } catch (err) {
     if (err instanceof DomainError) throw toHttpsError(err.code, opId, err.details);
-    logger.error("Unhandled callable failure", { command, error: err instanceof Error ? err.stack : String(err) });
+    log("Unhandled callable failure", { command, error: err instanceof Error ? err.stack : String(err) });
     throw toHttpsError("INTERNAL", opId);
   }
 }
