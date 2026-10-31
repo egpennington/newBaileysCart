@@ -182,7 +182,23 @@ describe("HB-3 (F-3): inconsistent stored records fail closed", () => {
   });
   test("(2) ownedFamilyId names a family the caller is only a MEMBER of", () => {
     const entry: StoredEntry = { familyId: OWNED, family: { ownerUid: UID, ...trial }, memberRole: "MEMBER" };
-    failsClosed(session([entry]), [["CLAIM_WITHOUT_OWNER_ENTRY", OWNED]]);
+    failsClosed(session([entry]), [
+      ["OWNER_UID_WITHOUT_OWNER_MEMBERSHIP", OWNED],
+      ["CLAIM_WITHOUT_OWNER_ENTRY", OWNED],
+    ]);
+  });
+  test("(2)+(4) ownerUid is the caller, membership is not OWNER, no claim names it: never READ_WRITE", () => {
+    for (const memberRole of ["MEMBER", "ADMIN", null, undefined]) {
+      const entry: StoredEntry = { familyId: "fSelf0001", family: { ownerUid: UID, ...trial }, memberRole };
+      // With no claim, and with a claim naming a different, genuine OWNER entry.
+      failsClosed(session([entry], null), [["OWNER_UID_WITHOUT_OWNER_MEMBERSHIP", "fSelf0001"]]);
+      failsClosed(session([entry, owner(OWNED)]), [["OWNER_UID_WITHOUT_OWNER_MEMBERSHIP", "fSelf0001"]]);
+    }
+  });
+  test("legitimate MEMBER access is unchanged: another owner's family stays READ_WRITE", () => {
+    const { data, events } = ok(session([member("fJoined01"), owner(OWNED)]));
+    assert.deepEqual(events, []);
+    assert.equal(data.joinedFamilies.find((f) => f.familyId === "fJoined01")?.accessMode, "READ_WRITE");
   });
   test("(2) OWNER membership with no claim", () => {
     for (const claim of [undefined, null]) {

@@ -62,7 +62,9 @@ export type IntegrityReason =
   /** HB-3 (2): an OWNER membership that ownedFamilyId does not name. */
   | "OWNER_ENTRY_WITHOUT_CLAIM"
   /** HB-3 (2): an ownedFamilyId with no matching OWNER membership, or a malformed one. */
-  | "CLAIM_WITHOUT_OWNER_ENTRY";
+  | "CLAIM_WITHOUT_OWNER_ENTRY"
+  /** HB-3 (2)/(4): the family's ownerUid is the caller but the caller's membership is not OWNER. */
+  | "OWNER_UID_WITHOUT_OWNER_MEMBERSHIP";
 
 export interface IntegrityEvent {
   readonly reason: IntegrityReason;
@@ -93,6 +95,9 @@ export function buildSession(stored: StoredSession, nowMillis: number): SessionB
 
   for (const { familyId, family, memberRole } of stored.entries) {
     const isOwner = memberRole === "OWNER" && family["ownerUid"] === stored.uid;
+    // The caller's own family reached through a non-OWNER membership would otherwise be a
+    // MEMBER entry with full access (sprint report v1.0 §2 residual case).
+    if (family["ownerUid"] === stored.uid && !isOwner) fail("OWNER_UID_WITHOUT_OWNER_MEMBERSHIP", familyId);
     const lifecycleState = family["lifecycleState"];
     const trialEndsAt = millisOf(family["trialEndsAt"]);
     const reservationExpiresAt = millisOf(family["reservationExpiresAt"]);

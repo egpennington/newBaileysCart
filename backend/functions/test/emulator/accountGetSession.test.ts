@@ -362,6 +362,34 @@ describe("account.getSession over malformed storage (HB-1, HB-2, HB-3)", () => {
     ]);
   });
 
+  test("HB-3 (2)+(4): ownerUid is the caller via a MEMBER edge, no claim names it -> INTERNAL, never READ_WRITE", async () => {
+    const me = uniqueUid("hb3r");
+    const fam = `hb3r-${newOpId().slice(0, 8)}`;
+    // A usable trial family: without the guard this would be a READ_WRITE MEMBER entry.
+    await seedFamily(fam, me, "MEMBER", { ownerUid: me, ...trialFields });
+    await expectFailClosed(me, [["OWNER_UID_WITHOUT_OWNER_MEMBERSHIP", fam]]);
+  });
+
+  test("HB-3 (2)+(4): the same record beside the caller's genuine owned family -> INTERNAL", async () => {
+    const { uid } = await realOwner("hb3s");
+    const fam = `hb3s-${newOpId().slice(0, 8)}`;
+    await seedFamily(fam, uid, "MEMBER", { ownerUid: uid, ...trialFields });
+    await expectFailClosed(uid, [["OWNER_UID_WITHOUT_OWNER_MEMBERSHIP", fam]]);
+  });
+
+  test("legitimate MEMBER access is unchanged: another owner's usable family stays READ_WRITE", async () => {
+    const { uid } = await realOwner("hb3t");
+    const fam = `hb3t-${newOpId().slice(0, 8)}`;
+    await seedFamily(fam, uid, "MEMBER", { ownerUid: uniqueUid("host"), ...trialFields });
+    const logged: unknown[] = [];
+    const res = await accountGetSessionHandler({ db, clock, integrityLog: (e) => logged.push(e) })(verified(uid), SESSION_REQ);
+    assert.deepEqual(logged, []);
+    assert.deepEqual(
+      res.data.joinedFamilies.find((f) => f.familyId === fam),
+      { familyId: fam, role: "MEMBER", accessMode: "READ_WRITE" },
+    );
+  });
+
   test("HB-3 (3): both lifecycle timestamps on the owner's trial family -> INTERNAL", async () => {
     const { uid, familyId } = await realOwner("hb3e");
     await db.doc(`families/${familyId}`).update({ reservationExpiresAt: Timestamp.fromMillis(T0 + 86_400_000) });
