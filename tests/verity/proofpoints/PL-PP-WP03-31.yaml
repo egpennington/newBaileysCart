@@ -1,6 +1,6 @@
-# PROPOSED ProofPoint. Canonical ID to be assigned by GAI from the master registry
-# (WP03_S1_HARDENING_BACKLOG_v1.1.md: "CODI does not invent canonical IDs"). Rename this file on assignment.
-id: PENDING-GAI-ASSIGNMENT
+# Canonical ID PL-PP-WP03-31 assigned by the Project Lead (DECISION_REGISTER v1.9 WP03-S2-PP31;
+# GAI_WP03_S2_Independent_D4_Verification_v1.1 §4.2). Formerly PROPOSED-WP03-S2-GETSESSION-INTEGRITY.
+id: PL-PP-WP03-31
 name: account.getSession response integrity under malformed storage
 feature: Family ownership core (account.getSession read-path hardening HB-1, HB-2, HB-3)
 suite: PS-ACCESS-ISOLATION
@@ -34,5 +34,5 @@ depths:
   D1: pure mapper decision table for every trigger; handler logging and INTERNAL over a fake
   D2: emulator, seeded malformed and inconsistent records
   D3: HB-1 trigger over the callable wire (raw HTTP and client SDK)
-  D4: GAI review (not performed)
+  D4: GAI review, GAI_WP03_S2_Independent_D4_Verification_v1.1 (CONDITIONAL GO; PR #6 merge on HOLD)
 status: see docs/specs/R-04/CODI_WP03_S2_Hardening_Sprint_Report_v1.0.md until the evidence manifest is updated
