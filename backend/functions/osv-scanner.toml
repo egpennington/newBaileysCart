@@ -1,0 +1,9 @@
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2026-12-01T00:00:00Z
+reason = "WP03-S2 PILOT: glob@10.5.0 via rimraf (prod, unreachable per Prove Zero) and firebase-tools dev tree; no compatible upstream fix. Owner: PL. Expires 2026-12-01."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-12-01T00:00:00Z
+reason = "WP03-S2 PILOT: minimatch 9.0.9 (prod, unreachable per Prove Zero) and 3.1.5/5.1.9/6.2.3 (firebase-tools dev tree); no compatible upstream fix. Owner: PL. Expires 2026-12-01."

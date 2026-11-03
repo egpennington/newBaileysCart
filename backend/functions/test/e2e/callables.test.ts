@@ -262,3 +262,34 @@ describe("raw wire shape (W-01 D-1, D-2, D-3)", () => {
     assert.equal(r.status, 401);
   });
 });
+
+describe("account.getSession over malformed storage, over the wire (HB-1, HB-3; PL decision 2026-10-31)", () => {
+  test("a corrupt owned family fails closed: functions/internal, retryable INTERNAL, no record data", async () => {
+    const user = await signUp("hbwire", true);
+    const created = await callSdk("familiesCreate", { apiVersion: "v0.4", opId: newOpId(), payload: { displayName: "Wire Home" } });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+    const familyId = (created.data as { data: { familyId: string } }).data.familyId;
+    // Fixture only (Admin SDK): the owned family loses its lifecycle state (HB-1 trigger).
+    await db.doc(`families/${familyId}`).update({ lifecycleState: null });
+
+    const opId = newOpId();
+    const r = await callRaw("accountGetSession", { apiVersion: "v0.4", opId }, await user.getIdToken());
+    assert.equal(r.status, 500);
+    assert.deepEqual(r.body, {
+      error: {
+        message: "Internal error.",
+        status: "INTERNAL",
+        details: { apiVersion: "v0.4", opId, status: "REJECTED", error: { code: "INTERNAL", retryable: true, details: {} } },
+      },
+    });
+    const wire = JSON.stringify(r.body);
+    for (const leak of [familyId, user.uid, "Wire Home", "lifecycleState"]) assert.ok(!wire.includes(leak), `wire leaks ${leak}`);
+
+    const sdk = await callSdk("accountGetSession", { apiVersion: "v0.4" });
+    assert.equal(sdk.ok, false);
+    if (sdk.ok) return;
+    assert.equal(sdk.err.code, "functions/internal");
+    assert.equal(sdk.err.details.error.code, "INTERNAL");
+  });
+});

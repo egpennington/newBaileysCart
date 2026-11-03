@@ -21,8 +21,9 @@ evidence:
   - backend/functions/test/unit/domain.test.ts (decideCreate)
   - backend/functions/test/emulator/familiesCreate.test.ts (concurrency stress, reservation path)
   - Negative controls NC-1, NC-1b, NC-2 (docs/wp03/evidence/EVIDENCE_MANIFEST.md)
+  - WP-03 Slice 2, T-GAP-2 (contention exhaustion): backend/functions/test/unit/contention.test.ts; negative control NC-24 (docs/specs/R-04/CODI_WP03_S2_Hardening_Sprint_Report_v1.0.md)
 depths:
-  D1: decideCreate decision table
+  D1: decideCreate decision table; T-GAP-2 maxAttempts 10 requested and SDK ABORTED exhaustion mapped to retryable INTERNAL, logged server-side (Firestore fake; the SDK retry loop is not modeled)
   D2: emulator transactions, 50-iteration x 5-parallel stress (distinct and same opId; trial and reservation paths)
   D3: not applicable (covered at D2; D3 checks owner limit over the wire)
   D4: GAI review. Emulator contention is not production contention evidence.

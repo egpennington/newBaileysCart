@@ -48,13 +48,24 @@ function checkApiVersion(obj: Record<string, unknown>): void {
   if (v !== API_VERSION) throw new DomainError("API_VERSION_UNSUPPORTED", { supported: API_VERSION });
 }
 
-export function validateDisplayName(value: unknown): string {
-  if (typeof value !== "string") throw invalid("payload.displayName", "NOT_A_STRING");
-  if (FORBIDDEN_IN_DISPLAY_NAME.test(value)) throw invalid("payload.displayName", "FORBIDDEN_CHARACTER");
+export type DisplayNameCheck =
+  | { readonly ok: true; readonly value: string }
+  | { readonly ok: false; readonly reason: "NOT_A_STRING" | "FORBIDDEN_CHARACTER" | "EMPTY" | "TOO_LONG" };
+
+/** PL-5, shared by request validation and by the stored-value check in account.getSession (HB-2). */
+export function checkDisplayName(value: unknown): DisplayNameCheck {
+  if (typeof value !== "string") return { ok: false, reason: "NOT_A_STRING" };
+  if (FORBIDDEN_IN_DISPLAY_NAME.test(value)) return { ok: false, reason: "FORBIDDEN_CHARACTER" };
   const trimmed = value.trim();
-  if (trimmed === "") throw invalid("payload.displayName", "EMPTY");
-  if ([...trimmed].length > DISPLAY_NAME_MAX_CODE_POINTS) throw invalid("payload.displayName", "TOO_LONG");
-  return trimmed;
+  if (trimmed === "") return { ok: false, reason: "EMPTY" };
+  if ([...trimmed].length > DISPLAY_NAME_MAX_CODE_POINTS) return { ok: false, reason: "TOO_LONG" };
+  return { ok: true, value: trimmed };
+}
+
+export function validateDisplayName(value: unknown): string {
+  const checked = checkDisplayName(value);
+  if (!checked.ok) throw invalid("payload.displayName", checked.reason);
+  return checked.value;
 }
 
 export interface CreateFamilyRequest {

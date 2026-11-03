@@ -224,6 +224,8 @@ jobs:
           curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
           echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c -
           chmod +x osv-scanner
+      - name: Verify security exception policy
+        run: node scripts/check-osv-exceptions.mjs
       - name: Scan lockfiles
         run: >
           ./osv-scanner scan source
