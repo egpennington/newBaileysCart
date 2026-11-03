@@ -7,7 +7,9 @@ owner: CODI
 independent_reviewer: GAI
 level: integration
 decision_basis:
-  - DECISION_REGISTER v1.10 WP03-S2-SEC-DISP (PROPOSED; pending final PL authorization; not active in remote CI)
+  - DECISION_REGISTER v1.11 WP03-S2-SEC-ACCEPT - WP03-S2-SEC-DISP ACCEPTED by the PL on 2026-11-03; expires 2026-12-01T00:00:00Z
+  - Temporary risk acceptance, not a vulnerability fix; development/CI exposure remains nonzero (DECISION_REGISTER v1.10 WP03-S2-SEC-DISP)
+  - GAI_WP03_S2_Gatekeeper_PostPush_Final_D4_Report.md (GO for adopting the disposition and for the PR #6 merge)
   - GAI_WP03_S2_Operation_Gatekeeper_D4_Verification_Report.md (CONDITIONAL GO; contract and mandatory corrections 1-3)
 preconditions:
   - Repository contains backend/functions/osv-scanner.toml
@@ -27,11 +29,15 @@ evidence:
     - CODI_WP03_S2_Gatekeeper_Local_Implementation_Report_v1.0.md (validator and scanner negative controls; Windows osv-scanner 2.7.0 from the pinned release)
     - baileysCartApp_evidence/WP03_S2_GATEKEEPER_IMPLEMENTATION_EVIDENCE_v1.0 (logs, exit codes, SHA256SUMS.txt)
     - Pilot baseline: baileysCartApp_evidence/WP03_S2_GATEKEEPER_PILOT_EVIDENCE_v1.0
-  pending:
-    - CI job logs and step annotations from a Linux FORGE run (not yet authorized)
+    - Post-merge local repeat on the merged tree dddb7ca (git archive; Windows osv-scanner 2.7.0, SHA-256 9964ed64...6438 matching the release SUMS) - policy exit 0; scan exit 0, "Filtered 5 vulnerabilities from output"; with the config removed the same scan exits 1 on exactly 1 glob and 4 minimatch findings; baileysCartApp_evidence/WP03_S2_ADMIN_CLOSEOUT_EVIDENCE_v1.0
+  ci:
+    - FORGE run 37 (41554043789, push, feature/wp03-s2-ownership-hardening at 0524a58) - success 9/9
+    - FORGE run 38 (41554049906, pull_request, PR 6 at 0524a58) - success 9/9
+    - FORGE run 39 (41658358920, push, develop at merge commit dddb7ca) - success 9/9; steps "Verify security exception policy", "Scan lockfiles" and "CycloneDX SBOM" succeeded
+    - Step conclusions come from the GitHub REST API. Run 37 log text (policy PASS lines; "Filtered 5 vulnerabilities from output") was read by GAI from a PL-supplied screenshot. Run 38 and run 39 log text and artifacts were not readable without authentication (HTTP 403/401).
 depths:
-  D1: local - validator negative controls (see report)
-  D2: local - validator plus unchanged scan command on disposable workspace copies (Windows binary)
-  D3: NOT_RUN - Linux FORGE run (osv-scanner_linux_amd64, pinned SHA-256) pending authorization
-  D4: NOT_RUN - GAI review of the implementation pending
-status: NOT_RUN (local evidence only; remote FORGE verification and GAI D4 pending)
+  D1: local (CODI) - validator negative controls (Local Implementation Report)
+  D2: local (CODI) - validator plus the unchanged scan command on disposable workspace copies (Windows binary); repeated on the merged tree dddb7ca
+  D3: CI (FORGE Linux runner, osv-scanner_linux_amd64, pinned SHA-256) - positive path passed in runs 37, 38 and 39; negative paths (expired or unauthorized exception) proven locally only, not run in CI
+  D4: GAI review - pre-push GO (GAI_WP03_S2_Gatekeeper_PrePush_D4_Verification_Report.md) and post-push final GO, rating PASS (GAI_WP03_S2_Gatekeeper_PostPush_Final_D4_Report.md); GAI reviewed CODI evidence and run 37 telemetry and did not independently rerun the tests
+status: PASS per GAI D4 (post-push final) for the positive CI path; time-boxed - the exception and this status lapse at 2026-12-01T00:00:00Z unless renewed by a new PL decision

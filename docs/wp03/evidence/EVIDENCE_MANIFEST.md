@@ -1,6 +1,10 @@
-# WP-03 Slice 1 Evidence Manifest: PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION
+# WP-03 Evidence Manifest (Slices 1–2): PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION, PS-BUILD-SUPPLY-CHAIN
 
-- **Version:** 1.4 (2026-10-29). Changes from v1.3:
+- **Version:** 1.5 (2026-11-03). Changes from v1.4:
+  - adds the section "WP-03 Slice 2: ownership hardening and security disposition (v1.5)" before "History". It covers the Slice 2 implementation, local tests, GAI verification, FORGE runs #32–#39, the merge of PR #6 (merge commit `dddb7ca`), post-merge run #39, the accepted time-boxed security disposition and dependency-expiry tracking.
+  - retitles the manifest to cover Slices 1–2. Every Slice 1 section is unchanged.
+
+  v1.4 (2026-10-29) changes from v1.3:
   - records the merge of PR #4 into `develop` (merge commit `bb69c01`), post-merge FORGE run #29, and the PL's formal administrative closure of WP-03 Slice 1 ("Post-merge and closure" below)
   - records the nine nonblocking administrative follow-ups, the VRIG-1 pilot result and GAI's accepted closure recommendation
   - the v1.3 header lines for branch and PR state are kept and marked superseded
@@ -14,7 +18,7 @@
   - records the Phase B local evidence archive and its SHA-256 (archived after the initial v1.3 preparation; the earlier "not yet archived" wording is replaced)
 
   v1.2 corrected stale branch, PR and D4 statements, recorded FORGE run #21 and GAI's 2026-10-28 final D4 determinations, and recorded the A1 v0.2 traceability result. v1.1 recorded FORGE runs #19 and #20 and the `shell: bash` repair. v1.0 recorded local evidence only.
-- **Collected by:** CODI, 2026-10-28 (v1.0–v1.1); 2026-10-29 (v1.2, v1.3, v1.4)
+- **Collected by:** CODI, 2026-10-28 (v1.0–v1.1); 2026-10-29 (v1.2, v1.3, v1.4); 2026-11-03 (v1.5)
 - **Branch (v1.4):** merged into `develop` at `bb69c01f76048010d7d22db6ef457e221e89075b`. The feature branch `feature/wp03-s1-family-ownership` (`ca742f4…`) is preserved. This v1.4 update is uncommitted until a commit is separately authorized.
 - **Pull request (v1.4):** #4 **MERGED** into `develop` at 2026-10-29T22:14:55Z (https://github.com/egpennington/newBaileysCart/pull/4).
 - *Superseded v1.3 header lines (kept as history):*
@@ -383,6 +387,156 @@ R-1 case 1 (an unauthenticated resubmission of a committed `opId`) has no dedica
 - **Contention:** Firestore emulator transaction contention is not production contention evidence.
 - **Android:** D3 uses the JS modular client SDK. The Android client SDK is not exercised (W-01 D-9).
 - **Production behavior:** production request limits and deployment behavior are not evidenced (W-01 D-8).
+
+## WP-03 Slice 2: ownership hardening and security disposition (v1.5)
+
+This section records Slice 2 only. The Slice 1 sections above are unchanged. **Class** follows the Slice 1 convention:
+- *CODI-inspected*: read by CODI from git or the public GitHub REST API.
+- *CODI-reported*: a local run by CODI, not independently rerun.
+- *GAI-reported*: GAI's own statement.
+
+### Scope and authority
+
+- **Gate C:** opened 2026-10-31 for Slice 2 hardening only: HB-1, HB-2, HB-3 and test gaps T-GAP-2, 6 and 9 (register v1.8, WP03-S2-GATE-C).
+- **Excluded:** new family-record writers, billing, Android UI, provisioning and deployment.
+- **Branch:** `feature/wp03-s2-ownership-hardening`, base `develop` @ `509cfeaf5a5b8884e19a63cd824d3b3f559ecf13`.
+- **PR:** #6, https://github.com/egpennington/newBaileysCart/pull/6.
+
+### Commits (PR #6)
+
+| Commit | Content |
+|---|---|
+| `d10c5da` | `getSession` read-path hardening HB-1/HB-2/HB-3 and test gaps T-GAP-2/6/9 |
+| `8f1f90e` | HB-3 residual case: fail closed when `ownerUid` equals the caller through a non-OWNER membership (NC-27) |
+| `da662c0` | Decision register v1.8 |
+| `cca1125` | Decision register v1.9: T-GAP-6 acceptance, `PL-PP-WP03-31`, PR #6 hold |
+| `0524a58de58535a220d304472619af21cf5b302a` | Time-boxed security exception policy governance: `scripts/check-osv-exceptions.mjs`, the workflow policy step, `backend/functions/osv-scanner.toml`, register v1.10, `PL-PP-WP00-04b` and its suite registration |
+| `dddb7caf743934324b969726fcac84ac8bdde884` | **Merge commit** of PR #6 into `develop` (parents `509cfea…`, `0524a58…`). Its tree is identical to `0524a58`. |
+
+### Local test evidence (CODI-reported; Windows, Node 22.18.0, Firestore emulator on Android Studio JBR)
+
+| Run | Code | Result |
+|---|---|---|
+| Baseline D1 / emulator | `509cfea` | 129/129; 143/143 |
+| Hardening sprint D1 / emulator | `d10c5da` content | 196/196; 165/165 |
+| Residual fix D1 / emulator | `8f1f90e` content | **198/198; 168/168**. NC-27 caught (2/198 D1, 2/35 D2) |
+| Gatekeeper validator harness | `0524a58` content (pre-commit working tree) | 78/78. D1 198/198 and emulator 168/168 repeated |
+| `npm audit --audit-level=high` | final | exit 0 (14 moderate; dependency set unchanged) |
+
+- **Negative controls:** NC-17..NC-26 (hardening sprint report) and NC-27 (final hardening report). The next free ID is NC-28.
+- **Raw logs:** kept outside the repository, in `baileysCartApp_evidence\`, and not committed:
+  - `WP03_S2_HARDENING_EVIDENCE_v1.0`
+  - `WP03_S2_PROVE_ZERO_EVIDENCE_v1.0`
+  - `WP03_S2_GATEKEEPER_PILOT_EVIDENCE_v1.0`
+  - `WP03_S2_GATEKEEPER_IMPLEMENTATION_EVIDENCE_v1.0`
+  - `WP03_S2_GATEKEEPER_VERITY_COMPLETION_EVIDENCE_v1.0`
+  - `WP03_S2_GATEKEEPER_PUSH_FORGE_EVIDENCE_v1.0`
+  - `WP03_S2_ADMIN_CLOSEOUT_EVIDENCE_v1.0`
+
+### FORGE CI evidence (CODI-inspected, public API)
+
+| Run | ID | Event / commit | Conclusion |
+|---|---|---|---|
+| #32 | `41211852993` | push / `d10c5da` | failure: "Scan lockfiles" only (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249, published 2026-10-30; pre-existing on `develop`) |
+| #33, #34 | `41214464755`, `41214862064` | push, PR / `da662c0` | failure: same single cause; every other job succeeded |
+| #35, #36 | `41349303248`, `41349308613` | push, PR / `cca1125` | failure: same single cause |
+| #37 | `41554043789` | push / `0524a58` | **success, 9/9** |
+| #38 | `41554049906` | pull_request / `0524a58` | **success, 9/9** |
+| **#39** | **`41658358920`** | **push / `develop` @ `dddb7ca`** | **success, 9/9**, attempt 1, 2026-11-03T14:54:36Z–15:03:57Z |
+
+**Run #39 detail** (https://github.com/egpennington/newBaileysCart/actions/runs/41658358920):
+
+| Job | Job ID | Conclusion |
+|---|---|---|
+| Secret scan | 125994656170 | success |
+| No real Firebase configuration | 125994655581 | success |
+| Gradle wrapper integrity | 125994655562 | success |
+| Dependency scan and SBOM | 125994655651 | success |
+| Backend typecheck/tests/audit | 125994655694 | success |
+| Backend emulator tests | 125994655286 | success |
+| Android compile/lint/unit | 125994747420 | success |
+| Clean repeat build | 125994747258 | success |
+| **FORGE gate** | 126000121795 | success |
+
+- **Dependency job steps (all success):** "Install osv-scanner (checksum pinned)", **"Verify security exception policy"**, **"Scan lockfiles"**, **"CycloneDX SBOM"** and the artifact upload.
+- **Emulator job:** step "Emulator tests (D2 Firestore + rules, D3 callables; 50-iteration concurrency stress)" succeeded.
+- **Commit check-runs on `dddb7ca`:** 9, with `FORGE gate` success.
+- **Artifacts** (expire 2026-11-17):
+  - `sbom` 13240996753 (`sha256:f54b0189…4e79`)
+  - `emulator-test-evidence` 13240784437 (`sha256:032101e4…70e5`)
+  - `android-reports` 13241520376 (`sha256:8cc31550…5eda`)
+  - `repeat-build-evidence` 13239778923 (`sha256:be39a6a2…8b3a`)
+- **Not inspected:** job logs (HTTP 403) and artifact downloads (HTTP 401) need authentication. Run #39 test totals, scanner text and SBOM contents are **NOT VERIFIED from CI**; only step conclusions are.
+- **Deployments:** the GitHub Deployments API lists 0, and the workflow has no deploy job.
+
+### Security-exception evidence (`PL-PP-WP00-04b`)
+
+**Run #37 policy and scan log text** — GAI-reported, from a PL-supplied screenshot (`GAI_WP03_S2_Gatekeeper_PostPush_Final_D4_Report.md`, SHA-256 `b07b181c…f9a3`):
+- Policy: "PASS exception …" for both IDs, 28 days left.
+- Scan: "Loaded filter from: …/backend/functions/osv-scanner.toml", **"Filtered 5 vulnerabilities from output"**, "No issues found".
+- Coverage: 3 lockfiles, 938 packages.
+
+**Runs #38 and #39 policy and scan steps** — CODI-inspected: success. Step conclusions only; the log text was not readable.
+
+**Local repeat on the merged tree `dddb7ca`** — CODI-reported, 2026-11-03. Method: `git archive` of `dddb7ca`, Windows osv-scanner 2.7.0 (SHA-256 `9964ed64…6438`, matching the release SUMS). Evidence: `WP03_S2_ADMIN_CLOSEOUT_EVIDENCE_v1.0` (SHA256SUMS.txt `c0eb0b68…8a40`).
+
+| Check | Result |
+|---|---|
+| Policy script | exit 0; both exceptions PASS, expiring 2026-12-01T00:00:00Z |
+| Scan | exit 0; 200 + 99 + 639 packages; "Filtered 5 vulnerabilities from output"; "No issues found" |
+| Scan with `osv-scanner.toml` removed | exit 1; exactly 5 findings: `glob` 10.5.0 (GHSA-3g3m-2fjr-6pw4) and `minimatch` 3.1.5, 5.1.9, 6.2.3, 9.0.9 (GHSA-g3hv-75wg-m249) |
+| CycloneDX 1.6 SBOM | 844 components |
+
+This is a local reproduction of the CI commands on identical content, using the Windows build of the same release. It is **not** the CI output itself.
+
+### GAI verification record (GAI-reported; local, untracked reports)
+
+| Report | Target | Verdict |
+|---|---|---|
+| `GAI_WP03_S2_Independent_D4_Verification_v1.1.md` (`338ab150…48e4`) | `da662c0`; runs #33/#34 | CONDITIONAL GO (code verified; merge on HOLD) |
+| `GAI_WP03_S2_Operation_Gatekeeper_D4_Verification_Report.md` (`ce2acda0…09b2`) | Gatekeeper design | CONDITIONAL GO (implement on branch only) |
+| `GAI_WP03_S2_Gatekeeper_PrePush_D4_Verification_Report.md` (`8498028d…ee9d`) | six files before `0524a58` | GO (commit and push only) |
+| `GAI_WP03_S2_Gatekeeper_PostPush_Final_D4_Report.md` (`b07b181c…f9a3`) | `0524a58`; runs #37/#38 | GO (adopt WP03-S2-SEC-DISP; merge PR #6 via merge commit) |
+
+GAI reviewed CODI evidence and CI telemetry. GAI did not independently rerun the tests.
+
+### ProofPoint status (Slice 2; GAI-assigned, not upgraded by CODI)
+
+| ProofPoint | GAI post-push final | Notes |
+|---|---|---|
+| `PL-PP-WP03-31` | PASS | D1 198, D2 168, D3 HB-1 over the wire. The YAML `status` still points to the sprint report. |
+| `PL-PP-WP00-04b` | PASS | D3 positive path in CI (#37–#39); negative paths proven locally only. **Time-boxed to 2026-12-01T00:00:00Z.** |
+| `PL-PP-WP03-14` | PARTIAL (Slice 2 scope) | — |
+| `PL-PP-WP03-30` | PARTIAL (Slice 2 scope) | — |
+
+### Post-merge and closure state (v1.5)
+
+| Item | Value | Class / source |
+|---|---|---|
+| PR #6 | **MERGED** 2026-11-03T14:54:33Z by `egpennington`, merge commit method (the ruleset allows only `merge`) | CODI-inspected |
+| `develop` HEAD | `dddb7caf743934324b969726fcac84ac8bdde884` | CODI-inspected |
+| Security disposition | WP03-S2-SEC-DISP **ACCEPTED** (PL, 2026-11-03). **Temporary risk acceptance, not a fix.** Expires **2026-12-01T00:00:00Z** | Register v1.11 WP03-S2-SEC-ACCEPT |
+| WP03-S2-HOLD | Released for the authorized merge only | Register v1.11 WP03-S2-HOLD-REL |
+| Closure | **Not declared.** Formal closure of Slice 2 is reserved to the PL. | PL decision pending |
+| Slice 3 | **Gate C for WP-03 Slice 3 remains CLOSED.** | PL decision |
+| Untouched | `main`, `feature/wp03-s2-ownership-hardening` (preserved at `0524a58`), production infrastructure; no deployment | CODI-inspected |
+
+### Remaining risk and tracking (Slice 2)
+
+- **Dependency expiry:** the exception lapses at **2026-12-01T00:00:00Z**. After that, the policy step and the scanner fail and every FORGE run goes red, including on `develop`. Before then, the exception needs either removal or a renewal (a new PL decision with re-run reachability evidence).
+- **Early-removal triggers:**
+  - `@google-cloud/firestore` admitting `firestore-api` ≥ 0.4;
+  - `firebase-tools` on `glob` ≥ 14.0.2 and `minimatch` ≥ 11.0.1.
+- **Revalidation triggers:** any change to `firebase-admin`, `firebase-functions`, `@google-cloud/firestore` or `firebase-tools`.
+- **Residual exposure:**
+  - Production reachability was shown to be zero only in a production-like harness. The cloud build is not verified.
+  - **Development/CI exposure is nonzero:** `firebase-tools` loads `glob` and `minimatch`.
+  - The suppression is advisory-wide for the lockfile.
+- **Evidence gaps:**
+  - Run #38/#39 log text and artifacts are not inspected (authentication required).
+  - The run #39 artifacts expire 2026-11-17.
+  - T-GAP-6 production verification is a future cloud gate.
+- **Emulator limits:** the Slice 1 emulator limitations ("Known limitations" above) apply equally to Slice 2.
 
 ## History: superseded v1.2 sections (retained unchanged)
 
