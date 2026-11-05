@@ -1,0 +1,36 @@
+id: PL-PP-WP03-18
+name: "Cancellation outage preserves pending state; verified finality starts the 30-day clock once"
+feature: "Family lifecycle (cancellation saga, fake provider)"
+suite: PS-BILLING-LIFECYCLE
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "FULL for the domain saga against the fake provider. Real Play cancellation finality (W-05) is DEFERRED to 3B."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Paid close, then worker attempts with OUTAGE, TIMEOUT, RETRYABLE (to exhaustion), PERMANENT_FAILURE and VERIFIED"
+  - "Duplicate VERIFIED events racing the worker"
+  - "Reordered PENDING, PERMANENT_FAILURE and VERIFIED events"
+  - "Same-opId close replay and changed payload; concurrent closes (50 x 5)"
+expected:
+  - "Pending: no recoverUntilAt, no owner release, bounded backoff, MANUAL_REVIEW on exhaustion or permanent failure"
+  - "VERIFIED: CLOSING once; recoverUntilAt = verification + 30 d; duplicates never move it"
+  - "Provider effect at most once per case (timeout retry)"
+  - "Replay identical with no second case or provider call; changed payload IDEMPOTENCY_KEY_REUSED; one case under concurrency"
+evidence:
+  - "backend/functions/test/unit/lifecycle.test.ts (cancellation outcomes describe)"
+  - "backend/functions/test/unit/lifecycleSupport.test.ts (fake provider)"
+  - "backend/functions/test/emulator/lifecycleWorkers.test.ts (cancellation saga describe)"
+  - "backend/functions/test/emulator/familiesLifecycle.test.ts (families.close idempotency and concurrency)"
+depths:
+  D1: "outcome ordering, backoff, exhaustion"
+  D2: "emulator saga with scripted fake provider; stress"
+  D3: "DEFERRED: no client SDK surface (workers are not callables)"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)

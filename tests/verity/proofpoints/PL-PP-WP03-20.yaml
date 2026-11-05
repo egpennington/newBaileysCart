@@ -1,0 +1,35 @@
+id: PL-PP-WP03-20
+name: "Recovery deadline: restore expires at the boundary; DELETION_PENDING is recorded, not purge"
+feature: "Family lifecycle (recovery deadline worker)"
+suite: PS-RETENTION
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "PARTIAL. State transition, boundary and release guards only. Physical purge, legal hold and backup policy (G-03) are not implemented and are DEFERRED; a purchase reconciliation hold stands in for pending cleanup."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Restore at deadline - 1 ms and at the deadline"
+  - "Deadline worker before and at the deadline"
+  - "Deadline with a pending purchase hold; with a mismatched owner claim"
+  - "Restore racing the deadline worker at the boundary"
+expected:
+  - "deadline - 1 ms restores; at the deadline CLOSURE_RECOVERY_EXPIRED"
+  - "At the deadline: DELETION_PENDING, claim cleared, DEADLINE audit, trial ledger kept, family record still present"
+  - "Hold: RELEASE_BLOCKED with RECONCILIATION_HOLD, claim retained; mismatch: CLAIM_MISMATCH, nothing cleared"
+  - "Boundary race: restore rejected, worker releases once"
+evidence:
+  - "backend/functions/test/unit/lifecycle.test.ts (restore guard, release guards)"
+  - "backend/functions/test/emulator/lifecycleWorkers.test.ts (recovery deadline describe)"
+  - "backend/functions/test/emulator/familiesLifecycle.test.ts (deadline boundary test)"
+depths:
+  D1: "exact boundary arithmetic and release guards"
+  D2: "emulator worker and boundary race"
+  D3: "DEFERRED: the worker has no client surface"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)

@@ -9,8 +9,9 @@ proofpoints_in_slice_1:
   - PL-PP-WP03-30 (partial)
 proofpoints_in_slice_2:
   - PL-PP-WP03-31
-proofpoints_later_slices:
-  - PL-PP-WP03-17
+proofpoints_in_slice_3:
+  - PL-PP-WP03-17 (partial)
   - PL-PP-WP03-19
   - PL-PP-WP03-27
+# PL-PP-WP03-30 stays listed under slice 1 and is extended in place for Slice 3 (GAI-S3-MED-02).
 status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md

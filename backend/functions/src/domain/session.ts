@@ -9,7 +9,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { checkDisplayName } from "../contract/validate.js";
 import { toRfc3339 } from "./clock.js";
-import { accessModeFor } from "./family.js";
+import { LIFECYCLE_STATES, accessModeFor } from "./family.js";
 import type { AccessMode, LifecycleState, Role } from "./family.js";
 
 export interface FamilySummary {
@@ -77,8 +77,12 @@ export type SessionBuild =
   | { readonly ok: true; readonly data: SessionData; readonly events: readonly IntegrityEvent[] }
   | { readonly ok: false; readonly events: readonly IntegrityEvent[] };
 
-/** Lifecycle values A1 §A1.5 allows on OWNER entries in Slice 1. */
-export const RECOGNIZED_LIFECYCLE_STATES: readonly LifecycleState[] = ["ACTIVE", "UNENTITLED_AWAITING_PAYMENT"];
+/**
+ * Lifecycle values recognized on OWNER entries. A1 §A1.5 lists ACTIVE and UNENTITLED_AWAITING_PAYMENT
+ * "in Slice 1"; Slice 3 adds the R-04 §2 closure states its commands write, so an owner of a
+ * closing family still gets a session. Any other value remains HB-1 (fail closed).
+ */
+export const RECOGNIZED_LIFECYCLE_STATES: readonly LifecycleState[] = LIFECYCLE_STATES;
 
 const MALFORMED = Symbol("malformed");
 

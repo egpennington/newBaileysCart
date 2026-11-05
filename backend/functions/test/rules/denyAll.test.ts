@@ -54,6 +54,12 @@ const seeded: Record<string, Record<string, unknown>> = {
   [`users/${OWNER}/memberships/${FAMILY}`]: { role: "OWNER", state: "ACTIVE" },
   [`trialLedger/${OWNER}`]: { familyId: FAMILY, consumedAt: Timestamp.fromMillis(0) },
   ["idempotency/rules-key"]: { actorUid: OWNER, responseJson: "{}" },
+  // WP-03 Slice 3 server-only lifecycle records (PL-PP-WP03-17 D2: direct lifecycle/case writes denied).
+  ["closureCases/rules-case"]: { familyId: FAMILY, ownerUid: OWNER, cancellationStatus: "PENDING" },
+  ["confirmationTokens/rules-token-hash"]: { uid: OWNER, familyId: FAMILY, action: "families.close" },
+  [`familyBilling/${FAMILY}`]: { purchaseState: "ACTIVE", purchaseRef: "fake-paid-rules" },
+  ["ownershipReleaseAudits/rules-case"]: { ownerUid: OWNER, familyId: FAMILY },
+  [`reservationCases/${FAMILY}`]: { familyId: FAMILY, disposition: "RESERVATION_RECONCILIATION_PENDING" },
 };
 
 before(async () => {
@@ -71,7 +77,8 @@ describe("firestore.rules: deny all direct client access", () => {
           assert.equal(await call("PATCH", `${BASE}/${path}`, token, { fields: { hacked: { booleanValue: true } } }), 403));
         test(`delete ${path} denied`, async () => assert.equal(await call("DELETE", `${BASE}/${path}`, token), 403));
       }
-      for (const collection of ["families", `families/${FAMILY}/members`, "users", `users/${OWNER}/memberships`, "trialLedger", "idempotency"]) {
+      for (const collection of ["families", `families/${FAMILY}/members`, "users", `users/${OWNER}/memberships`, "trialLedger", "idempotency",
+        "closureCases", "confirmationTokens", "familyBilling", "ownershipReleaseAudits", "reservationCases"]) {
         test(`list ${collection} denied`, async () => assert.equal(await call("GET", `${BASE}/${collection}`, token), 403));
         test(`create in ${collection} denied`, async () =>
           assert.equal(await call("POST", `${BASE}/${collection}`, token, { fields: { x: { stringValue: "y" } } }), 403));

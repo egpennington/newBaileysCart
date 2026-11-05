@@ -1,0 +1,36 @@
+id: PL-PP-WP03-19
+name: "Restore is refused during pending cancellation; CLOSING restore increments familyEpoch exactly once"
+feature: "Family lifecycle (families.restore)"
+suite: PS-ACCESS-ISOLATION
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "FULL for 3A scope."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Restore during CLOSURE_PENDING_BILLING (with and without waiver intent)"
+  - "Owner restore in CLOSING; replay the same opId after the epoch moved"
+  - "Five parallel restores with distinct opIds (50 iterations)"
+  - "Member and stranger restore; restore of an ACTIVE family"
+expected:
+  - "CLOSURE_CANCELLATION_IN_PROGRESS with no state change"
+  - "ACTIVE, epoch 1 -> 2, non-owner memberships REVOKED, replay identical with no second increment"
+  - "Exactly one restore commits; others STALE_EPOCH_REJECTED; epoch exactly 2"
+  - "OWNER_REQUIRED; FAMILY_NOT_CLOSED (provisional code)"
+  - "Access after restore derives from trial timestamps, never assumed paid (READ_ONLY after trial end)"
+evidence:
+  - "backend/functions/test/unit/lifecycle.test.ts (families.restore guard)"
+  - "backend/functions/test/emulator/familiesLifecycle.test.ts (families.restore describe)"
+  - "backend/functions/test/e2e/lifecycleCallables.test.ts (restore and CLOSURE_CANCELLATION_IN_PROGRESS over the wire)"
+depths:
+  D1: "restore guard matrix and boundaries"
+  D2: "emulator restore, replay, revocation, stress"
+  D3: "official SDK restore path"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)

@@ -24,4 +24,28 @@ depths:
   D2: emulator, including expired reservations
   D3: OWNER_ALREADY_HAS_FAMILY through the client SDK
   D4: GAI review
+# --- WP-03 Slice 3, Substage 3A extension (GAI-S3-MED-02: extended in place; everything above is the
+# unchanged Slice 1 record and its evidence). ---
+slice_3_coverage: "Positive half added. The release milestone now exists: entry to DELETION_PENDING (waiver or elapsed deadline, financial finality, no reconciliation hold, claim names this family) clears the owner claim in the same transaction. The overall ProofPoint is still PARTIAL until GAI D4 and the reservation-release path (not ratified) are resolved."
+slice_3_steps:
+  - "Close a trial family and waive (or let the deadline pass); then families.create"
+  - "families.create during CLOSING, during pending cancellation and with a waiver but no financial finality"
+  - "Waiver racing two concurrent families.create calls (50 iterations)"
+  - "Release blocked by a reconciliation hold or a mismatched claim"
+slice_3_expected:
+  - "On valid DELETION_PENDING entry: users/{ownerUid}.ownedFamilyId compare-and-cleared, release audit written, trialLedger unchanged, owner membership edges RELEASED"
+  - "After release exactly one new family can be created and it is an UNENTITLED_AWAITING_PAYMENT reservation (no second trial)"
+  - "Every create before release is OWNER_ALREADY_HAS_FAMILY"
+  - "Concurrent release and creates never yield two nonterminal owned families for one UID"
+  - "A blocked release keeps the claim and does not enter DELETION_PENDING"
+slice_3_evidence:
+  - "backend/functions/test/unit/lifecycle.test.ts (release milestone guards)"
+  - "backend/functions/test/emulator/familiesLifecycle.test.ts (CLOSING waiver; pending-cancellation waiver; release vs concurrent creates)"
+  - "backend/functions/test/emulator/lifecycleWorkers.test.ts (recovery deadline describe)"
+  - "backend/functions/test/e2e/lifecycleCallables.test.ts (waive then families.create over the wire)"
+slice_3_depths:
+  D1: "decideRelease guard matrix"
+  D2: "emulator release transaction, races and blocked releases"
+  D3: "official SDK waive then create (local emulator)"
+  D4: "GAI independent review (pending)"
 status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md

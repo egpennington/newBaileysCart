@@ -65,7 +65,14 @@ export const A1_SESSION_DATA_SCHEMA = {
 } as const;
 
 /** A1 §A1.5: Slice 1 lifecycle values for OWNER entries; PL-5 display-name limit. */
-const SLICE1_LIFECYCLE_STATES = ["ACTIVE", "UNENTITLED_AWAITING_PAYMENT"];
+export const SLICE1_LIFECYCLE_STATES: readonly string[] = ["ACTIVE", "UNENTITLED_AWAITING_PAYMENT"];
+/** Slice 3 adds the R-04 §2 closure states to OWNER entries (A1 lists the Slice 1 values "in Slice 1"). */
+export const SLICE3_LIFECYCLE_STATES: readonly string[] = [
+  ...SLICE1_LIFECYCLE_STATES,
+  "CLOSURE_PENDING_BILLING",
+  "CLOSING",
+  "DELETION_PENDING",
+];
 const DISPLAY_NAME_MAX_CODE_POINTS = 50;
 
 // Validator options only; the ratified schema is not changed:
@@ -85,7 +92,7 @@ interface Entry {
 }
 
 /** Every A1 §A1.5 violation in `data`: schema errors first, then cross-entry prose rules. */
-export function sessionDataViolations(data: unknown): string[] {
+export function sessionDataViolations(data: unknown, ownerStates: readonly string[] = SLICE1_LIFECYCLE_STATES): string[] {
   if (!validateSchema(data)) {
     return (validateSchema.errors ?? []).map((e) => `schema: ${e.instancePath || "/"} ${e.message ?? ""} ${JSON.stringify(e.params)}`);
   }
@@ -95,7 +102,7 @@ export function sessionDataViolations(data: unknown): string[] {
   if (owners.length > 1) violations.push(`more than one OWNER entry (${owners.length})`);
   for (const f of owners) {
     if (f.familyId !== d.ownedFamilyId) violations.push(`OWNER entry ${f.familyId} differs from ownedFamilyId ${String(d.ownedFamilyId)}`);
-    if (!SLICE1_LIFECYCLE_STATES.includes(f.lifecycleState ?? "")) violations.push(`OWNER lifecycleState ${String(f.lifecycleState)}`);
+    if (!ownerStates.includes(f.lifecycleState ?? "")) violations.push(`OWNER lifecycleState ${String(f.lifecycleState)}`);
   }
   // Plain string comparison is UTF-16 code-unit order, as A1 §A1.5 requires.
   for (let i = 1; i < d.joinedFamilies.length; i++) {
@@ -116,8 +123,8 @@ export function sessionDataViolations(data: unknown): string[] {
   return violations;
 }
 
-export function assertSessionDataConformsToA1(data: unknown): void {
-  const violations = sessionDataViolations(data);
+export function assertSessionDataConformsToA1(data: unknown, ownerStates: readonly string[] = SLICE1_LIFECYCLE_STATES): void {
+  const violations = sessionDataViolations(data, ownerStates);
   assert.deepEqual(violations, [], `account.getSession data violates A1 v0.2 §A1.5:\n${violations.join("\n")}\n${JSON.stringify(data)}`);
 }
 

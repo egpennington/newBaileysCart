@@ -1,0 +1,12 @@
+id: PS-RETENTION
+name: Closure recovery window, waiver and retention milestones
+work_package: WP-03
+owner: CODI
+independent_reviewer: GAI
+executed_by: FORGE (forge-wp00.yml, jobs backend and backend-emulator) and local CODI runs
+created_in: WP-03 Slice 3, Substage 3A (GAI-S3-MED-01)
+scope_note: State transitions to DELETION_PENDING and their release guards only. Physical purge, legal hold, backup and privacy retention (G-03) are not implemented and are not claimed.
+proofpoints_in_slice_3:
+  - PL-PP-WP03-20 (partial)
+  - PL-PP-WP03-29 (partial)
+status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md

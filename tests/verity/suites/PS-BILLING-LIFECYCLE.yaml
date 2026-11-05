@@ -7,10 +7,10 @@ executed_by: FORGE (forge-wp00.yml, job backend and backend-emulator) and local 
 proofpoints_in_slice_1:
   - PL-PP-WP03-15
   - PL-PP-WP03-25
-proofpoints_later_slices:
-  - PL-PP-WP03-16
+proofpoints_in_slice_3:
+  - PL-PP-WP03-16 (partial)
   - PL-PP-WP03-18
-  - PL-PP-WP03-24
-  - PL-PP-WP03-26
+  - PL-PP-WP03-24 (partial)
+  - PL-PP-WP03-26 (partial)
   - PL-PP-WP03-28
 status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md
