@@ -14,4 +14,8 @@ proofpoints_in_slice_3:
   - PL-PP-WP03-19
   - PL-PP-WP03-27
 # PL-PP-WP03-30 stays listed under slice 1 and is extended in place for Slice 3 (GAI-S3-MED-02).
+# Planned, not implemented: contract-only ProofPoint for families.prepareLifecycleConfirmation (PL D-4,
+# DECISION_REGISTER v1.13 WP03-A2-D1D4). Status NOT_RUN until a future implementation gate.
+proofpoints_later_slices:
+  - PL-PP-WP03-32
 status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md

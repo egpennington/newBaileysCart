@@ -7,6 +7,8 @@
 **Workflow:** Pennington Labs Engineering Workflow v2.4.  
 **Source hierarchy:** `API_SPEC_v0.2.md`; `API_SPEC_v0.3_REV1_RATIFIED_COPY.md` (filename/header status discrepancy); `API_SPEC_v0.3_RATIFIED_ADDENDUM_P4D10_P4D11_v0.1.md`; `ARCHITECTURE_v1.1.md`; `newBaileysCart_PRD_v1.0_GAI_Review.md`; R-04 candidates; `GAI_R04_Contract_Reconciliation_Review_Report.md`; explicit PL Decisions 33–47. Existing source conflicts are flagged, not erased.  
 
+> **Controlled amendment A2-D1D4 (Project Lead approved D-1–D-4, 2026-11-05).** This file was ratified as part of the R-04 v0.4 baseline with SHA-256 `1890c589bc07caa8ee934e7bcedb1addc21081bb73ceaebc2ddcad3b2c4c8498` (`R04_PROJECT_LEAD_RATIFICATION_RECORD_APPROVED.md`). Those ratified bytes are preserved unchanged at `develop@bdcbd9783c4a7d5859637fed542ecb6ef445cb7d` (git blob `8fd593de91c4e0aaab3eac1f6e3ba0c800a0140a`). The header lines above predate ratification and are kept as they were. The only changes made by A2-D1D4 are this notice, the row marked **[A2-D2]**, and the section "A2 controlled amendment D-1–D-4" at the end of this file. The amendment is recorded in `docs/decisions/DECISION_REGISTER.md` v1.13 (WP03-A2-D1D4). The companion text is in `API_SPEC_v0.4_CANONICAL.md`.
+
 **Error labels are candidate domain codes, not verified Firebase callable status mappings.** Authentication, current authorization, lifecycle, epoch, entitlement and idempotency checks must avoid protected-data leakage; exact precedence for historical opId replay OPEN.
 
 | Operation / condition | Actor / state | Outcome or candidate code | Side effects / retry |
@@ -46,7 +48,7 @@
 | Billing cancellation confirmed | Pending state | `CLOSING`, 30-day UTC deadline | Server-authoritative transition |
 | `families.restore` | Owner, pending cancellation | `CLOSURE_CANCELLATION_IN_PROGRESS` | No state/epoch/billing change |
 | `families.restore` | Owner, CLOSING before deadline | Owner-only restore | Atomic epoch increment; no member/billing/old queue revival |
-| `families.restore` | Former member | `FORBIDDEN` | None |
+| `families.restore` | Former member | `OWNER_REQUIRED` (`permission-denied`, HTTP 403) **[A2-D2]**; ratified text was `FORBIDDEN` | None; no cached result or family metadata disclosed |
 | `families.restore` | Owner, deadline passed/deletion pending | `CLOSURE_RECOVERY_EXPIRED` | None |
 | `account.requestDeletion` | Verified account owner | Durable deletion request/saga | Joins/leaves and billing reconcile; retention OPEN |
 | `items.add` canonical duplicate | Current authorized member | Satisfied without second item | Dependent operations do not retarget |
@@ -83,3 +85,18 @@
 - Authentication/owner authorization, immutable operation identity, current epoch, lifecycle state, and provider verification must be evaluated transactionally without leaking cross-family information. Final ordering and Firebase callable transport mappings are open W-01/W-02.
 - Waiver accepted during cancellation pending must deny restore; the externally visible code follows D44 pending-cancellation precedence until cancellation is verified.
 - All ten rows above are specification expectations, **not executed tests**.
+
+---
+
+## A2 controlled amendment D-1–D-4
+
+> **Amendment notice (A2-D1D4).** These rows record the Project Lead decisions D-2 and D-3 (2026-11-05). The normative text is in `API_SPEC_v0.4_CANONICAL.md` §5 [A2-D1], §8 [A2-D3] and its "A2 controlled amendment D-1–D-4" section. Transport mappings are the Firebase callable canonical codes used by the Substage 3A implementation (`backend/functions/src/contract/errors.ts`). The rows are specification expectations, not newly executed tests.
+
+**D-2 correction.** In the ratified text, the row "`families.restore` / Former member" gave `FORBIDDEN`. PL D-2 replaces this with `OWNER_REQUIRED` (`permission-denied`, HTTP 403, `retryable: false`), which keeps the owner-only contract consistent. Every authenticated, verified non-owner of an existing family receives `OWNER_REQUIRED` from `families.close`, `families.getClosureStatus`, `families.restore` and `families.waiveRecovery`. This includes current members, former members and unrelated users. The rejection causes no state change and discloses no cached result, family metadata or purchase token. `FORBIDDEN` keeps its other uses (for example the privacy-safe `items.*` row for a revoked member).
+
+| Operation/scenario | Actor | State | Expected disposition | Side effects |
+|---|---|---|---|---|
+| `families.restore` | Former member, or any non-owner | Any | `OWNER_REQUIRED` (`permission-denied`, 403) | None |
+| `families.restore` | Owner | `ACTIVE` or `UNENTITLED_AWAITING_PAYMENT` (not in closure) | `FAMILY_NOT_CLOSED` (`failed-precondition`, 400, `retryable: false`) | No state, epoch, billing or token change |
+| `families.restore` exact committed replay | Owner, re-verified | Epoch advanced since the original commit | Original cached result (D-1) | No further mutation or epoch advancement |
+| `families.prepareLifecycleConfirmation` (**PLANNED**, not implemented) | Non-owner | Any | `OWNER_REQUIRED` | No token issued |
