@@ -1,0 +1,11 @@
+id: PS-OFFLINE-SYNC
+name: Offline queue epoch and replay safety
+work_package: WP-03
+owner: CODI
+independent_reviewer: GAI
+executed_by: FORGE (forge-wp00.yml, job backend-emulator) and local CODI runs
+created_in: WP-03 Slice 3, Substage 3A (GAI-S3-MED-01)
+scope_note: Server-side epoch rejection for lifecycle mutations. No item commands or Android offline queue exist yet; those scenarios are deferred, not claimed.
+proofpoints_in_slice_3:
+  - PL-PP-WP03-22 (partial)
+status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md

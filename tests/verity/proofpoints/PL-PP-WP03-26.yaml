@@ -1,0 +1,35 @@
+id: PL-PP-WP03-26
+name: "Late purchase settlement keeps the original reservation and owner claim"
+feature: "Reservation reconciliation (D46)"
+suite: PS-BILLING-LIFECYCLE
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "PARTIAL. Hold, original binding and claim retention are proven; checkout rejection is a domain rule (assertCheckoutAllowed) because no checkout endpoint exists."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Reservation with a pending purchase at hour 24 (expiry - 1 ms and at expiry)"
+  - "Settlement at hour 26 for the original correlation"
+  - "families.create while the hold is active"
+  - "Different correlation after the hold"
+expected:
+  - "Hour 24: RESERVATION_RECONCILIATION_PENDING with originalPurchaseRef recorded; live reservation untouched before expiry"
+  - "Hour 26: PAYMENT_VERIFIED_ORIGINAL_RESERVATION; family and claim unchanged"
+  - "Create: OWNER_ALREADY_HAS_FAMILY"
+  - "Different correlation: REMEDIATION_REQUIRED"
+  - "Checkout at and after expiry: RESERVATION_EXPIRED (domain rule)"
+evidence:
+  - "backend/functions/test/unit/lifecycleSupport.test.ts (reservation decisions)"
+  - "backend/functions/test/emulator/lifecycleWorkers.test.ts (reservation reconciliation describe)"
+depths:
+  D1: "disposition table and checkout rule"
+  D2: "emulator reconciler with fake provider"
+  D3: "DEFERRED: no client surface"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)

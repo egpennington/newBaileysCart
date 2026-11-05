@@ -1,0 +1,32 @@
+id: PL-PP-WP03-24
+name: "Unentitled reservation can only be activated by a verified purchase for that reservation"
+feature: "Reservation reconciliation (G-01)"
+suite: PS-BILLING-LIFECYCLE
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "PARTIAL. Reconciliation disposition only: PAYMENT_VERIFIED_ORIGINAL_RESERVATION is recorded but activation is billing.verifyPurchase scope, which is not authorized in 3A. Client-fabricated paid flags cannot reach any endpoint (strict schemas). Activation is DEFERRED."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Expired reservation; provider reports a verified obligation for the original correlation"
+  - "Provider unavailable at expiry"
+  - "Correlation changed after the hold"
+expected:
+  - "Disposition recorded; family stays UNENTITLED_AWAITING_PAYMENT (no entitlement granted)"
+  - "Provider unavailable: hold, never no-purchase"
+  - "Changed correlation: REMEDIATION_REQUIRED, never rebound"
+evidence:
+  - "backend/functions/test/unit/lifecycleSupport.test.ts (reservation decisions)"
+  - "backend/functions/test/emulator/lifecycleWorkers.test.ts (reservation reconciliation describe)"
+depths:
+  D1: "disposition table"
+  D2: "emulator reconciler"
+  D3: "DEFERRED: no checkout or verifyPurchase endpoint"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)

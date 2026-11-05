@@ -1,0 +1,35 @@
+id: PL-PP-WP03-29
+name: "Waiver in the recovery window irreversibly terminates recovery"
+feature: "Family lifecycle (families.waiveRecovery)"
+suite: PS-RETENTION
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "PARTIAL. Legal hold and purge are G-03 and not implemented (DEFERRED); a purchase reconciliation hold is the tested cleanup-without-finality guard."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Owner waiver in CLOSING"
+  - "Restore and repeat waiver afterwards"
+  - "Waiver racing restore (50 iterations)"
+  - "Waiver in CLOSING while a purchase hold exists, then the hold cleared"
+expected:
+  - "DELETION_PENDING in the same transaction: claim cleared, WAIVER audit, trial ledger unchanged, owner edges RELEASED"
+  - "RECOVERY_ALREADY_WAIVED for both"
+  - "Exactly one of waiver and restore wins; end state consistent"
+  - "Hold: WAIVER_RECORDED_RELEASE_PENDING, claim kept; the worker releases after the hold clears"
+evidence:
+  - "backend/functions/test/unit/lifecycle.test.ts (waive guard, release guards)"
+  - "backend/functions/test/emulator/familiesLifecycle.test.ts (CLOSING waiver, hold and race tests)"
+  - "backend/functions/test/e2e/lifecycleCallables.test.ts (waive to DELETION_PENDING over the wire)"
+depths:
+  D1: "guards"
+  D2: "emulator transactions and races"
+  D3: "official SDK waiver and RECOVERY_ALREADY_WAIVED"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)

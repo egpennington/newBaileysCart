@@ -1,0 +1,32 @@
+id: PL-PP-WP03-22
+name: "Pre-closure (old-epoch) work never commits after restore"
+feature: "Family lifecycle (epoch, D43)"
+suite: PS-OFFLINE-SYNC
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: WP-03 Slice 3, Substage 3A (Gate C S3-3A-GATE-C-GO)
+slice_coverage: "PARTIAL. Proven with every lifecycle mutation (close, restore, waive) carrying the old epoch, and with an out-of-order old-opId retry. Item add, edit and delete commands and the Android offline queue do not exist yet, so those scenarios and account-switch queue handling are DEFERRED."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider (backend/functions/src/billing/fakeProvider.ts); never real Play"
+  - "Confirmation tokens seeded server-side (issueConfirmationToken); no public issuing endpoint exists"
+steps:
+  - "Close, restore, then submit epoch-1 close, waive and restore with new opIds"
+  - "Retry the original pre-restore close opId after restore"
+  - "Close with the new epoch"
+expected:
+  - "Every epoch-1 mutation is STALE_EPOCH_REJECTED with no change"
+  - "The old opId replays its original result and does not re-close the family"
+  - "New-epoch work proceeds"
+evidence:
+  - "backend/functions/test/emulator/familiesLifecycle.test.ts (CLOSING restore test)"
+  - "backend/functions/test/e2e/lifecycleCallables.test.ts (STALE_EPOCH_REJECTED over the wire)"
+depths:
+  D1: "NOT_APPLICABLE: epoch comparison is a single equality in gateMutation"
+  D2: "emulator stale-epoch controls"
+  D3: "official SDK stale-epoch rejection"
+  D4: GAI independent review (pending)
+notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)
