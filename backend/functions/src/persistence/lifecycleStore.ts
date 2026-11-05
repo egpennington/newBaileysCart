@@ -11,8 +11,8 @@ import { CONFIRMATION_TOKEN_TTL_MS } from "../domain/confirmation.js";
 import type { ConfirmationBinding, ConfirmationRecord } from "../domain/confirmation.js";
 import { isLifecycleState } from "../domain/family.js";
 import type { LifecycleState } from "../domain/family.js";
-import { CANCELLATION_STATUSES } from "../domain/lifecycle.js";
-import type { CancellationStatus, ClosureCase, LocalPurchaseState, ReleaseBlockedReason } from "../domain/lifecycle.js";
+import { BILLING_HOLD_REASONS, CANCELLATION_STATUSES } from "../domain/lifecycle.js";
+import type { BillingHoldReason, CancellationStatus, ClosureCase, LocalPurchaseState, ReleaseBlockedReason } from "../domain/lifecycle.js";
 import { SCHEMA_VERSION, paths } from "./paths.js";
 
 // ---------------------------------------------------------------------------------------------
@@ -105,6 +105,7 @@ export function caseToDoc(c: ClosureCase): Record<string, unknown> {
     ownershipReleasedAt: ts(c.ownershipReleasedAtMillis),
     restoredAt: ts(c.restoredAtMillis),
     revision: c.revision,
+    ...(c.billingHoldReason !== undefined && c.billingHoldReason !== null ? { billingHoldReason: c.billingHoldReason } : {}),
     schemaVersion: SCHEMA_VERSION,
   };
 }
@@ -126,6 +127,8 @@ export function caseFrom(snap: DocumentSnapshot | undefined): ClosureCase {
   if (!snap?.exists) throw new DomainError("INTERNAL");
   const status = snap.get("cancellationStatus");
   const blocked = snap.get("releaseBlockedReason") ?? null;
+  const holdReason = snap.get("billingHoldReason") ?? null;
+  if (holdReason !== null && !BILLING_HOLD_REASONS.includes(holdReason as BillingHoldReason)) throw new DomainError("INTERNAL");
   if (!CANCELLATION_STATUSES.includes(status as CancellationStatus)) throw new DomainError("INTERNAL");
   if (blocked !== null && !RELEASE_BLOCKED_REASONS.includes(blocked as ReleaseBlockedReason)) throw new DomainError("INTERNAL");
   const sourceEpoch = intField(snap, "sourceEpoch");
@@ -148,6 +151,7 @@ export function caseFrom(snap: DocumentSnapshot | undefined): ClosureCase {
     ownershipReleasedAtMillis: millisField(snap, "ownershipReleasedAt"),
     restoredAtMillis: millisField(snap, "restoredAt"),
     revision: intField(snap, "revision"),
+    ...(holdReason !== null ? { billingHoldReason: holdReason as BillingHoldReason } : {}),
   };
 }
 
