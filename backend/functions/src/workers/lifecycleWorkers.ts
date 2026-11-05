@@ -22,6 +22,8 @@ export interface WorkerDeps {
   readonly db: Firestore;
   readonly clock: Clock;
   readonly provider: BillingProvider;
+  /** B1: source of bounded retry jitter in [0, 1). Absent means none (deterministic 3A schedule). */
+  readonly random?: () => number;
 }
 
 export type WorkerResult =
@@ -95,7 +97,7 @@ export async function processCancellationCase(deps: WorkerDeps, caseId: string):
     const l = await load(db, tx, caseId);
     if (l === null || l.closure.revision !== before.closure.revision) return "NO_CHANGE";
     const nowMillis = deps.clock.nowMillis();
-    return persistAdvance(db, tx, l, applyCancellationOutcome(l.closure, outcome, nowMillis), nowMillis);
+    return persistAdvance(db, tx, l, applyCancellationOutcome(l.closure, outcome, nowMillis, deps.random?.() ?? 0), nowMillis);
   });
 }
 

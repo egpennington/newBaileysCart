@@ -50,6 +50,20 @@ export function retryDelayMs(attempts: number): number {
   return Math.min(BASE_RETRY_DELAY_MS * 2 ** Math.max(0, attempts - 1), MAX_RETRY_DELAY_MS);
 }
 
+/** Largest fraction of a retry delay that jitter may remove (B1 bounded jitter). */
+export const MAX_JITTER_FRACTION = 0.2;
+
+/**
+ * Bounded "subtractive" jitter: `jitter` in [0, 1) removes up to 20% of the delay, so a retry is
+ * never later than the deterministic schedule and never earlier than 80% of it. Out-of-range or
+ * non-finite input is treated as 0 (no jitter), which keeps the 3A schedule exact.
+ */
+export function jitteredRetryDelayMs(attempts: number, jitter: number): number {
+  const base = retryDelayMs(attempts);
+  const j = Number.isFinite(jitter) && jitter >= 0 && jitter < 1 ? jitter : 0;
+  return base - Math.floor(base * MAX_JITTER_FRACTION * j);
+}
+
 /** The server-only closure case, in domain form (persistence/closureCases.ts maps it to storage). */
 export interface ClosureCase {
   readonly caseId: string;
@@ -77,6 +91,8 @@ export interface ClosureCase {
   readonly restoredAtMillis: number | null;
   /** Monotonic case version for compare-and-set; separate from familyEpoch. */
   readonly revision: number;
+  /** B1: why a paid case is in MANUAL_REVIEW, when the provider adapter said so. Absent on 3A cases. */
+  readonly billingHoldReason?: BillingHoldReason | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -258,10 +274,32 @@ export type CancellationOutcomeKind =
   /** Provider refused permanently: escalate, never success. */
   | "PERMANENT_FAILURE";
 
+/**
+ * Why a paid case is held for manual billing action (Slice 3B B1). Recorded on the case; never a
+ * success. UNSUPPORTED_PLAN_TYPE covers installment, prepaid and unknown plans: they need a separate
+ * PL decision before B2 (handoff §1).
+ */
+export type BillingHoldReason =
+  | "UNSUPPORTED_PLAN_TYPE"
+  | "BINDING_MISMATCH"
+  | "PURCHASE_NOT_FOUND"
+  | "NO_BOUND_PURCHASE"
+  | "PROVIDER_REJECTED";
+
+export const BILLING_HOLD_REASONS: readonly BillingHoldReason[] = [
+  "UNSUPPORTED_PLAN_TYPE",
+  "BINDING_MISMATCH",
+  "PURCHASE_NOT_FOUND",
+  "NO_BOUND_PURCHASE",
+  "PROVIDER_REJECTED",
+];
+
 export interface CancellationOutcome {
   readonly kind: CancellationOutcomeKind;
   /** Provider event order; 0 for synchronous worker results. */
   readonly sequence: number;
+  /** For PERMANENT_FAILURE: the reason recorded on the case (B1 Play adapter). */
+  readonly holdReason?: BillingHoldReason;
 }
 
 export type CaseAdvance =
@@ -273,14 +311,14 @@ export type CaseAdvance =
       readonly lifecycleState: Extract<LifecycleState, "CLOSURE_PENDING_BILLING" | "CLOSING">;
     };
 
-function retried(c: ClosureCase, nowMillis: number, sequence: number): ClosureCase {
+function retried(c: ClosureCase, nowMillis: number, sequence: number, jitter = 0): ClosureCase {
   const attempts = c.attempts + 1;
   const exhausted = attempts >= MAX_PROVIDER_ATTEMPTS;
   return {
     ...c,
     attempts,
     cancellationStatus: exhausted ? "MANUAL_REVIEW" : c.cancellationStatus,
-    nextAttemptAtMillis: exhausted ? null : nowMillis + retryDelayMs(attempts),
+    nextAttemptAtMillis: exhausted ? null : nowMillis + jitteredRetryDelayMs(attempts, jitter),
     lastProviderSequence: Math.max(c.lastProviderSequence, sequence),
     revision: c.revision + 1,
   };
@@ -307,6 +345,7 @@ export function applyCancellationOutcome(
   c: ClosureCase,
   outcome: CancellationOutcome,
   nowMillis: number,
+  jitter = 0,
 ): CaseAdvance {
   if (c.restoredAtMillis !== null || c.deletionPendingAtMillis !== null) return { changed: false, why: "NOT_APPLICABLE" };
   if (c.cancellationStatus === "VERIFIED" || c.cancellationStatus === "NOT_REQUIRED") {
@@ -327,11 +366,12 @@ export function applyCancellationOutcome(
         nextAttemptAtMillis: null,
         lastProviderSequence: Math.max(c.lastProviderSequence, outcome.sequence),
         revision: c.revision + 1,
+        ...(outcome.holdReason !== undefined ? { billingHoldReason: outcome.holdReason } : {}),
       },
       lifecycleState: "CLOSURE_PENDING_BILLING",
     };
   }
-  return { changed: true, closure: retried(c, nowMillis, outcome.sequence), lifecycleState: "CLOSURE_PENDING_BILLING" };
+  return { changed: true, closure: retried(c, nowMillis, outcome.sequence, jitter), lifecycleState: "CLOSURE_PENDING_BILLING" };
 }
 
 /** Re-check of a LIABILITY_UNRESOLVED hold (reconciliation worker). */

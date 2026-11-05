@@ -13,4 +13,10 @@ proofpoints_in_slice_3:
   - PL-PP-WP03-24 (partial)
   - PL-PP-WP03-26 (partial)
   - PL-PP-WP03-28
+# Slice 3B Stage B1 (fake Play API only; B2/B3 CLOSED).
+proofpoints_in_slice_3b:
+  - PL-PP-WP03-33 (partial)
+  - PL-PP-WP03-34 (partial)
+  - PL-PP-WP03-35 (partial)
+  - PL-PP-WP03-36 (partial)
 status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md

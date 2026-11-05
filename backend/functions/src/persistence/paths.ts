@@ -18,4 +18,8 @@ export const paths = {
   familyBilling: (familyId: string) => `familyBilling/${familyId}`,
   ownershipReleaseAudit: (caseId: string) => `ownershipReleaseAudits/${caseId}`,
   reservationCase: (familyId: string) => `reservationCases/${familyId}`,
+  // WP-03 Slice 3B Stage B1 (server-only). The binding id is SHA-256(purchaseToken); the delivery
+  // id is SHA-256(Pub/Sub messageId). Neither path ever contains a raw token.
+  purchaseBinding: (purchaseRef: string) => `purchaseBindings/${purchaseRef}`,
+  rtdnDelivery: (deliveryRef: string) => `rtdnDeliveries/${deliveryRef}`,
 } as const;

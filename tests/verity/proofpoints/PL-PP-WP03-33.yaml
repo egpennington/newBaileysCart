@@ -1,0 +1,36 @@
+# New in WP-03 Slice 3B Stage B1 (Gate C WP03-S3B-B1-GATE-C-GO). Unallocated ID (no prior file or
+# suite entry; next after PL-PP-WP03-32). Fake-provider evidence only.
+id: PL-PP-WP03-33
+name: "Live billing provider unreachable in Stage B1; fail-closed isolation and token redaction"
+feature: "Billing engine (Slice 3B Stage B1: Play-semantics adapter, RTDN domain, purchase binding)"
+suite: PS-BILLING-LIFECYCLE
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "WP-03 Slice 3B, Stage B1 only (B2/B3 CLOSED)"
+slice_coverage: "FULL for B1 isolation in code and tests (selection, disabled adapter, static no-network guard, redaction). Deployed-runtime behavior is NOT_RUN (no deployment)."
+steps:
+  - "selectBillingProvider over emulator/demo, emulator/non-demo, non-emulator and malformed environments"
+  - "PlayBillingProvider over disabledPlayApi; createLivePlayApi with and without credential-shaped input"
+  - "Static scan of backend/functions/src for network modules, Google client libraries, fetch and credential markers; runtime dependency list"
+  - "Paid close, cancellation retry and RTDN processing with stdout/stderr captured; scan stored records"
+expected:
+  - "The fake is selected only when FUNCTIONS_EMULATOR is true AND the project starts with demo-; otherwise the fail-closed provider"
+  - "The disabled adapter never verifies: liability UNRESOLVED, cancellation held PROVIDER_REJECTED, inspection UNRESOLVED; the live constructor always throws"
+  - "No source file can open a network connection or load credentials; runtime dependencies are firebase-admin and firebase-functions only"
+  - "The raw purchase token appears only in purchaseBindings; never in process output, cases, billing, RTDN, idempotency or audit records"
+evidence:
+  - "backend/functions/test/unit/billingB1.test.ts, describe 'provider isolation: live provider use is impossible in B1'"
+  - "backend/functions/test/emulator/billingEngine.test.ts, describe 'redaction: no raw purchase token outside the binding record'"
+  - "Negative controls NC-33 and NC-37 (docs/specs/R-04/CODI_WP03_S3B_B1_Implementation_Report_v1.0.md)"
+preconditions:
+  - "D1: none (pure functions and the adapter over FakePlayApi). D2: Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Play-semantics adapter (backend/functions/src/billing/playProvider.ts) over the deterministic FakePlayApi (src/billing/fakePlayApi.ts); never real Play, no credentials, no Pub/Sub (PL-3B-02)"
+depths:
+  D1: "local PASS (backend/functions/test/unit/billingB1.test.ts)"
+  D2: "local PASS (backend/functions/test/emulator/billingEngine.test.ts)"
+  D3: "DEFERRED: B1 adds no callable, so there is no SDK round trip to run; existing 3A D3 suites rerun as regression"
+  D4: "GAI independent review (pending)"
+notes: "Fake-provider PASS proves domain behavior only. Real Google Play, sandbox, RTDN/Pub/Sub transport and OIDC are Stage B2/B3 and NOT_RUN."
+status: "PARTIAL: local D1/D2 PASS for the B1 scope; live Play and cloud NOT_RUN; see docs/specs/R-04/CODI_WP03_S3B_B1_Implementation_Report_v1.0.md"
