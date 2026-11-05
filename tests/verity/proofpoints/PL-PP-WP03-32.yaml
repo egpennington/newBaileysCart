@@ -1,0 +1,57 @@
+# Canonical ID PL-PP-WP03-32 assigned by GAI (GAI_WP03_S3B_Readiness_and_A2_Delta_Review_Report, marker
+# WP03-A2-D1D4-S3B-CONFORMANCE-01) and registered under PL decision D-4 (DECISION_REGISTER v1.13 WP03-A2-D1D4).
+# Contract only: families.prepareLifecycleConfirmation is PLANNED and not implemented. Nothing below has run.
+id: PL-PP-WP03-32
+name: "Lifecycle Confirmation Token Preparation, Single-Use Invalidation, and Epoch Binding"
+feature: "Family lifecycle (families.prepareLifecycleConfirmation; consumption by families.close and families.waiveRecovery)"
+suite: PS-ACCESS-ISOLATION
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "Future implementation gate (not yet authorized); contract API_SPEC_v0.4_CANONICAL.md, A2 controlled amendment section A2-D4"
+decision_basis:
+  - "PL D-4 (2026-11-05): owner-only client token preparation, CLOSE | WAIVE_RECOVERY, 15-minute TTL, SHA-256 digest only, atomic single use, supersession, fail-closed same-opId retry, volatile client storage"
+  - "PL D-1 and D-2 (2026-11-05): committed replay after current re-authorization; OWNER_REQUIRED for every non-owner"
+slice_coverage: "NONE. No client-accessible issuance endpoint exists. Substage 3A seeds tokens with the internal test-only issueConfirmationToken; that evidence belongs to PL-PP-WP03-17/-27/-29 and is not evidence for this ProofPoint."
+preconditions:
+  - "Auth, Firestore and Functions emulators, demo project only; injectable FakeClock"
+  - "Deterministic FakeBillingProvider; never real Play"
+  - "families.prepareLifecycleConfirmation implemented under a future Gate C"
+steps:
+  - "Authorization: unauthenticated; unverified email; current member; former member; unrelated user; unknown familyId; owner"
+  - "Validation: action other than CLOSE | WAIVE_RECOVERY; unknown, missing or extra fields; bad apiVersion or opId"
+  - "Eligibility: CLOSE outside ACTIVE; WAIVE_RECOVERY in a state where waiver is not eligible"
+  - "Issuance: owner prepares CLOSE and WAIVE_RECOVERY; inspect the response and the stored record"
+  - "Expiry: consume at issuedAt + 15 min - 1 ms and at exactly issuedAt + 15 min"
+  - "Supersession: prepare A then B for the same family (same and different actions); consume A, then B"
+  - "Token replay: consume a token, then present it again to a fresh opId"
+  - "Committed replay of the protected operation (same opId after consumption, including after a later epoch advance)"
+  - "Same-opId preparation retry after commit; changed request with the same opId"
+  - "Epoch binding: prepare, advance the family epoch (restore), then consume"
+  - "Cross-family and cross-action misuse: token for family X used on family Y; CLOSE token on waiveRecovery and WAIVE_RECOVERY token on close; token of another owner"
+  - "Concurrency: N parallel preparations, then one consumption; preparation racing consumption (50 iterations); two consumptions of one token racing"
+  - "Log and storage audit across all of the above: logs, audit records, error details and idempotency records"
+expected:
+  - "Every non-owner gets OWNER_REQUIRED (permission-denied); unauthenticated and unverified get their own codes; unknown family gets NOT_FOUND; no token is issued and nothing is written"
+  - "Invalid input gets VALIDATION_FAILED; an ineligible state gets the target command's own code; no token is issued and nothing is written"
+  - "Success returns {confirmationToken, expiresAt, action, familyId, familyEpoch}; the token has at least 32 random bytes; expiresAt = issuedAt + 900 s server time; the store holds only the SHA-256 digest with the owner, family, action and epoch binding"
+  - "Accepted strictly before expiresAt; CONFIRMATION_EXPIRED at expiresAt, with no mutation"
+  - "After B is issued, A is rejected with CONFIRMATION_REQUIRED and no mutation; only B can be consumed"
+  - "A consumed token is rejected with CONFIRMATION_REQUIRED, with no mutation"
+  - "The protected operation's committed replay returns the original result, consumes no token, and does not advance the epoch"
+  - "A same-opId preparation retry returns no token: CONFIRMATION_REQUIRED, retryable false, empty details; the token issued under that opId is invalidated; no new token. A changed request gets IDEMPOTENCY_KEY_REUSED and nothing changes"
+  - "A token bound to an earlier epoch is rejected with CONFIRMATION_REQUIRED, with no mutation"
+  - "Cross-family, cross-action and cross-owner tokens are rejected with CONFIRMATION_REQUIRED, with no mutation and no disclosure about the other family"
+  - "Exactly one valid token per family at any time (the last committed preparation); a preparation/consumption race serializes with a consistent end state; one token authorizes at most one committed lifecycle change"
+  - "The plaintext token appears only in the successful issuing response; it never appears in logs, audit records, error details, idempotency records or Firestore"
+  - "Every denial leaves the family, membership, billing, lifecycle, epoch and token state unchanged"
+evidence: []
+negative_controls: "To be defined when implemented (next free NC number at registration: NC-33)"
+depths:
+  D1: "NOT_RUN: pure binding, expiry, supersession and retry decision tables"
+  D2: "NOT_RUN: emulator transactions, races and storage audit"
+  D3: "NOT_RUN: official callable SDK over the wire; Android volatile-memory handling is client-integration scope"
+  D4: "NOT_RUN: GAI independent review"
+notes: "Registered as a contract only. Do not cite as passing evidence. Android volatile-memory retention is verified in client integration (WP-01/WP-02), not by backend tests."
+status: NOT_RUN
