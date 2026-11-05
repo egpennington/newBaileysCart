@@ -112,7 +112,7 @@ describe("HB-1 (F-1): OWNER entry with a malformed stored lifecycleState fails c
     "empty string": { ...trial, lifecycleState: "" },
     number: { ...trial, lifecycleState: 42 },
     "wrong case": { ...trial, lifecycleState: "active" },
-    "unrecognized value": { ...trial, lifecycleState: "CLOSING" },
+    "unrecognized value": { ...trial, lifecycleState: "PURGED" },
   };
   for (const [name, family] of Object.entries(triggers)) {
     test(`${name} -> INTERNAL, OWNER_LIFECYCLE_STATE_INVALID`, () => {
@@ -233,7 +233,7 @@ describe("HB-3 (F-3): inconsistent stored records fail closed", () => {
     ]);
   });
   test("(3) both timestamps on an unrecognized lifecycle state", () => {
-    const family = { lifecycleState: "CLOSING", trialEndsAt: trial.trialEndsAt, reservationExpiresAt: reservation.reservationExpiresAt };
+    const family = { lifecycleState: "PURGED", trialEndsAt: trial.trialEndsAt, reservationExpiresAt: reservation.reservationExpiresAt };
     failsClosed(session([member("fJoined01", family)], null), [["LIFECYCLE_TIMESTAMPS_INCONSISTENT", "fJoined01"]]);
   });
   for (const [name, value] of Object.entries({ string: "2026-11-21T12:00:00.000Z", number: NOW, object: { seconds: 1 } })) {

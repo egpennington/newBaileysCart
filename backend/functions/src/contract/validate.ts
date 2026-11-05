@@ -107,3 +107,93 @@ export function parseGetSessionRequest(data: unknown): GetSessionRequest {
   if (obj["opId"] !== undefined && !isUuidV4(obj["opId"])) throw invalid("opId", "NOT_A_UUID_V4");
   return { apiVersion: API_VERSION, opId: (obj["opId"] as string | undefined) ?? null };
 }
+
+// --- WP-03 Slice 3 lifecycle requests (A2 candidate §A2.1-§A2.4). Flat fields as A2 lists them;
+// strict like Slice 1, so no body field can stand in for a server-derived value. ---
+
+/** Firestore auto-IDs are 20 alphanumerics; anything with "/" could address another document. */
+const FAMILY_ID = /^[A-Za-z0-9]{1,128}$/;
+/** 32 random bytes, base64url without padding (persistence/confirmationTokens.ts). */
+const CONFIRMATION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
+function checkFamilyId(obj: Record<string, unknown>): string {
+  const v = obj["familyId"];
+  if (v === undefined) throw invalid("familyId", "MISSING");
+  if (typeof v !== "string" || !FAMILY_ID.test(v)) throw invalid("familyId", "MALFORMED");
+  return v;
+}
+
+function checkFamilyEpoch(obj: Record<string, unknown>): number {
+  const v = obj["familyEpoch"];
+  if (v === undefined) throw invalid("familyEpoch", "MISSING");
+  if (typeof v !== "number" || !Number.isSafeInteger(v) || v < 1) throw invalid("familyEpoch", "NOT_A_POSITIVE_INTEGER");
+  return v;
+}
+
+function checkOpId(obj: Record<string, unknown>): string {
+  const v = obj["opId"];
+  if (!isUuidV4(v)) throw invalid("opId", v === undefined ? "MISSING" : "NOT_A_UUID_V4");
+  return v;
+}
+
+function checkConfirmationToken(obj: Record<string, unknown>): string {
+  const v = obj["confirmationToken"];
+  if (v === undefined) throw invalid("confirmationToken", "MISSING");
+  if (typeof v !== "string" || !CONFIRMATION_TOKEN.test(v)) throw invalid("confirmationToken", "MALFORMED");
+  return v;
+}
+
+export interface FamilyMutationRequest {
+  readonly apiVersion: typeof API_VERSION;
+  readonly opId: string;
+  readonly familyId: string;
+  readonly familyEpoch: number;
+}
+
+export interface ConfirmedFamilyMutationRequest extends FamilyMutationRequest {
+  readonly confirmationToken: string;
+}
+
+/** families.close and families.waiveRecovery: `{apiVersion, opId, familyId, familyEpoch, confirmationToken}`. */
+export function parseConfirmedFamilyMutation(data: unknown): Parsed<ConfirmedFamilyMutationRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "familyEpoch", "confirmationToken"], "");
+  const request: ConfirmedFamilyMutationRequest = {
+    apiVersion: API_VERSION,
+    opId: checkOpId(obj),
+    familyId: checkFamilyId(obj),
+    familyEpoch: checkFamilyEpoch(obj),
+    confirmationToken: checkConfirmationToken(obj),
+  };
+  return { request, raw: obj };
+}
+
+/** families.restore: `{apiVersion, opId, familyId, familyEpoch}`. */
+export function parseFamilyMutation(data: unknown): Parsed<FamilyMutationRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "familyEpoch"], "");
+  const request: FamilyMutationRequest = {
+    apiVersion: API_VERSION,
+    opId: checkOpId(obj),
+    familyId: checkFamilyId(obj),
+    familyEpoch: checkFamilyEpoch(obj),
+  };
+  return { request, raw: obj };
+}
+
+export interface ClosureStatusRequest {
+  readonly apiVersion: typeof API_VERSION;
+  readonly opId: string | null;
+  readonly familyId: string;
+}
+
+/** families.getClosureStatus: `{apiVersion, familyId}`; a read, so `opId` is optional (API §3). */
+export function parseClosureStatusRequest(data: unknown): ClosureStatusRequest {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId"], "");
+  if (obj["opId"] !== undefined && !isUuidV4(obj["opId"])) throw invalid("opId", "NOT_A_UUID_V4");
+  return { apiVersion: API_VERSION, opId: (obj["opId"] as string | undefined) ?? null, familyId: checkFamilyId(obj) };
+}

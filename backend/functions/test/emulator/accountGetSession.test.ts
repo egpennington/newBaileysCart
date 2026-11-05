@@ -294,7 +294,7 @@ describe("account.getSession over malformed storage (HB-1, HB-2, HB-3)", () => {
     assert.ok(!JSON.stringify(logged).includes(uid), "integrity events must not carry the UID");
   }
 
-  const hb1: Record<string, unknown> = { missing: undefined, null: null, empty: "", number: 42, "wrong case": "active", unknown: "CLOSING" };
+  const hb1: Record<string, unknown> = { missing: undefined, null: null, empty: "", number: 42, "wrong case": "active", unknown: "PURGED" };
   for (const [name, value] of Object.entries(hb1)) {
     test(`HB-1: owner family lifecycleState ${name} -> INTERNAL`, async () => {
       const { uid, familyId } = await realOwner("hb1");
