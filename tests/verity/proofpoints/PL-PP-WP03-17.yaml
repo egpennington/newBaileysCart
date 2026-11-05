@@ -33,4 +33,4 @@ depths:
   D3: "official SDK close and getSession conformance"
   D4: GAI independent review (pending)
 notes: "Fake-provider PASS proves domain behavior only; Google Play sandbox/production facts need separate W-05 evidence (Substage 3B)."
-status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md (Slice 3 row not yet recorded; local CODI results are in the 3A implementation report)
+status: see docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.6, section "WP-03 Slice 3 Substage 3A" (PARTIAL items stay PARTIAL; D4 GAI GO)

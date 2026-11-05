@@ -1,6 +1,10 @@
-# WP-03 Evidence Manifest (Slices 1–2): PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION, PS-BUILD-SUPPLY-CHAIN
+# WP-03 Evidence Manifest (Slices 1–2, Slice 3 Substage 3A): PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION, PS-BUILD-SUPPLY-CHAIN, PS-RETENTION, PS-OFFLINE-SYNC
 
-- **Version:** 1.5 (2026-11-03). Changes from v1.4:
+- **Version:** 1.6 (2026-11-05). Changes from v1.5:
+  - adds the section "WP-03 Slice 3 Substage 3A: family lifecycle (v1.6)" before "History". It covers PR #8 (reviewed head `23d751a`; merge commit `7ca19f3`), local D1/D2/D3 evidence, NC-28..NC-32, FORGE runs #42–#44, the GAI D4 record with CODI-inspected corrections, ProofPoint status and remaining obligations.
+  - retitles the manifest to include Slice 3 Substage 3A and the two new suites. Every Slice 1 and Slice 2 section is unchanged.
+
+  v1.5 (2026-11-03) changes from v1.4:
   - adds the section "WP-03 Slice 2: ownership hardening and security disposition (v1.5)" before "History". It covers the Slice 2 implementation, local tests, GAI verification, FORGE runs #32–#39, the merge of PR #6 (merge commit `dddb7ca`), post-merge run #39, the accepted time-boxed security disposition and dependency-expiry tracking.
   - retitles the manifest to cover Slices 1–2. Every Slice 1 section is unchanged.
 
@@ -18,7 +22,7 @@
   - records the Phase B local evidence archive and its SHA-256 (archived after the initial v1.3 preparation; the earlier "not yet archived" wording is replaced)
 
   v1.2 corrected stale branch, PR and D4 statements, recorded FORGE run #21 and GAI's 2026-10-28 final D4 determinations, and recorded the A1 v0.2 traceability result. v1.1 recorded FORGE runs #19 and #20 and the `shell: bash` repair. v1.0 recorded local evidence only.
-- **Collected by:** CODI, 2026-10-28 (v1.0–v1.1); 2026-10-29 (v1.2, v1.3, v1.4); 2026-11-03 (v1.5)
+- **Collected by:** CODI, 2026-10-28 (v1.0–v1.1); 2026-10-29 (v1.2, v1.3, v1.4); 2026-11-03 (v1.5); 2026-11-05 (v1.6)
 - **Branch (v1.4):** merged into `develop` at `bb69c01f76048010d7d22db6ef457e221e89075b`. The feature branch `feature/wp03-s1-family-ownership` (`ca742f4…`) is preserved. This v1.4 update is uncommitted until a commit is separately authorized.
 - **Pull request (v1.4):** #4 **MERGED** into `develop` at 2026-10-29T22:14:55Z (https://github.com/egpennington/newBaileysCart/pull/4).
 - *Superseded v1.3 header lines (kept as history):*
@@ -537,6 +541,173 @@ GAI reviewed CODI evidence and CI telemetry. GAI did not independently rerun the
   - The run #39 artifacts expire 2026-11-17.
   - T-GAP-6 production verification is a future cloud gate.
 - **Emulator limits:** the Slice 1 emulator limitations ("Known limitations" above) apply equally to Slice 2.
+
+## WP-03 Slice 3 Substage 3A: family lifecycle (v1.6)
+
+This section records Substage 3A only. Every Slice 1 and Slice 2 section above is unchanged. **Class** follows the same convention as before: *CODI-inspected*, *CODI-reported*, *GAI-reported*.
+
+**Substage 3A PASS is not production coverage.** Several ProofPoints remain PARTIAL. Their deferred parts are listed in the ProofPoint table and under "Remaining obligations" below.
+
+### Scope and authority
+
+| Item | Value |
+|---|---|
+| Gate C | Opened for **Substage 3A only**, after the PL ratified S3-D01..S3-D09 (marker `S3-3A-GATE-C-GO`; register v1.12, WP03-S3A-GATE-C) |
+| Specification | `WP03_S3_Family_Lifecycle_Work_Package_v0.2.md` and `WP03_S3_Verity_Candidate_Contracts_v0.2.yaml`, from packet `WP03_S3_3A_CODI_Implementation_Packet_v1.0.zip` (SHA-256 `67e00890…05bad0`; local, untracked) |
+| Included | Domain lifecycle engine; the `familiesClose`, `familiesGetClosureStatus`, `familiesRestore` and `familiesWaiveRecovery` callables; the deterministic fake billing provider (emulator only); emulator-only workers; Verity suites and ProofPoints |
+| Excluded | Substage 3B (Gate C **CLOSED**); real Google Play; RTDN/Pub/Sub; credentials; cloud provisioning; deployment |
+| Branch | `feature/wp03-s3-family-lifecycle`, base `develop` @ `114f03af0f6756db1c092872a85a8121ac8be840` |
+| PR | #8, https://github.com/egpennington/newBaileysCart/pull/8 |
+
+### Commits (PR #8)
+
+| Commit | Content |
+|---|---|
+| `ff6124c5f2c2966ca8fa03dd69c1e6c063cdeaf2` | Pure lifecycle engine, confirmation rule, reservation decisions, error codes, request schemas, closure states on OWNER session entries, D1 tests |
+| `2486b447b82d943d152232083531c429f7694bae` | The four callables, W-02 pipeline, persistence and release milestone, billing adapter and fake provider, workers, D1/D2/D3 tests, rules test |
+| `23d751a0c8be019e31bd0682ba78472663dc4ca7` | Verity: `PS-RETENTION`, `PS-OFFLINE-SYNC`, 11 new ProofPoints, `PL-PP-WP03-30` extended in place. **GAI-reviewed PR head.** |
+| `7ca19f365d9779e31c538efc4126a7acdcc4b298` | **Merge commit** of PR #8 into `develop` (parents `114f03a…`, `23d751a…`). Its tree `b10088f5…ae41` is identical to `23d751a`, and `git diff 23d751a 7ca19f3` is empty. |
+
+The PR changes 45 files (+4015 / −29). There is no dependency, workflow, `firestore.rules` or security-exception change.
+
+### Local test evidence (CODI-reported; Windows, Node 22.18.0, Firestore emulator on Android Studio JBR)
+
+| Run | Code | Result |
+|---|---|---|
+| Typecheck | `23d751a` content | exit 0 |
+| **D1** `npm test` | `23d751a` content | **314/314** (213 pre-existing, 101 new) |
+| **D2/D3** `npm run test:emulator`, run 1 | pre-commit tree, before the D3 lifecycle file was added | 289/289, exit 0 |
+| **D2/D3** run 2 | `23d751a` (clean tree) | **292/292**, exit 0, 2026-11-05T01:28:45Z–01:53:38Z. Includes 50-iteration × 5-way stress and the official-SDK D3 lifecycle file. |
+| Verity cross-reference check | `23d751a` | PASS: 22 ProofPoints + 5 suites |
+| `npm audit --audit-level=high` | `23d751a` | exit 0 (12 moderate; dependency set unchanged) |
+
+**D3 scope.** D3 was a **local** official-SDK run against the Functions emulator only. Android, physical-device, Play-sandbox and cloud D3 are **DEFERRED**.
+
+### Negative controls NC-28..NC-32 (CODI-reported; D1)
+
+Method: a one-line source mutation, then `npm test`, then a revert with `git checkout`. After the reverts, D1 was 314/314 again.
+
+| NC | Mutation | Result | Caught by (`backend/functions/test/unit/`) |
+|---|---|---|---|
+| NC-28 | `src/domain/lifecycle.ts` `combineLiability`: the guard `provider === "NONE" && local === "NONE"` became `local === "NONE"` (a missing local token alone proves zero liability) | 2 failed / 314 | `lifecycle.test.ts`: "provider UNRESOLVED + local NONE -> UNRESOLVED"; "a missing local token alone … never proves zero liability without the provider" |
+| NC-29 | `assertRestorable`: `nowMillis >= recoverUntilAtMillis` became `>` (inclusive deadline) | 1 failed | `lifecycle.test.ts`: "deadline boundary: 1 ms before succeeds; at and after is CLOSURE_RECOVERY_EXPIRED" |
+| NC-30 | `decideRelease`: the owner/family/claim guard was replaced by `if (false)` | 5 failed | `lifecycle.test.ts`: the five CLAIM_MISMATCH cases (claim names another family / already cleared / malformed; owner differs; case for another family) |
+| NC-31 | `assertRestorable`: the `CLOSURE_PENDING_BILLING` → `CLOSURE_CANCELLATION_IN_PROGRESS` line was deleted | 1 failed | `lifecycle.test.ts`: "pending cancellation -> CLOSURE_CANCELLATION_IN_PROGRESS, even after a waiver" |
+| NC-32 | `src/domain/confirmation.ts` `checkConfirmation`: the consumed-token (single-use) check was deleted | 1 failed | `lifecycleSupport.test.ts`: "unknown or already consumed (single use) -> CONFIRMATION_REQUIRED" |
+
+- **Logs:** `negative-controls/NC-28.log` … `NC-32.log`.
+- **Gap:** the mutation text was not saved as diff files; it is recorded from the executed command.
+- **Next free ID:** NC-33.
+- **D2 controls:** the D2 suites also contain destructive controls: state snapshots before and after every rejection, and races (close × 5, restore × 5, waiver vs restore, release vs 2 × create).
+- **GAI's NC descriptions are wrong.** Both GAI reports (`GAI_WP03_S3A_PreMerge_D4_Verification_Report.md` §7 and `GAI_WP03_S3A_PR8_Final_D4_Evidence_Reconciliation.md` §2) describe NC-28..NC-32 as different mutations caught by D2 test files that do not exist. GAI's reconciliation report itself states that CODI's record is authoritative. This table is that record.
+
+**Raw evidence:** `baileysCartApp_evidence\WP03_S3_3A_IMPLEMENTATION_EVIDENCE_v1.0\` (26 files; `SHA256SUMS.txt`). It is outside the repository and not committed, and it contains local machine paths.
+
+### FORGE CI evidence (CODI-inspected, public API)
+
+| Run | ID | Event / commit | Conclusion |
+|---|---|---|---|
+| #42 | `41951738984` | push / `23d751a` | **success, 9/9** |
+| #43 | `41955805403` | pull_request (PR #8) / `23d751a` | **success, 9/9** |
+| **#44** | **`41959938544`** | **push / `develop` @ `7ca19f3`** | **success, 9/9**, attempt 1, 2026-11-05T03:10:42Z–03:32:13Z |
+
+**Run #44 detail** (https://github.com/egpennington/newBaileysCart/actions/runs/41959938544):
+
+| Job | Job ID | Conclusion |
+|---|---|---|
+| Secret scan | 127023650960 | success |
+| No real Firebase configuration | 127023650951 | success |
+| Gradle wrapper integrity | 127023650958 | success |
+| Dependency scan and SBOM | 127023650987 | success |
+| Backend typecheck/tests/audit | 127023650632 | success |
+| Backend emulator tests | 127023650947 | success |
+| Android compile/lint/unit | 127023690916 | success |
+| Clean repeat build | 127023690887 | success |
+| **FORGE gate** | 127030909864 | success |
+
+- **Dependency job steps (all success):** "Verify security exception policy", "Scan lockfiles", "CycloneDX SBOM".
+- **Emulator step:** "Emulator tests (D2 Firestore + rules, D3 callables; 50-iteration concurrency stress)" succeeded.
+- **Commit check-runs on `7ca19f3`:** 9, with `FORGE gate` success.
+- **Artifacts** (expire 2026-11-19):
+  - `sbom` 13384334261 (`sha256:bd65d25e…2971`)
+  - `emulator-test-evidence` 13385119987 (`sha256:4f11a07f…2304`)
+  - `android-reports` 13385221640 (`sha256:c9b38ae9…5b5c`)
+  - `repeat-build-evidence` 13384493983 (`sha256:fe7fd7f4…2bf7`)
+- **Not inspected:** job logs and artifact contents need authentication. CI test totals and scanner text are **NOT VERIFIED from CI**; only step conclusions are.
+- **Deployments:** the GitHub Deployments API lists 0. `main` remains at `b6ac365a471f77e0b0dcfb488dc064c106e782c4`.
+
+### GAI verification record (GAI-reported; local, untracked reports)
+
+| Report | Target | Verdict |
+|---|---|---|
+| `GAI_WP03_S3A_PreMerge_D4_Verification_Report.md` (SHA-256 `0a93873d…09bb`) | `23d751a`; run #42 | CONDITIONAL GO |
+| `GAI_WP03_S3A_PR8_Final_D4_Evidence_Reconciliation.md` (`ce2084c5…cb16`) | `23d751a` | **GO** (merge PR #8) |
+
+GAI reviewed CODI evidence and CI telemetry; it did not rerun tests. **CODI-inspected discrepancies in GAI's text** are recorded here, not adopted:
+
+| GAI statement | Repository fact |
+|---|---|
+| NC-28..NC-32 mutations and D2 test files | See the NC table above |
+| Token code at `src/auth/confirmationToken.ts`, `validateConfirmationToken`, `test/support/confirmationToken.ts` | None of these exist. The real paths are listed under Slice 3A code references below. |
+| Tokens are "signed" / "cryptographic authenticity" | Tokens are random 32-byte values looked up by SHA-256; they are not signed |
+| `CONFIRMATION_*` map to `invalid-argument` | They map to `failed-precondition` |
+| `PURCHASE_RECONCILIATION_PENDING` maps to `unavailable` | That code is not implemented |
+| Zero-liability excerpt (`family.purchaseToken`, `entitlementState`) | Not the code. Zero liability is `combineLiability`: the provider says NONE **and** the local record says NONE |
+| Post-merge run "#43" | #43 was the PR run; the post-merge `develop` run is #44 |
+| Finding ID `GAI-S3-MED-01` (pre-merge report) | Reuses the ID of the design-review finding `GAI-S3-MED-01` (suite creation). Needs a distinct ID. |
+
+None of these affects the merged code. They are evidence-accuracy corrections.
+
+### Slice 3A code references (tracked, at `23d751a` / `7ca19f3`)
+
+All paths are under `backend/functions/src/`.
+- **Confirmation-token generation:** `persistence/lifecycleStore.ts` `issueConfirmationToken`, `confirmationTokenHash`; TTL in `domain/confirmation.ts` `CONFIRMATION_TOKEN_TTL_MS`.
+- **Validation:** `contract/validate.ts` `checkConfirmationToken` (format); `domain/confirmation.ts` `checkConfirmation` (binding, single use, expiry); `persistence/lifecycleStore.ts` `confirmationRecordFrom`; `commands/lifecycleCommon.ts` `requireConfirmation`.
+- **Consumption:** `commands/lifecycleCommon.ts` `consumeConfirmation`, called in `commands/familiesClose.ts` and `commands/familiesWaiveRecovery.ts`.
+- **Release milestone:** `persistence/lifecycleStore.ts` `writeReleaseMilestone`; `commands/familiesWaiveRecovery.ts` `releaseOrBlock`; `domain/lifecycle.ts` `decideRelease`.
+
+### ProofPoint status (Substage 3A)
+
+| ProofPoint | Suite | Substage 3A result | Deferred (not claimed) |
+|---|---|---|---|
+| `PL-PP-WP03-16` | PS-BILLING-LIFECYCLE | PARTIAL: close half (D1/D2/D3 local) | `billing.verifyPurchase` and purchase-token binding |
+| `PL-PP-WP03-17` | PS-ACCESS-ISOLATION | PARTIAL: session access NONE, rules (D1/D2/D3 local) | Item/list listeners and queued writes (no item endpoints) |
+| `PL-PP-WP03-18` | PS-BILLING-LIFECYCLE | 3A domain saga with the fake provider (D1/D2) | Real Play cancellation finality (W-05, 3B); no client surface for D3 |
+| `PL-PP-WP03-19` | PS-ACCESS-ISOLATION | 3A scope (D1/D2/D3 local) | Android/cloud D3 |
+| `PL-PP-WP03-20` | PS-RETENTION | PARTIAL: transition, boundary, guards (D1/D2) | G-03 purge, legal hold, backup; scheduling |
+| `PL-PP-WP03-22` | PS-OFFLINE-SYNC | PARTIAL: lifecycle mutations only (D2/D3 local) | Item commands, Android offline queue, account switch |
+| `PL-PP-WP03-24` | PS-BILLING-LIFECYCLE | PARTIAL: disposition only (D1/D2) | Activation (`billing.verifyPurchase`), real Play (3B) |
+| `PL-PP-WP03-26` | PS-BILLING-LIFECYCLE | PARTIAL: hold, binding, claim retention (D1/D2) | Checkout endpoint; real Play late settlement (3B) |
+| `PL-PP-WP03-27` | PS-ACCESS-ISOLATION | 3A scope (D1/D2/D3 local) | Client token issuance; Android D3 |
+| `PL-PP-WP03-28` | PS-BILLING-LIFECYCLE | 3A domain saga with the fake provider (D1/D2/D3 local) | Real Play finality (W-05, 3B) |
+| `PL-PP-WP03-29` | PS-RETENTION | PARTIAL (D1/D2/D3 local) | G-03 purge and legal hold |
+| `PL-PP-WP03-30` | PS-ACCESS-ISOLATION | PARTIAL: release milestone added (D1/D2/D3 local); Slice 1 record preserved | Reservation release path (not ratified); G-03 |
+
+- **D4:** GAI GO (final reconciliation). The GAI pre-merge report labels these ProofPoints "PASS (Substage 3A)". The GAI final reconciliation preserves them as "PARTIAL (Substage 3A Scope)". This manifest follows the YAML `slice_coverage` and the final reconciliation.
+- **Not upgraded:** CODI does not upgrade any ProofPoint to production PASS.
+
+### Post-merge and closure state (v1.6)
+
+| Item | Value | Class / source |
+|---|---|---|
+| PR #8 | **MERGED** 2026-11-05T03:10:39Z by `egpennington` (merge commit method); merged head `23d751a` | CODI-inspected |
+| `develop` HEAD | `7ca19f365d9779e31c538efc4126a7acdcc4b298` | CODI-inspected |
+| `main` | unchanged at `b6ac365` | CODI-inspected |
+| Feature branch | preserved at `23d751a` | CODI-inspected |
+| Deployment | none | CODI-inspected |
+| Closure | **Not declared.** Formal closure of Substage 3A is reserved to the PL. | PL decision pending |
+| Substage 3B | **Gate C CLOSED** | PL |
+
+### Remaining obligations (Substage 3A carry-forward)
+
+- **Confirmation-token issuance for clients.** No client endpoint exists, and R-04 defines none. A contract is needed before any client can close a family or waive recovery.
+- **Live Google Play / billing (W-05) and all of Substage 3B.** Sandbox and production evidence; RTDN/Pub/Sub; credentials; `billing.verifyPurchase`; reservation activation.
+- **Reservation owner-slot release.** No ratified path exists; expired reservations keep the claim.
+- **G-03.** Retention, purge, legal hold, backup and privacy policy; worker scheduling and dead-letter notification.
+- **Deferred verification.** Android/client D3, physical device, cloud and production token verification (W-01 D-5: the emulator does not verify signatures).
+- **Implementation interpretations.** These need a disposition: `CODI_WP03_S3A_Administrative_Closeout_Report_v1.0.md` §2 (local, untracked); register v1.12 WP03-S3A-INTERP.
+- **Security exception.** WP03-S2-SEC-DISP expires **2026-12-01T00:00:00Z**. After that every FORGE run fails, so it needs renewal (with a new PL decision) or remediation first.
+- **Evidence expiry.** Run #44 artifacts expire 2026-11-19.
 
 ## History: superseded v1.2 sections (retained unchanged)
 
