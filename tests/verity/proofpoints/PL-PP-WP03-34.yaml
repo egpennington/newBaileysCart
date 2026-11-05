@@ -1,0 +1,40 @@
+# New in WP-03 Slice 3B Stage B1 (Gate C WP03-S3B-B1-GATE-C-GO). Unallocated ID (no prior file or
+# suite entry; next after PL-PP-WP03-32). Fake-provider evidence only.
+id: PL-PP-WP03-34
+name: "Paid closure verifies stop-renewal from authoritative state; acknowledgement, outage and restarts never start the clock"
+feature: "Billing engine (Slice 3B Stage B1: Play-semantics adapter, RTDN domain, purchase binding)"
+suite: PS-BILLING-LIFECYCLE
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "WP-03 Slice 3B, Stage B1 only (B2/B3 CLOSED)"
+slice_coverage: "FULL for the B1 domain saga over the fake Play API (stop-renewal strategy, ordinary auto-renewing plans). Installment/prepaid policy is held for a PL decision (not inferred). Real Play finality (W-05) NOT_RUN."
+steps:
+  - "Paid close: cancel acknowledged then refreshed; refresh delayed (settleAfterGets); already stopped"
+  - "429/5xx before and during cancel; timeout before and after effect; refresh failure after an accepted cancel"
+  - "Worker restart between provider effect and commit; 5 concurrent executions of one case"
+  - "Installment and prepaid plans; binding mismatch; 404/410; 403"
+  - "Cancel vs restore; waiver vs cancel verification (5 iterations); release vs create (10 iterations)"
+  - "Bounded jitter property (12 attempts x 200 samples)"
+expected:
+  - "Access frozen at close; CLOSURE_PENDING_BILLING until a fresh get shows renewal off in a canceled/expired state with no payment hold; then CLOSING with recoverUntilAt = verification + 30 days"
+  - "A cancel acknowledgement alone, an outage, a timeout or a failed refresh never yields CLOSING, a recovery clock or a claim release; provider effect at most once"
+  - "Unsupported plans and mismatches go to MANUAL_REVIEW with billingHoldReason, are never cancelled and never released"
+  - "Play entitlement continues to expiry after stop-renewal (cancellation is not expiration or refund)"
+  - "Races keep D42-D47: one epoch advance, one release with verified finality, never two nonterminal owned families"
+  - "Jittered delays lie in [0.8, 1.0] of the deterministic schedule; exhaustion ends in MANUAL_REVIEW"
+evidence:
+  - "backend/functions/test/unit/billingB1.test.ts (subscriptionsv2 assessment; Play adapter cancellation saga semantics; bounded retry jitter)"
+  - "backend/functions/test/emulator/billingEngine.test.ts (paid-closure saga with authoritative verification; concurrency against D42-D47 invariants)"
+  - "Negative controls NC-34 and NC-38"
+preconditions:
+  - "D1: none (pure functions and the adapter over FakePlayApi). D2: Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Play-semantics adapter (backend/functions/src/billing/playProvider.ts) over the deterministic FakePlayApi (src/billing/fakePlayApi.ts); never real Play, no credentials, no Pub/Sub (PL-3B-02)"
+depths:
+  D1: "local PASS (backend/functions/test/unit/billingB1.test.ts)"
+  D2: "local PASS (backend/functions/test/emulator/billingEngine.test.ts)"
+  D3: "DEFERRED: B1 adds no callable, so there is no SDK round trip to run; existing 3A D3 suites rerun as regression"
+  D4: "GAI independent review (pending)"
+notes: "Fake-provider PASS proves domain behavior only. Real Google Play, sandbox, RTDN/Pub/Sub transport and OIDC are Stage B2/B3 and NOT_RUN."
+status: "PARTIAL: local D1/D2 PASS for the B1 scope; live Play and cloud NOT_RUN; see docs/specs/R-04/CODI_WP03_S3B_B1_Implementation_Report_v1.0.md"

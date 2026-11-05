@@ -1,0 +1,37 @@
+# New in WP-03 Slice 3B Stage B1 (Gate C WP03-S3B-B1-GATE-C-GO). Unallocated ID (no prior file or
+# suite entry; next after PL-PP-WP03-32). Fake-provider evidence only.
+id: PL-PP-WP03-35
+name: "RTDN is a deduplicated, order-independent hint; only fresh provider state changes lifecycle"
+feature: "Billing engine (Slice 3B Stage B1: Play-semantics adapter, RTDN domain, purchase binding)"
+suite: PS-BILLING-LIFECYCLE
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "WP-03 Slice 3B, Stage B1 only (B2/B3 CLOSED)"
+slice_coverage: "FULL for the B1 synthetic envelope parser and processing domain. No receiver, Pub/Sub subscription, push authentication or OIDC (B2); NOT_RUN for real transport."
+steps:
+  - "Parser: valid subscription, test, one-time and voided notifications; 28 malformed, oversized and foreign-package inputs"
+  - "Unbound token PURCHASED notification for a reservation"
+  - "CANCELED notification while Play still renews; RENEWED notification while Play is stopped"
+  - "Duplicate, reordered and 5 concurrent deliveries; crash with a live then expired lease"
+  - "Liability hold re-check; test notification"
+expected:
+  - "Malformed input is rejected with a reason code only and writes nothing"
+  - "No RTDN creates a binding, entitlement or activation; unbound tokens make no provider call"
+  - "Effects follow current provider state, never the notification type"
+  - "One effect per messageId; late or reordered deliveries cause no regression; a crashed delivery is reprocessed once after its lease"
+evidence:
+  - "backend/functions/test/unit/billingB1.test.ts, describe 'RTDN parser'"
+  - "backend/functions/test/emulator/billingEngine.test.ts, describe 'RTDN processing: hint only, deduplicated, order-independent'"
+  - "Negative controls NC-35 and NC-36"
+preconditions:
+  - "D1: none (pure functions and the adapter over FakePlayApi). D2: Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Play-semantics adapter (backend/functions/src/billing/playProvider.ts) over the deterministic FakePlayApi (src/billing/fakePlayApi.ts); never real Play, no credentials, no Pub/Sub (PL-3B-02)"
+depths:
+  D1: "local PASS (backend/functions/test/unit/billingB1.test.ts)"
+  D2: "local PASS (backend/functions/test/emulator/billingEngine.test.ts)"
+  D3: "DEFERRED: B1 adds no callable, so there is no SDK round trip to run; existing 3A D3 suites rerun as regression"
+  D4: "GAI independent review (pending)"
+notes: "Fake-provider PASS proves domain behavior only. Real Google Play, sandbox, RTDN/Pub/Sub transport and OIDC are Stage B2/B3 and NOT_RUN."
+status: "PARTIAL: local D1/D2 PASS for the B1 scope; live Play and cloud NOT_RUN; see docs/specs/R-04/CODI_WP03_S3B_B1_Implementation_Report_v1.0.md"

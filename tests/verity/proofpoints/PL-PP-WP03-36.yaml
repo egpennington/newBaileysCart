@@ -1,0 +1,36 @@
+# New in WP-03 Slice 3B Stage B1 (Gate C WP03-S3B-B1-GATE-C-GO). Unallocated ID (no prior file or
+# suite entry; next after PL-PP-WP03-32). Fake-provider evidence only.
+id: PL-PP-WP03-36
+name: "Purchase tokens bind once to one owner, family, package and product; late settlement is held, never rebound"
+feature: "Billing engine (Slice 3B Stage B1: Play-semantics adapter, RTDN domain, purchase binding)"
+suite: PS-BILLING-LIFECYCLE
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "WP-03 Slice 3B, Stage B1 only (B2/B3 CLOSED)"
+slice_coverage: "PARTIAL. Internal binding and reconciliation only; no public billing.verifyPurchase callable (not ratified), no activation or paid entitlement, no acknowledgement (B2)."
+steps:
+  - "Owner binds a verified active subscription; repeat the same binding"
+  - "Member, other owner, other family, other package, other product, unconfigured product, missing and empty tokens, unknown family"
+  - "Token already bound to another family; closed family; 5 concurrent bindings of one token"
+  - "Reservation: settlement at hour 26; pending purchase"
+expected:
+  - "One binding per token (transactional create); idempotent repeat; family state, trial and access unchanged; acknowledgement flagged, never performed"
+  - "Every cross-UID/family/package/product or missing-token attempt is rejected with no state mutation"
+  - "Hour-26 settlement: binding held, local PENDING, reconciliation to the ORIGINAL reservation only, no activation, claim kept, no second family"
+  - "Pending purchases are held, never entitlement"
+evidence:
+  - "backend/functions/test/unit/billingB1.test.ts, describe 'internal purchase verification'"
+  - "backend/functions/test/emulator/billingEngine.test.ts, describe 'internal purchase binding and reservation reconciliation'"
+  - "Negative control NC-39"
+preconditions:
+  - "D1: none (pure functions and the adapter over FakePlayApi). D2: Auth, Firestore and Functions emulators, demo-newbaileyscart only; injectable FakeClock"
+  - "Play-semantics adapter (backend/functions/src/billing/playProvider.ts) over the deterministic FakePlayApi (src/billing/fakePlayApi.ts); never real Play, no credentials, no Pub/Sub (PL-3B-02)"
+depths:
+  D1: "local PASS (backend/functions/test/unit/billingB1.test.ts)"
+  D2: "local PASS (backend/functions/test/emulator/billingEngine.test.ts)"
+  D3: "DEFERRED: B1 adds no callable, so there is no SDK round trip to run; existing 3A D3 suites rerun as regression"
+  D4: "GAI independent review (pending)"
+notes: "Fake-provider PASS proves domain behavior only. Real Google Play, sandbox, RTDN/Pub/Sub transport and OIDC are Stage B2/B3 and NOT_RUN."
+status: "PARTIAL: local D1/D2 PASS for the B1 scope; live Play and cloud NOT_RUN; see docs/specs/R-04/CODI_WP03_S3B_B1_Implementation_Report_v1.0.md"
