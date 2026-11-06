@@ -1,6 +1,9 @@
 # WP-03 Evidence Manifest (Slices 1–2, Slice 3 Substage 3A): PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION, PS-BUILD-SUPPLY-CHAIN, PS-RETENTION, PS-OFFLINE-SYNC
 
-- **Version:** 1.6 (2026-11-05). Changes from v1.5:
+- **Version:** 1.7 (2026-11-05). Changes from v1.6:
+  - adds the section "WP-03 Slice 3B Stage B1: local billing engine (v1.7)" before "History". It covers PR #11 (reviewed head `148415d`; merge commit `ad1b700`), local D1/D2 evidence, NC-33..NC-39, FORGE runs #49–#51, the GAI D4 record with CODI-inspected corrections, ProofPoint status and carry-forward obligations. Every earlier section is unchanged, including the title, which predates Slice 3B.
+
+  v1.6 (2026-11-05) changes from v1.5:
   - adds the section "WP-03 Slice 3 Substage 3A: family lifecycle (v1.6)" before "History". It covers PR #8 (reviewed head `23d751a`; merge commit `7ca19f3`), local D1/D2/D3 evidence, NC-28..NC-32, FORGE runs #42–#44, the GAI D4 record with CODI-inspected corrections, ProofPoint status and remaining obligations.
   - retitles the manifest to include Slice 3 Substage 3A and the two new suites. Every Slice 1 and Slice 2 section is unchanged.
 
@@ -708,6 +711,163 @@ All paths are under `backend/functions/src/`.
 - **Implementation interpretations.** These need a disposition: `CODI_WP03_S3A_Administrative_Closeout_Report_v1.0.md` §2 (local, untracked); register v1.12 WP03-S3A-INTERP.
 - **Security exception.** WP03-S2-SEC-DISP expires **2026-12-01T00:00:00Z**. After that every FORGE run fails, so it needs renewal (with a new PL decision) or remediation first.
 - **Evidence expiry.** Run #44 artifacts expire 2026-11-19.
+
+## WP-03 Slice 3B Stage B1: local billing engine (v1.7)
+
+This section records Stage B1 only. Every earlier section is unchanged. **Class** follows the same convention: *CODI-inspected*, *CODI-reported*, *GAI-reported*.
+
+**Stage B1 PASS is fake-provider domain evidence, not production coverage.** No live Google Play, sandbox, Pub/Sub, cloud or Android evidence exists. ProofPoints -33..-36 are PARTIAL.
+
+### Scope and authority
+
+| Item | Value |
+|---|---|
+| Gate C | Opened for **Stage B1 only** (marker `WP03-S3B-B1-GATE-C-GO`; register v1.14, WP03-S3B-B1-GATE-C), after the PL ratified PL-3B-01, PL-3B-02 and the D-4 same-`opId` retry policy |
+| Specification | `CODI_WP03_S3B_B1_Implementation_Handoff_v1.0.md` (SHA-256 `6a658676…8539`; local, untracked), governed by the merged R-04 v0.4 + A2-D1D4 contracts |
+| Included | Play-semantics provider boundary (`subscriptionsv2` get/cancel model), deterministic fake Play API, fail-closed provider selection, RTDN parsing and processing domain, internal purchase-token binding, resilience and redaction, D1/D2 tests, Verity ProofPoints -33..-36 |
+| Excluded | Stages B2 and B3 (Gate C **CLOSED**); live Google Play or sandbox calls; credentials; Pub/Sub, RTDN receiver and OIDC; cloud provisioning; deployment; public `billing.verifyPurchase`; client token-issuance callable; activation and paid entitlement; acknowledgement, refunds and charges; Android |
+| Branch | `feature/wp03-s3b-billing-engine`, base `develop` @ `0c23eb142bdc041db044280e2de5a3e4c6a18cbe` |
+| PR | #11, https://github.com/egpennington/newBaileysCart/pull/11 |
+
+### Commits (PR #11)
+
+| Commit | Content |
+|---|---|
+| `8d28099` | Play-semantics provider boundary (`billing/play.ts`, `playApi.ts`, `playProvider.ts`), fake Play API, synthetic config, demo-only provider selection, `billingHoldReason`, bounded jitter |
+| `43ffd92` | RTDN parser (`billing/rtdn.ts`), binding decisions and storage, `workers/billingWorkers.ts` (`processRtdnDelivery`, `recordVerifiedPurchase`), server-only paths |
+| `148415d8beb357a42b3ab5ff4f1e56a6d0c1153c` | D1/D2 tests and Verity ProofPoints -33..-36. **GAI-reviewed PR head.** |
+| `ad1b700b059bc6c89f326d8f8d8001593095a9f2` | **Merge commit** of PR #11 into `develop` (parents `0c23eb1…`, `148415d…`). Its tree `d0ae85f2…` is identical to `148415d`. |
+
+The PR changes 23 files (+2507 / −11) in 3 commits (GitHub PR metadata). There is no dependency, lockfile, workflow, `firestore.rules`, Android or security-exception change.
+
+### Local test evidence (CODI-reported; Windows, Node 22, emulators on JBR 21.0.11)
+
+| Run | Code | Result |
+|---|---|---|
+| Typecheck | `148415d` content | 0 errors |
+| **D1** `npm test` | `148415d` content | **340/340**, exit 0 (314 pre-existing, 26 new in `test/unit/billingB1.test.ts`) |
+| **D2/D3** `npm run test:emulator` | `148415d` content | **316/316**, 30 suites, exit 0, 1,724 s (292 pre-existing D2/D3, 24 new D2 in `test/emulator/billingEngine.test.ts`) |
+| D3 for B1 | — | **DEFERRED.** B1 adds no callable, so no SDK round trip exists. The pre-existing D3 suites passed as regression. |
+| Verity cross-reference check | `148415d` | PASS: 27 ProofPoints + 5 suites |
+| `check-no-real-firebase.sh`, `check-osv-exceptions.mjs` | `148415d` | PASS; PASS (2 exceptions, expire 2026-12-01, not renewed) |
+| `npm audit --audit-level=high` | `148415d` | exit 0 (12 moderate; dependency set unchanged) |
+
+One D1 run made while the emulator job was rebuilding `lib/` showed 3 failures. A clean rerun did not reproduce them. That run is not counted, and the clean result is the one recorded above.
+
+### Negative controls NC-33..NC-39 (CODI-reported)
+
+Method: `run_ncs.py` applies one source mutation, runs the named test file, and restores the source with a SHA-256 check.
+
+| NC | Mutation | Depth | Caught by |
+|---|---|---|---|
+| NC-33 | `selectProvider.ts`: the `demo-` project check neutralized (fake selectable outside a demo project) | D1 | "only the Functions emulator with a demo- project selects the fake" |
+| NC-34 | `playProvider.ts`: the cancel acknowledgement treated as finality (refresh ignored) | D1 | 3 tests: ack is not finality; refresh failure; payment hold |
+| NC-35 | `billingWorkers.ts`: the RTDN COMPLETED-duplicate check removed | D2 | 2 tests: duplicate/reordered; concurrent duplicates |
+| NC-36 | `billingWorkers.ts`: RTDN applies VERIFIED without the provider inspection | D2 | "the payload is never trusted …" |
+| NC-37 | `billingWorkers.ts`: raw token persisted in the RTDN delivery record | D2 | redaction test |
+| NC-38 | `play.ts`: installment classified as ordinary auto-renewing | D1 | 2 tests: assessment; unsupported plans held |
+| NC-39 | `play.ts`: obfuscated account mismatch ignored | D1 | 2 tests: assessment; mismatches held |
+
+- **Result:** 7 of 7 caught.
+- **First attempt discarded:** the first NC-33/NC-34 mutations failed to compile (unused-variable errors, rc 2, no test ran). They were discarded and rerun with type-valid mutations.
+- **Next free ID:** NC-40.
+
+**Raw evidence:** `baileysCartApp_evidence\WP03_S3B_B1_IMPLEMENTATION_EVIDENCE_v1.0\` (9 files plus `SHA256SUMS.txt`, SHA-256 `99efbca7…b8ee`): D1 log, full emulator log, B1-only D2 log, NC record and script, Verity output, policy-check outputs. It is outside the repository and not committed, and it contains local machine paths.
+
+### FORGE CI evidence (CODI-inspected, authenticated read-only API)
+
+| Run | ID | Event / commit | Conclusion |
+|---|---|---|---|
+| #49 | `42123952533` | push / `feature/wp03-s3b-billing-engine` @ `148415d` | **success, 9/9**, attempt 1, 22:43:57Z–23:06:31Z |
+| #50 | `42124037124` | pull_request (PR #11) / `148415d` | **success, 9/9**, attempt 1, 22:44:32Z–23:05:55Z |
+| **#51** | **`42129345471`** | **push / `develop` @ `ad1b700`** | **success, 9/9**, attempt 1, 2026-11-05T23:26:59Z–23:49:28Z |
+
+**Run #51 detail** (https://github.com/egpennington/newBaileysCart/actions/runs/42129345471):
+
+| Job | Job ID | Conclusion |
+|---|---|---|
+| No real Firebase configuration | 127601685958 | success |
+| Gradle wrapper integrity | 127601686089 | success |
+| Dependency scan and SBOM | 127601686222 | success |
+| Backend typecheck/tests/audit | 127601686271 | success |
+| Backend emulator tests | 127601686299 | success |
+| Secret scan | 127601686521 | success |
+| Clean repeat build | 127601762155 | success |
+| Android compile/lint/unit | 127601762428 | success |
+| **FORGE gate** | 127611489198 | success |
+
+- **Step conclusions (all three runs):** "Verify security exception policy", "Scan lockfiles", "CycloneDX SBOM", "Scan full git history", "Scan working tree" and the emulator-tests step all succeeded.
+- **Commit check-runs on `ad1b700`:** 9, with `FORGE gate` success.
+- **Run #51 artifacts** (expire 2026-11-19):
+  - `emulator-test-evidence` 13463757040 (`sha256:ab20bd9b…`)
+  - `sbom` 13463300568 (`sha256:086b323e…`)
+  - `repeat-build-evidence` 13462827036 (`sha256:ba0d0c01…`)
+  - `android-reports` 13462397427 (`sha256:f9271cc5…`)
+- **Not inspected:** job logs and artifact contents. **CI test totals, scanner findings and repeat-build hashes are NOT VERIFIED from CI.** Only job and step conclusions are verified. The D1/D2 counts above are local CODI runs.
+- **Deployments:** the GitHub Deployments API lists 0. `main` remains at `b6ac365a471f77e0b0dcfb488dc064c106e782c4`.
+
+### GAI verification record (GAI-reported; local, untracked report)
+
+| Report | Target | Verdict |
+|---|---|---|
+| `GAI_WP03_S3B_B1_Implementation_D4_Verification_Report.md` (SHA-256 `e45cdd17…32aa`) | PR #11 @ `148415d`; runs #49, #50 | **GO** (technical recommendation to merge); 0 blockers; 2 low tracking items (`GAI-S3B-LOW-01` client obfuscation-prefix specification; `GAI-S3B-LOW-02` SEC-DISP expiry) |
+
+**Review limitations:** GAI reviewed CODI's evidence, the source and CI telemetry (including a PL screenshot of runs #49/#50). It did not rerun tests or negative controls, and it reviewed the code before the merge. Run #51 postdates the report.
+
+**CODI-inspected discrepancies in GAI's text**, recorded here and not adopted:
+
+| GAI statement | Repository fact |
+|---|---|
+| `selectBillingProvider()` excerpt reads `process.env` and returns `createFakePlayProvider()` / `disabledPlayProvider` | `selectBillingProvider(env)` takes the environment as a parameter and returns `FakeBillingProvider` or `unavailableBillingProvider`. The Play adapter is not selected at runtime in B1. |
+| `createLivePlayApi()` throws `"Live Google Play API is disabled in Stage B1"` | It throws `LiveProviderDisabledError` ("live billing provider is disabled in Stage B1") |
+| Emulator run "608s duration" | 1,724 s locally |
+| The cancel/refresh sequence is in `billingWorkers.ts`; the classifier is `assessSubscriptionSnapshot` returning `UNSUPPORTED_PLAN_TYPE` | The sequence is in `billing/playProvider.ts` `requestCancellation`. The classifier is `play.ts` `assessSubscription` (plan kind). `UNSUPPORTED_PLAN_TYPE` is a `billingHoldReason` set by the adapter. |
+| Package checked against `com.penningtonlabs.baileyscart` | The configured synthetic package is `com.penningtonlabs.baileyscart.wp00placeholder` (WP00-OPEN-01) |
+| Duplicate binding fails with `PURCHASE_ALREADY_BOUND`; identifiers are defined in `binding.ts` | The rejection is `ALREADY_BOUND_ELSEWHERE` (a concurrent `create()` makes the transaction retry and re-decide). The identifiers are defined in `play.ts`. |
+| The late-settlement binding is written as `PENDING` | The binding status is `HELD_LATE_SETTLEMENT`; the local billing record is `PENDING` |
+| `:core:model:jar` hash `cf6d0b16…0024`; osv-scanner "0 issues" | Not verified by CODI (artifact contents and logs not inspected) |
+| ProofPoint -33 risk "High" | The YAML says `risk: critical` (-35 is `high`) |
+
+None of these affects the merged code. They are evidence-accuracy corrections.
+
+### ProofPoint status (Stage B1)
+
+| ProofPoint | Suite | Stage B1 result | Deferred (not claimed) |
+|---|---|---|---|
+| `PL-PP-WP03-33` | PS-BILLING-LIFECYCLE | PARTIAL: isolation, disabled adapter, static no-network guard, redaction (D1/D2 local) | Deployed-runtime behavior; B2 credential handling |
+| `PL-PP-WP03-34` | PS-BILLING-LIFECYCLE | PARTIAL: verified-finality saga over the fake Play API (D1/D2 local) | Real Play finality (W-05, B2); installment/prepaid policy |
+| `PL-PP-WP03-35` | PS-BILLING-LIFECYCLE | PARTIAL: synthetic RTDN parsing and processing (D1/D2 local) | Receiver, Pub/Sub, OIDC, real RTDN fields (B2) |
+| `PL-PP-WP03-36` | PS-BILLING-LIFECYCLE | PARTIAL: internal binding and late-settlement hold (D1/D2 local) | Public `billing.verifyPurchase`, activation, acknowledgement (B2 / ratification) |
+| `PL-PP-WP03-32` | PS-ACCESS-ISOLATION | **NOT_RUN** (unchanged) | Client token-issuance endpoint not implemented |
+
+D3 for -33..-36 is **DEFERRED**, because there is no callable surface. D4 is GAI GO. CODI does not upgrade any ProofPoint to production PASS.
+
+### Post-merge and closure state (v1.7)
+
+| Item | Value | Class / source |
+|---|---|---|
+| PR #11 | **MERGED** 2026-11-05T23:26:56Z by `egpennington` (merge commit method); merged head `148415d` | CODI-inspected |
+| `develop` HEAD | `ad1b700b059bc6c89f326d8f8d8001593095a9f2` | CODI-inspected |
+| `main` | unchanged at `b6ac365` | CODI-inspected |
+| Feature branch | preserved at `148415d` | CODI-inspected |
+| Deployment / cloud / live Play | none | CODI-inspected (Deployments API; no provider code path) |
+| Closure | **Not declared.** Formal closure of Stage B1 is reserved to the PL. | PL decision pending |
+| Stages B2, B3 | **Gate C CLOSED** | PL |
+
+### Remaining obligations (Stage B1 carry-forward)
+
+- **Stage B2:**
+  - live Play sandbox (`subscriptionsv2` get/cancel), credentials and service account
+  - Cloud Pub/Sub topic and subscription, RTDN push receiver, OIDC verification
+  - purchase acknowledgement
+  - real-Play confirmation of the finality definition and RTDN fields
+- **Unsupported plan policy.** Installment, prepaid and unknown plans are held in `MANUAL_REVIEW` (`UNSUPPORTED_PLAN_TYPE`). A PL decision is needed before B2.
+- **Android obfuscated identifier contract** (`GAI-S3B-LOW-01`): `sha256("bc-owner:"+uid)` and `sha256("bc-family:"+familyId)` must be specified for the client (WP-01/WP-02).
+- **Client-facing confirmation-token issuance** (`familiesPrepareLifecycleConfirmation`, PLANNED; `PL-PP-WP03-32` NOT_RUN). The D-4 same-`opId` retry policy is ratified as a contract rule.
+- **Reservation release, billing activation and paid entitlement.** These need the ratified `billing.verifyPurchase` and a paid access model. G-03 retention, purge and legal hold. Worker scheduling and dead-letter handling.
+- **Voided-purchase / refund notifications.** These are recorded with no effect; handling is unspecified (W-05 / PL).
+- **Security exception** (`GAI-S3B-LOW-02`): WP03-S2-SEC-DISP expires **2026-12-01T00:00:00Z**. It needs renewal (with a new PL decision) or remediation first, or every FORGE run fails.
+- **Evidence expiry.** Run #49–#51 artifacts expire 2026-11-19.
 
 ## History: superseded v1.2 sections (retained unchanged)
 
