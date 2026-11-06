@@ -1,6 +1,15 @@
 # FORGE — WP-00 build and supply-chain gates (ProofSuite PS-BUILD-SUPPLY-CHAIN), plus WP-03
 # Slice 1 emulator tests. Every job is blocking. The `forge-gate` job is the single required status check.
 # Third-party actions and downloaded tools are pinned by commit SHA / SHA-256.
+#
+# FORGE-FP-01 fast path. `classify` (scripts/forge/classify.mjs) decides FAST or FULL from git
+# objects only. FAST is limited to an exhaustive allowlist of documentation and Verity metadata on
+# pull requests into develop and pushes to develop/feature/fix; main, manual runs, other events and
+# anything uncertain are FULL. The FULL-only jobs (android, repeat-build, backend, backend-emulator)
+# run only when classify says FULL. `path-verdict` always runs and fails unless classify succeeded
+# and the FULL-only jobs all succeeded (FULL) or were all skipped (FAST). Security, secret,
+# Firebase-config, wrapper and documentation/Verity checks run on every path. The forge-gate body is
+# unchanged (pinned by scripts/check-osv-exceptions.mjs); only its needs list changed.
 name: FORGE WP-00
 
 on:
@@ -29,6 +38,56 @@ env:
   ANDROID_PACKAGES: "platforms;android-37.0 build-tools;36.0.0"
 
 jobs:
+  classify:
+    name: Change classification
+    runs-on: ubuntu-24.04
+    outputs:
+      path: ${{ steps.classify.outputs.path }}
+      reason: ${{ steps.classify.outputs.reason }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Classify changed files (FAST or FULL)
+        id: classify
+        env:
+          FORGE_EVENT_NAME: ${{ github.event_name }}
+          FORGE_REF: ${{ github.ref }}
+          FORGE_SHA: ${{ github.sha }}
+          FORGE_BEFORE: ${{ github.event.before }}
+          FORGE_BASE_REF: ${{ github.base_ref }}
+          FORGE_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FORGE_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          FORGE_DEVELOP_SHA="$(git rev-parse --verify --quiet refs/remotes/origin/develop^{commit} || true)"
+          export FORGE_DEVELOP_SHA
+          node scripts/forge/classify.mjs
+
+  docs-validate:
+    name: Documentation and Verity validation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install pinned backend dependencies (yaml parser for Verity and workflow checks)
+        working-directory: backend/functions
+        run: npm ci --ignore-scripts
+      - name: FORGE classifier, verdict and workflow self-tests
+        run: node --test "scripts/forge/tests/*.test.mjs"
+      - name: Markdown structure
+        run: node scripts/forge/docs-check.mjs
+      - name: Verity schema and cross-references
+        run: node scripts/verity-check.cjs
+
   wrapper-validation:
     name: Gradle wrapper integrity
     runs-on: ubuntu-24.04
@@ -40,7 +99,8 @@ jobs:
 
   android:
     name: Android compile, lint, unit tests
-    needs: wrapper-validation
+    needs: [classify, wrapper-validation]
+    if: needs.classify.outputs.path == 'FULL'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -80,7 +140,8 @@ jobs:
 
   repeat-build:
     name: Clean repeat build (PL-PP-WP00-01)
-    needs: wrapper-validation
+    needs: [classify, wrapper-validation]
+    if: needs.classify.outputs.path == 'FULL'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -157,6 +218,8 @@ jobs:
 
   backend:
     name: Backend typecheck, tests, npm audit
+    needs: classify
+    if: needs.classify.outputs.path == 'FULL'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -178,6 +241,8 @@ jobs:
   # emulators, demo-* project only. The Firestore emulator needs Java.
   backend-emulator:
     name: Backend emulator tests (WP-03 D2/D3)
+    needs: classify
+    if: needs.classify.outputs.path == 'FULL'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -274,10 +339,28 @@ jobs:
           persist-credentials: false
       - run: bash scripts/check-no-real-firebase.sh
 
+  # Always runs. Fails unless classify succeeded and the FULL-only jobs match the classified path.
+  path-verdict:
+    name: Path verification
+    if: always()
+    needs: [classify, android, repeat-build, backend, backend-emulator]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Verify the classified path ran exactly its required jobs
+        env:
+          FORGE_NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/forge/path-verdict.mjs
+
   forge-gate:
     name: FORGE gate
     if: always()
-    needs: [wrapper-validation, android, repeat-build, backend, backend-emulator, dependency-audit, secrets, firebase-guard]
+    needs: [classify, docs-validate, wrapper-validation, dependency-audit, secrets, firebase-guard, path-verdict]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every upstream job to succeed
