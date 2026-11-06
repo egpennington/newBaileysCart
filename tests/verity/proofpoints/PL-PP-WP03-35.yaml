@@ -32,6 +32,6 @@ depths:
   D1: "local PASS (backend/functions/test/unit/billingB1.test.ts)"
   D2: "local PASS (backend/functions/test/emulator/billingEngine.test.ts)"
   D3: "DEFERRED: B1 adds no callable, so there is no SDK round trip to run; existing 3A D3 suites rerun as regression"
-  D4: "GAI independent review (pending)"
+  D4: "GAI GO (GAI_WP03_S3B_B1_Implementation_D4_Verification_Report.md; local, untracked)"
 notes: "Fake-provider PASS proves domain behavior only. Real Google Play, sandbox, RTDN/Pub/Sub transport and OIDC are Stage B2/B3 and NOT_RUN."
-status: "PARTIAL: local D1/D2 PASS for the B1 scope; live Play and cloud NOT_RUN; see docs/specs/R-04/CODI_WP03_S3B_B1_Implementation_Report_v1.0.md"
+status: "PARTIAL: local D1/D2 PASS for the B1 scope; live Play and cloud NOT_RUN; see docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.7, section \"WP-03 Slice 3B Stage B1\""
