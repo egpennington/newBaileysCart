@@ -1,0 +1,31 @@
+# New in BC-UI-S1. Unallocated ID. Local demo scope.
+id: PL-PP-WP01-02
+name: "Add and edit through explicit labeled dialogs; blank names rejected; names limited to 100 code points; edits re-sort and can move category"
+feature: "Shopping list screen (BC-UI-S1 LOCAL DEMO, debug build)"
+suite: PS-CORE-LIST
+risk: medium
+owner: CODI
+independent_reviewer: GAI
+level: unit + emulator
+slice: "BC-UI-S1 (debug-only LOCAL DEMO)"
+slice_coverage: "PARTIAL. Reducer and validation (D1); dialog flow on the emulator (D3). The canonical NameKey and duplicate policy (W-03) is OPEN and deliberately not implemented."
+steps:
+  - "Submit empty, whitespace-only, 100- and 101-code-point names (including surrogate pairs)"
+  - "Add an item; edit its name and move it to another category; edit an unknown id; submit a no-op edit"
+expected:
+  - "Blank input is rejected with \"Enter an item name.\" and the dialog stays open; no crash and no state change"
+  - "Names are trimmed; more than 100 code points shows \"Use 100 characters or fewer.\""
+  - "Edit keeps the item id, updates the name and category, and re-sorts; unknown or no-op edits change nothing"
+  - "Duplicate names are neither merged nor rejected (no invented canonicalization)"
+evidence:
+  - "LocalDemoListTest (addTrimsNameAndAssignsCategory, blankAndWhitespaceOnlyNamesAreRejectedWithoutStateChange, nameLimitIsOneHundredCodePointsAfterTrim, duplicateNamesAreNotCanonicalizedOrMerged, editRenamesAndMovesCategoryAndResorts, invalidOrUnknownOrNoOpEditLeavesStateUnchanged)"
+  - "Emulator screenshots 02-08 and 20-24"
+preconditions:
+  - "Debug build only; in-memory state"
+depths:
+  D1: "local PASS (LocalDemoListTest)"
+  D2: "BLOCKED: no Compose UI test dependencies"
+  D3: "local PASS (manual emulator walkthrough: blank rejection, add Yogurt to Dairy, edit to Greek Yogurt in Misc, add Tofu to Meat at 200% font with the keyboard open)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "The 100-code-point limit comes from API v0.4 §6 (display names). Whitespace normalization beyond trimming the ends and canonical NameKey are OPEN W-03 and not implemented."
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"

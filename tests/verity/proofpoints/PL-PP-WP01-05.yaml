@@ -1,0 +1,33 @@
+# New in BC-UI-S1. Unallocated ID. Accessibility and layout.
+id: PL-PP-WP01-05
+name: "Accessible list: item-specific labels for every action, 48 dp targets, headings, a polite live-region status, usable at 360 dp width and 200% font with the keyboard open"
+feature: "Shopping list screen (BC-UI-S1 LOCAL DEMO, debug build)"
+suite: PS-CORE-LIST
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: emulator (accessibility inspection)
+slice: "BC-UI-S1 (debug-only LOCAL DEMO)"
+slice_coverage: "PARTIAL. uiautomator semantics and bounds inspection plus screenshots at default and 360 dp / 200% scale. TalkBack spoken output and gesture navigation were NOT verified."
+steps:
+  - "Dump semantics at default scale and at 360 dp (wm density 480) / font scale 2.0"
+  - "Measure every clickable bound in dp"
+  - "Open the Add dialog at 200% with the keyboard; scroll; select a category; confirm"
+  - "Enable TalkBack and attempt explore-by-touch via adb"
+expected:
+  - "Edit and Delete labels name the item and category (for example \"Delete apples from Produce\"); Undo is labelled \"Undo delete of <item>\""
+  - "All clickable targets are at least 48 dp; category headers and dialog sections are headings"
+  - "At 360 dp / 200% all six categories are reachable by scrolling, the dialog buttons stay above the keyboard, and the category list scrolls"
+  - "No action needs a hidden gesture (no swipe or double-tap editing)"
+evidence:
+  - "Emulator uiautomator dumps 01, 02, 17, 18, 20-24; screenshots 17-24"
+  - "Touch targets: Edit 57.9x48 dp, Delete 64.4x48 dp, Add item 379x48 dp, radio rows 272x48 dp (default); 53.3 dp tall at 200%"
+preconditions:
+  - "Emulator Medium_Phone_API_37.0 (Android 17, API 37, google_apis_playstore x86_64)"
+depths:
+  D1: "NOT_APPLICABLE (UI semantics)"
+  D2: "BLOCKED: no Compose UI test dependencies"
+  D3: "local PASS for semantics, target size and scaling inspection. TalkBack journey BLOCKED: adb-injected taps bypass touch exploration, so spoken output and focus order need a manual pass"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "A finding during D3 was fixed. At 200% the pinned header took about 38% of the screen, so only the LOCAL DEMO line stays pinned now. Dialog buttons were hidden by the keyboard, so the dialog now pads above the IME. After a delete, TalkBack focus is not moved programmatically; the result is announced through a polite live region."
+status: "PARTIAL: local D3 inspection PASS; TalkBack journey BLOCKED; D2 BLOCKED; D4 NOT_RUN"

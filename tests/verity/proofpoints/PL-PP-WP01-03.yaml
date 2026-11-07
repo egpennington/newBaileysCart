@@ -1,0 +1,34 @@
+# New in BC-UI-S1. Unallocated ID. Local demo Undo only; not server items.undoDelete.
+id: PL-PP-WP01-03
+name: "Latest-only local Undo: 5-second window on the monotonic clock, extended by the accessibility timeout, generation-safe against stale timers and taps"
+feature: "Shopping list screen (BC-UI-S1 LOCAL DEMO, debug build)"
+suite: PS-CORE-LIST
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: unit + emulator
+slice: "BC-UI-S1 (debug-only LOCAL DEMO)"
+slice_coverage: "PARTIAL. Reducer timing and generation logic (D1); on-device Undo before and after the window and with an extended accessibility timeout (D3). TalkBack gesture-driven use is BLOCKED (see PL-PP-WP01-05)."
+steps:
+  - "Delete; Undo before the window, at the boundary and after it"
+  - "Delete twice in quick succession; Undo the superseded slot, then the current one"
+  - "Fire an old slot's timer late; repeat Undo (double tap); replay a consumed Undo after a new delete"
+  - "Set the accessibility interactive timeout to 20 s; Undo at about 8 s"
+expected:
+  - "One slot only; a second delete replaces it and the earlier deletion is final"
+  - "Undo restores the exact item (id, name, category) once; repeat Undo is idempotent"
+  - "Undo at or after the expiry does nothing; an old timer or Undo never affects a newer slot"
+  - "Window = max(5 s, user accessibility timeout) on SystemClock.elapsedRealtime"
+evidence:
+  - "LocalDemoListTest (deleteRemovesItemAndOpensUndoSlotOnMonotonicClock, undoBeforeExpiryRestoresExactItemOnce, undoAtOrAfterExpiryBoundaryDoesNotRestore, expiryClearsSlotOnlyAtOrAfterBoundary, secondDeleteReplacesSlotAndFirstDeletionBecomesFinal, oldTimerCannotDismissNewerSlot, noStaleSlotResurrectionAfterUndoThenDelete, deleteOfUnknownItemIsNoOp, extendedAccessibilityTimeoutIsHonored, negativeTimeoutIsClampedToImmediateExpiry)"
+  - "Negative controls NC-60, NC-61, NC-62 and NC-64 caught; NC-60a recorded as an equivalent mutant"
+  - "Emulator screenshots 09-16 and 25: Undo at +0.86 s and +4.15 s restored; at +5.77 s and about +10 s expired; at +8.55 s with a 20 s accessibility timeout restored"
+preconditions:
+  - "Debug build only; in-memory state"
+depths:
+  D1: "local PASS (LocalDemoListTest)"
+  D2: "BLOCKED: no Compose UI test dependencies"
+  D3: "local PASS (manual, adb-driven emulator timings, API 37)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "The UI timer is a LaunchedEffect keyed by slot generation, so a newer slot cancels the older timer; Expire and Undo also carry the generation. The window is read from LocalAccessibilityManager.calculateRecommendedTimeoutMillis at each delete. Host timings come from adb command issue times and are approximate."
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"

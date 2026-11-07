@@ -1,0 +1,33 @@
+# New in BC-UI-S1. Unallocated ID. Demo-scope honesty and release isolation.
+id: PL-PP-WP01-04
+name: "LOCAL DEMO scope is unmistakable and isolated: persistent \"LOCAL DEMO — not synced\" indicator, no persistence or network, and no demo code in release builds"
+feature: "Shopping list screen (BC-UI-S1 LOCAL DEMO, debug build)"
+suite: PS-CORE-LIST
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: unit + build inspection + emulator
+slice: "BC-UI-S1 (debug-only LOCAL DEMO)"
+slice_coverage: "PARTIAL. The debug entry flag (D1); release APK dex and resources inspection plus a manual negative control; persistence loss on the emulator (D3). Release isolation is not CI-enforced (AGP 9 creates release unit tests only on request)."
+steps:
+  - "Launch the debug build; scroll; open dialogs; change font scale"
+  - "Inspect debug and release APKs (dexdump classes, aapt2 strings and permissions)"
+  - "Force-stop and relaunch the app"
+expected:
+  - "The pinned header always shows \"LOCAL DEMO — not synced\"; the intro explains that changes stay in memory only and are lost when the app closes"
+  - "Release APK: 0 demo classes, 0 demo strings, WP-00 placeholder entry; no INTERNET permission in either build"
+  - "After a process restart the list returns to the seed state (no persistence)"
+evidence:
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/DebugEntryTest.kt"
+  - "Local release-isolation.txt: release demo_classes=0, demo_strings=0; debug demo_classes=87"
+  - "Negative control NC-65 (manual): reducer copied into src/main gives 24 release demo classes, so the inspection detects leakage"
+  - "Emulator screenshot 29 (seed state after force-stop)"
+preconditions:
+  - "Build-type source sets: src/debug (demo AppEntry) and src/release (placeholder AppEntry)"
+depths:
+  D1: "local PASS (DebugEntryTest)"
+  D2: "NOT_RUN: release unit tests are not enabled in AGP 9 (onlyEnableUnitTestForTheTestedBuildType); enabling them changes build config and lockfiles and needs PL approval"
+  D3: "local PASS (APK inspection and emulator restart check)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "No auth, entitlement or navigation gate exists in the app yet (WP-00 shell), so the demo bypasses none. The release placeholder behavior is unchanged."
+status: "PARTIAL: local D1 and D3 PASS; release isolation is verified by local APK inspection, not in CI; D4 NOT_RUN"
