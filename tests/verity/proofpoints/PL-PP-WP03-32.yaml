@@ -14,7 +14,7 @@ slice: "WP-03 D-4 local issuer sprint (WP03-D4-ISSUER-LOCAL-GATE-C-GO); contract
 decision_basis:
   - "PL D-4 (2026-11-05): owner-only client token preparation, CLOSE | WAIVE_RECOVERY, 15-minute TTL, SHA-256 digest only, atomic single use, supersession, fail-closed same-opId retry, volatile client storage"
   - "PL D-1 and D-2 (2026-11-05): committed replay after current re-authorization; OWNER_REQUIRED for every non-owner"
-slice_coverage: "PARTIAL. Backend callable familiesPrepareLifecycleConfirmation and its consumption by families.close and families.waiveRecovery: local D1, D2 and D3 (emulator) only. Android volatile-memory handling, App Check enforcement and any deployed runtime are NOT_RUN. Sprint policies (5-minute recent sign-in, 5 issuances per family per 15 minutes) and their error mappings await PL ratification."
+slice_coverage: "PARTIAL. Backend callable familiesPrepareLifecycleConfirmation and its consumption by families.close and families.waiveRecovery: local D1, D2 and D3 (emulator) only. Android volatile-memory handling, App Check enforcement and any deployed runtime are NOT_RUN. Issuance policies ratified by the PL (DECISION_REGISTER v1.15): WP03-D4-RECENT-AUTH (5-minute recent sign-in, UNAUTHENTICATED), WP03-D4-THROTTLE (5 successful issuances per family per rolling 15 minutes, RATE_LIMITED) and WP03-D4-BARRIER (emulator-only, INTERNAL for nonlocal calls; production behavior deferred)."
 preconditions:
   - "Auth, Firestore and Functions emulators, demo project only; injectable FakeClock"
   - "Deterministic FakeBillingProvider; never real Play"
@@ -58,6 +58,6 @@ depths:
   D1: "local PASS (backend/functions/test/unit/prepareConfirmation.test.ts)"
   D2: "local PASS (backend/functions/test/emulator/prepareConfirmation.test.ts; races x50)"
   D3: "local PASS against the emulator (backend/functions/test/e2e/prepareCallable.test.ts). The emulator does not verify ID-token signatures (W-01 D-5). Android volatile-memory handling is client-integration scope and NOT_RUN"
-  D4: "NOT_RUN: GAI independent review pending"
+  D4: "GAI GO (GAI_WP03_D4_Confirmation_Issuer_D4_Verification_Report.md; local, untracked)"
 notes: "Local emulator evidence only. App Check is not enforced (W-01 D-4); provider registration, Android integration and enforcement are deferred and block any live deployment. Android volatile-memory retention is verified in client integration (WP-01/WP-02), not by backend tests."
-status: "PARTIAL: local D1/D2/D3 PASS for the backend issuer; D4, Android, App Check and live NOT_RUN"
+status: "PARTIAL: local D1/D2/D3 PASS and GAI D4 GO for the backend issuer; Android, App Check and live NOT_RUN; see docs/wp03/evidence/EVIDENCE_MANIFEST.md v1.8, section \"WP-03 D-4 local confirmation issuer\""
