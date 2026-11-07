@@ -21,8 +21,14 @@ import type { Clock } from "../domain/clock.js";
 import { checkConfirmation } from "../domain/confirmation.js";
 import type { ConfirmationAction } from "../domain/confirmation.js";
 import { IDEMPOTENCY_RETENTION_MS, idempotencyKey } from "../persistence/idempotency.js";
-import { confirmationRecordFrom, confirmationTokenHash, familyLifecycleFrom } from "../persistence/lifecycleStore.js";
-import type { FamilyLifecycle } from "../persistence/lifecycleStore.js";
+import {
+  confirmationPointerFrom,
+  confirmationRecordFrom,
+  confirmationTokenHash,
+  familyLifecycleFrom,
+  writeConfirmationPointer,
+} from "../persistence/lifecycleStore.js";
+import type { ConfirmationPointer, FamilyLifecycle } from "../persistence/lifecycleStore.js";
 import { paths } from "../persistence/paths.js";
 import type { Actor } from "./familiesCreate.js";
 
@@ -86,28 +92,67 @@ export async function gateMutation<T>(
   return { gate: { kind: "PROCEED", family, familySnap: familySnap as DocumentSnapshot, idemRef }, extra: rest };
 }
 
-/** Step 7 (confirmation part). Returns the token document so the commit can consume it. */
-export function confirmationRef(db: Firestore, token: string): DocumentReference {
-  return db.doc(paths.confirmationToken(confirmationTokenHash(token)));
+/**
+ * Step 7 (confirmation part). The token document and the family's active-token pointer (A2-D4) are
+ * read in the commit transaction itself, so consumption and a racing preparation serialize: the
+ * token authorizes only if the pointer still names it at commit.
+ */
+export interface ConfirmationRefs {
+  readonly token: DocumentReference;
+  readonly pointer: DocumentReference;
+  readonly tokenHash: string;
 }
 
+export function confirmationRefs(db: Firestore, familyId: string, token: string): ConfirmationRefs {
+  const tokenHash = confirmationTokenHash(token);
+  return {
+    token: db.doc(paths.confirmationToken(tokenHash)),
+    pointer: db.doc(paths.confirmationPointer(familyId)),
+    tokenHash,
+  };
+}
+
+/** Returns the pointer as read, for consumeConfirmation. Malformed pointer = INTERNAL (fail closed). */
 export function requireConfirmation(
-  snap: DocumentSnapshot | undefined,
+  tokenSnap: DocumentSnapshot | undefined,
+  pointerSnap: DocumentSnapshot | undefined,
+  refs: ConfirmationRefs,
   actor: Actor,
   action: ConfirmationAction,
   family: FamilyLifecycle,
   nowMillis: number,
-): void {
+): ConfirmationPointer {
+  const pointer = confirmationPointerFrom(pointerSnap, family.familyId);
   const check = checkConfirmation(
-    confirmationRecordFrom(snap),
+    confirmationRecordFrom(tokenSnap),
     { uid: actor.uid, familyId: family.familyId, action, familyEpoch: family.familyEpoch },
     nowMillis,
+    pointer.activeTokenHash !== refs.tokenHash,
   );
   if (!check.ok) throw new DomainError(check.code);
+  return pointer;
 }
 
-export function consumeConfirmation(tx: Transaction, ref: DocumentReference, opId: string, nowMillis: number): void {
-  tx.update(ref, { consumedAt: Timestamp.fromMillis(nowMillis), consumedByOpId: opId });
+/** Single use: mark the token consumed and clear the pointer, in the lifecycle commit transaction. */
+export function consumeConfirmation(
+  db: Firestore,
+  tx: Transaction,
+  refs: ConfirmationRefs,
+  pointer: ConfirmationPointer,
+  family: FamilyLifecycle,
+  opId: string,
+  nowMillis: number,
+): void {
+  tx.update(refs.token, { consumedAt: Timestamp.fromMillis(nowMillis), consumedByOpId: opId });
+  writeConfirmationPointer(
+    db,
+    tx,
+    family.familyId,
+    family.ownerUid,
+    pointer,
+    { activeTokenHash: null, activeOpId: null, issuedAtMillis: pointer.issuedAtMillis },
+    nowMillis,
+  );
 }
 
 /** Step 8: the idempotency record, written in the same transaction as the state change. */

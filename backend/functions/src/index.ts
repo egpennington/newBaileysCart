@@ -9,6 +9,12 @@
  * ever established and no cancellation is ever reported verified. Not deployed (no Gate for it).
  * Slice 3B Stage B1 adds no callable: the billing engine, RTDN processor and purchase binding are
  * internal functions driven by emulator tests (billing/selectProvider.ts keeps the fake demo-only).
+ *
+ * A2-D4 adds `familiesPrepareLifecycleConfirmation` (families.prepareLifecycleConfirmation). It is
+ * LOCAL-ONLY in this sprint: its handler refuses to issue or store anything unless the runtime is the
+ * Functions emulator with a `demo-` project. App Check: the SDK hook is the `enforceAppCheck` option
+ * below; it stays false (W-01 D-4). Provider registration, Android integration and enforcement are
+ * deferred and block any live deployment of this callable.
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -20,6 +26,7 @@ import { accountGetSessionHandler } from "./commands/accountGetSession.js";
 import { familiesCloseHandler } from "./commands/familiesClose.js";
 import { familiesCreateHandler } from "./commands/familiesCreate.js";
 import { familiesGetClosureStatusHandler } from "./commands/familiesGetClosureStatus.js";
+import { familiesPrepareLifecycleConfirmationHandler } from "./commands/familiesPrepareLifecycleConfirmation.js";
 import { familiesRestoreHandler } from "./commands/familiesRestore.js";
 import { familiesWaiveRecoveryHandler } from "./commands/familiesWaiveRecovery.js";
 import { systemClock } from "./domain/clock.js";
@@ -35,6 +42,7 @@ const closeFamily = familiesCloseHandler(deps);
 const getClosureStatus = familiesGetClosureStatusHandler(deps);
 const restoreFamily = familiesRestoreHandler(deps);
 const waiveRecovery = familiesWaiveRecoveryHandler(deps);
+const prepareConfirmation = familiesPrepareLifecycleConfirmationHandler({ ...deps, env: process.env });
 
 export const familiesCreate = onCall({ enforceAppCheck: false }, (request) =>
   runCallable("families.create", request, createFamily),
@@ -58,4 +66,8 @@ export const familiesRestore = onCall({ enforceAppCheck: false }, (request) =>
 
 export const familiesWaiveRecovery = onCall({ enforceAppCheck: false }, (request) =>
   runCallable("families.waiveRecovery", request, waiveRecovery),
+);
+
+export const familiesPrepareLifecycleConfirmation = onCall({ enforceAppCheck: false }, (request) =>
+  runCallable("families.prepareLifecycleConfirmation", request, prepareConfirmation),
 );

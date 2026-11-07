@@ -33,8 +33,12 @@ export function authenticate(input: CallableInput): Actor {
   if (typeof uid !== "string" || uid.trim() === "") {
     throw new DomainError("UNAUTHENTICATED");
   }
-  // Verified-email state comes only from the authenticated token, never from the request body.
-  return { uid, emailVerified: input.auth?.token?.["email_verified"] === true };
+  // Verified-email and sign-in time come only from the authenticated token, never from the body.
+  const emailVerified = input.auth?.token?.["email_verified"] === true;
+  const authTime = input.auth?.token?.["auth_time"];
+  return typeof authTime === "number" && Number.isSafeInteger(authTime)
+    ? { uid, emailVerified, authTimeSeconds: authTime }
+    : { uid, emailVerified };
 }
 
 /** Server-side sink for unexpected failures; injectable so tests can assert what is logged (T-GAP-9). */
