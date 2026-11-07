@@ -60,6 +60,8 @@ const seeded: Record<string, Record<string, unknown>> = {
   [`familyBilling/${FAMILY}`]: { purchaseState: "ACTIVE", purchaseRef: "fake-paid-rules" },
   ["ownershipReleaseAudits/rules-case"]: { ownerUid: OWNER, familyId: FAMILY },
   [`reservationCases/${FAMILY}`]: { familyId: FAMILY, disposition: "RESERVATION_RECONCILIATION_PENDING" },
+  // A2-D4 server-only active-token pointer and issuance window (PL-PP-WP03-32).
+  [`lifecycleConfirmations/${FAMILY}`]: { familyId: FAMILY, ownerUid: OWNER, activeTokenHash: null, revision: 1 },
 };
 
 before(async () => {
@@ -78,7 +80,7 @@ describe("firestore.rules: deny all direct client access", () => {
         test(`delete ${path} denied`, async () => assert.equal(await call("DELETE", `${BASE}/${path}`, token), 403));
       }
       for (const collection of ["families", `families/${FAMILY}/members`, "users", `users/${OWNER}/memberships`, "trialLedger", "idempotency",
-        "closureCases", "confirmationTokens", "familyBilling", "ownershipReleaseAudits", "reservationCases"]) {
+        "closureCases", "confirmationTokens", "familyBilling", "ownershipReleaseAudits", "reservationCases", "lifecycleConfirmations"]) {
         test(`list ${collection} denied`, async () => assert.equal(await call("GET", `${BASE}/${collection}`, token), 403));
         test(`create in ${collection} denied`, async () =>
           assert.equal(await call("POST", `${BASE}/${collection}`, token, { fields: { x: { stringValue: "y" } } }), 403));

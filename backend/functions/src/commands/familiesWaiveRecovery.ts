@@ -25,7 +25,7 @@ import { paths } from "../persistence/paths.js";
 import type { Actor } from "./familiesCreate.js";
 import {
   MAX_TRANSACTION_ATTEMPTS,
-  confirmationRef,
+  confirmationRefs,
   consumeConfirmation,
   gateMutation,
   requireConfirmation,
@@ -98,25 +98,26 @@ export function familiesWaiveRecoveryHandler(deps: LifecycleDeps) {
       familyId: request.familyId,
       familyEpoch: request.familyEpoch,
     };
-    const tokenRef = confirmationRef(db, request.confirmationToken);
+    const refs = confirmationRefs(db, request.familyId, request.confirmationToken);
 
     return db.runTransaction(
       async (tx) => {
         const { gate, extra } = await gateMutation<WaiveRecoveryData>(db, tx, actor, id, [
-          tokenRef,
+          refs.token,
           db.doc(paths.user(actor.uid)),
           db.doc(paths.familyBilling(request.familyId)),
+          refs.pointer,
         ]);
         if (gate.kind === "REPLAY") return gate.response;
         const { family } = gate;
-        const [tokenSnap, userSnap, billingSnap] = extra;
+        const [tokenSnap, userSnap, billingSnap, pointerSnap] = extra;
         const caseSnap = family.closureCaseId === null ? undefined : await tx.get(db.doc(paths.closureCase(family.closureCaseId)));
 
         const nowMillis = deps.clock.nowMillis();
         const closure = family.closureCaseId === null ? null : caseFrom(caseSnap);
         if (closure !== null && closure.familyId !== family.familyId) throw new DomainError("INTERNAL");
         const action = decideWaive(family.lifecycleState, closure, nowMillis);
-        requireConfirmation(tokenSnap, actor, COMMAND, family, nowMillis);
+        const pointer = requireConfirmation(tokenSnap, pointerSnap, refs, actor, COMMAND, family, nowMillis);
         if (closure === null) throw new DomainError("INTERNAL");
 
         const waived: ClosureCase = { ...closure, waiverCommittedAtMillis: nowMillis, revision: closure.revision + 1 };
@@ -139,7 +140,7 @@ export function familiesWaiveRecoveryHandler(deps: LifecycleDeps) {
           familyEpoch: family.familyEpoch,
           disposition,
         });
-        consumeConfirmation(tx, tokenRef, request.opId, nowMillis);
+        consumeConfirmation(db, tx, refs, pointer, family, request.opId, nowMillis);
         writeIdempotency(tx, gate.idemRef, actor, id, response, nowMillis);
         return response;
       },

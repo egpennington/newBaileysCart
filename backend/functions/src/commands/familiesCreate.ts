@@ -22,6 +22,11 @@ const MAX_TRANSACTION_ATTEMPTS = 10;
 export interface Actor {
   readonly uid: string;
   readonly emailVerified: boolean;
+  /**
+   * ID-token `auth_time` (seconds), present only when the verified token carries a safe integer.
+   * Read only by families.prepareLifecycleConfirmation (A2-D4 recent sign-in policy).
+   */
+  readonly authTimeSeconds?: number;
 }
 
 export interface CreateFamilyData {

@@ -28,7 +28,7 @@ import { paths } from "../persistence/paths.js";
 import type { Actor } from "./familiesCreate.js";
 import {
   MAX_TRANSACTION_ATTEMPTS,
-  confirmationRef,
+  confirmationRefs,
   consumeConfirmation,
   gateMutation,
   requireConfirmation,
@@ -66,17 +66,17 @@ export function familiesCloseHandler(deps: CloseDeps) {
       familyId: request.familyId,
       familyEpoch: request.familyEpoch,
     };
-    const tokenRef = confirmationRef(db, request.confirmationToken);
+    const refs = confirmationRefs(db, request.familyId, request.confirmationToken);
     const billingRef = db.doc(paths.familyBilling(request.familyId));
 
     /** Steps 4-7 on fresh reads; returns a replay, or the facts the commit needs. */
     const evaluate = async (tx: Transaction) => {
-      const { gate, extra } = await gateMutation<CloseFamilyData>(db, tx, actor, id, [tokenRef, billingRef]);
+      const { gate, extra } = await gateMutation<CloseFamilyData>(db, tx, actor, id, [refs.token, billingRef, refs.pointer]);
       if (gate.kind === "REPLAY") return { replay: gate.response } as const;
       const nowMillis = deps.clock.nowMillis();
       assertClosable(gate.family.lifecycleState);
-      requireConfirmation(extra[0], actor, COMMAND, gate.family, nowMillis);
-      return { gate, billing: localBillingFrom(extra[1]), nowMillis } as const;
+      const pointer = requireConfirmation(extra[0], extra[2], refs, actor, COMMAND, gate.family, nowMillis);
+      return { gate, billing: localBillingFrom(extra[1]), pointer, nowMillis } as const;
     };
 
     const pre = await db.runTransaction(evaluate, { readOnly: true });
@@ -93,7 +93,7 @@ export function familiesCloseHandler(deps: CloseDeps) {
       async (tx) => {
         const now = await evaluate(tx);
         if ("replay" in now) return now.replay;
-        const { gate, nowMillis } = now;
+        const { gate, pointer, nowMillis } = now;
         const billingSeen: LocalBilling = pre.billing;
         const liability = sameBilling(billingSeen, now.billing)
           ? combineLiability(providerLiability, now.billing.purchaseState)
@@ -139,7 +139,7 @@ export function familiesCloseHandler(deps: CloseDeps) {
           lifecycleRevision: gate.family.lifecycleRevision + 1,
         });
         tx.create(caseRef, { ...caseToDoc(closure), liabilitySource: deps.provider.source });
-        consumeConfirmation(tx, tokenRef, request.opId, nowMillis);
+        consumeConfirmation(db, tx, refs, pointer, gate.family, request.opId, nowMillis);
         writeIdempotency(tx, gate.idemRef, actor, id, response, nowMillis);
         return response;
       },

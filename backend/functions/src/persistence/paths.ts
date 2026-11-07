@@ -15,6 +15,8 @@ export const paths = {
   closureCasesCollection: "closureCases",
   closureCase: (caseId: string) => `closureCases/${caseId}`,
   confirmationToken: (tokenHash: string) => `confirmationTokens/${tokenHash}`,
+  // A2-D4: one family-scoped pointer naming the only active token, plus the issuance window.
+  confirmationPointer: (familyId: string) => `lifecycleConfirmations/${familyId}`,
   familyBilling: (familyId: string) => `familyBilling/${familyId}`,
   ownershipReleaseAudit: (caseId: string) => `ownershipReleaseAudits/${caseId}`,
   reservationCase: (familyId: string) => `reservationCases/${familyId}`,

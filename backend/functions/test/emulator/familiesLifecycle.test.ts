@@ -200,7 +200,11 @@ describe("families.close idempotency and concurrency (AC-S3-02, AC-S3-11; PL-PP-
       const results = await Promise.allSettled(reqs.map((r) => w.close(verified(uid), r)));
       const ok = results.filter((r) => r.status === "fulfilled");
       assert.equal(ok.length, 1, `iteration ${i}: one winner`);
-      for (const r of results) if (r.status === "rejected") assert.equal((r.reason as { code: string }).code, "FAMILY_CLOSURE_PENDING");
+      // A2-D4: the five seeded tokens supersede one another, so a loser is rejected either as
+      // superseded (CONFIRMATION_REQUIRED) or, if it ran after the winner, as FAMILY_CLOSURE_PENDING.
+      for (const r of results) {
+        if (r.status === "rejected") assert.ok(["FAMILY_CLOSURE_PENDING", "CONFIRMATION_REQUIRED"].includes((r.reason as { code: string }).code));
+      }
       assert.equal(await casesFor(familyId), 1);
     }
   });

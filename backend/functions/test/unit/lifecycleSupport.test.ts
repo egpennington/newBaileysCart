@@ -33,11 +33,11 @@ describe("confirmation token rule (S3-D06; PL-PP-WP03-16/-27 D1)", () => {
 
   test("TTL is 15 minutes", () => assert.equal(CONFIRMATION_TOKEN_TTL_MS, 900_000));
   test("valid: right owner, family, action, epoch, within TTL", () => {
-    assert.deepEqual(checkConfirmation(rec, binding, T0), { ok: true });
-    assert.deepEqual(checkConfirmation(rec, binding, T0 + CONFIRMATION_TOKEN_TTL_MS - 1), { ok: true });
+    assert.deepEqual(checkConfirmation(rec, binding, T0, false), { ok: true });
+    assert.deepEqual(checkConfirmation(rec, binding, T0 + CONFIRMATION_TOKEN_TTL_MS - 1, false), { ok: true });
   });
   test("expiry boundary: at and after expiresAt -> CONFIRMATION_EXPIRED", () => {
-    assert.deepEqual(checkConfirmation(rec, binding, T0 + CONFIRMATION_TOKEN_TTL_MS), { ok: false, code: "CONFIRMATION_EXPIRED" });
+    assert.deepEqual(checkConfirmation(rec, binding, T0 + CONFIRMATION_TOKEN_TTL_MS, false), { ok: false, code: "CONFIRMATION_EXPIRED" });
   });
   const mismatches: Record<string, Partial<typeof binding> | object> = {
     "another owner": { uid: "u2" },
@@ -48,16 +48,16 @@ describe("confirmation token rule (S3-D06; PL-PP-WP03-16/-27 D1)", () => {
   for (const [name, over] of Object.entries(mismatches)) {
     test(`${name} -> CONFIRMATION_REQUIRED, even when also expired`, () => {
       const expected = { ...binding, ...over } as typeof binding;
-      assert.deepEqual(checkConfirmation(rec, expected, T0), { ok: false, code: "CONFIRMATION_REQUIRED" });
-      assert.deepEqual(checkConfirmation(rec, expected, T0 + 10 * CONFIRMATION_TOKEN_TTL_MS), { ok: false, code: "CONFIRMATION_REQUIRED" });
+      assert.deepEqual(checkConfirmation(rec, expected, T0, false), { ok: false, code: "CONFIRMATION_REQUIRED" });
+      assert.deepEqual(checkConfirmation(rec, expected, T0 + 10 * CONFIRMATION_TOKEN_TTL_MS, false), { ok: false, code: "CONFIRMATION_REQUIRED" });
     });
   }
   test("unknown or already consumed (single use) -> CONFIRMATION_REQUIRED", () => {
-    assert.deepEqual(checkConfirmation(null, binding, T0), { ok: false, code: "CONFIRMATION_REQUIRED" });
-    assert.deepEqual(checkConfirmation({ ...rec, consumedAtMillis: T0 }, binding, T0 + 1), { ok: false, code: "CONFIRMATION_REQUIRED" });
+    assert.deepEqual(checkConfirmation(null, binding, T0, false), { ok: false, code: "CONFIRMATION_REQUIRED" });
+    assert.deepEqual(checkConfirmation({ ...rec, consumedAtMillis: T0 }, binding, T0 + 1, false), { ok: false, code: "CONFIRMATION_REQUIRED" });
   });
   test("issued in the future (clock skew/forgery) -> CONFIRMATION_REQUIRED", () => {
-    assert.deepEqual(checkConfirmation(rec, binding, T0 - 1), { ok: false, code: "CONFIRMATION_REQUIRED" });
+    assert.deepEqual(checkConfirmation(rec, binding, T0 - 1, false), { ok: false, code: "CONFIRMATION_REQUIRED" });
   });
 });
 

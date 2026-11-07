@@ -197,3 +197,25 @@ export function parseClosureStatusRequest(data: unknown): ClosureStatusRequest {
   if (obj["opId"] !== undefined && !isUuidV4(obj["opId"])) throw invalid("opId", "NOT_A_UUID_V4");
   return { apiVersion: API_VERSION, opId: (obj["opId"] as string | undefined) ?? null, familyId: checkFamilyId(obj) };
 }
+
+// --- A2-D4 families.prepareLifecycleConfirmation: `{apiVersion, opId, familyId, action}`. No
+// familyEpoch: the token binds to the server epoch read at issuance. ---
+
+export interface PrepareConfirmationRequest {
+  readonly apiVersion: typeof API_VERSION;
+  readonly opId: string;
+  readonly familyId: string;
+  readonly action: "CLOSE" | "WAIVE_RECOVERY";
+}
+
+export function parsePrepareConfirmationRequest(data: unknown): Parsed<PrepareConfirmationRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "action"], "");
+  const opId = checkOpId(obj);
+  const familyId = checkFamilyId(obj);
+  const action = obj["action"];
+  if (action === undefined) throw invalid("action", "MISSING");
+  if (action !== "CLOSE" && action !== "WAIVE_RECOVERY") throw invalid("action", "NOT_ALLOWED");
+  return { request: { apiVersion: API_VERSION, opId, familyId, action }, raw: obj };
+}

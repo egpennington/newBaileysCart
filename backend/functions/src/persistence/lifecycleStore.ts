@@ -7,7 +7,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Timestamp } from "firebase-admin/firestore";
 import type { DocumentSnapshot, Firestore, Transaction } from "firebase-admin/firestore";
 import { DomainError } from "../contract/errors.js";
-import { CONFIRMATION_TOKEN_TTL_MS } from "../domain/confirmation.js";
+import { CONFIRMATION_TOKEN_BYTES, CONFIRMATION_TOKEN_TTL_MS } from "../domain/confirmation.js";
 import type { ConfirmationBinding, ConfirmationRecord } from "../domain/confirmation.js";
 import { isLifecycleState } from "../domain/family.js";
 import type { LifecycleState } from "../domain/family.js";
@@ -218,29 +218,121 @@ export function confirmationRecordFrom(snap: DocumentSnapshot | undefined): Conf
   };
 }
 
+// ---------------------------------------------------------------------------------------------
+// lifecycleConfirmations/{familyId}: the A2-D4 active-token pointer (server-only)
+// ---------------------------------------------------------------------------------------------
+
 /**
- * Server-side issuance of a fresh confirmation token (32 random bytes, base64url). Only the SHA-256
- * is stored. NOT exposed as a callable in 3A: R-04 defines no token-issuing endpoint, so the public
- * issuance contract is an open item for CipherMuse/PL. Tests and the emulator seed tokens with this.
+ * The family's only active confirmation token, by digest, and the bounded issuance window used by the
+ * throttle. Every issuance and every consumption reads and writes this one document in its own
+ * transaction, so issuance, supersession and consumption serialize (no collection scan, no fan-out).
+ * Superseded token documents are left as history; they fail at use because the pointer no longer
+ * names them.
+ */
+export interface ConfirmationPointer {
+  readonly exists: boolean;
+  readonly activeTokenHash: string | null;
+  /** opId of the preparation that issued the active token; null for the internal seeder. */
+  readonly activeOpId: string | null;
+  /** Issuance instants inside the throttle window when last written (at most ISSUANCE_LIMIT). */
+  readonly issuedAtMillis: readonly number[];
+  readonly revision: number;
+}
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/** Absent = no active token. Malformed = INTERNAL: issuance and consumption both fail closed. */
+export function confirmationPointerFrom(snap: DocumentSnapshot | undefined, familyId: string): ConfirmationPointer {
+  if (!snap?.exists) return { exists: false, activeTokenHash: null, activeOpId: null, issuedAtMillis: [], revision: 0 };
+  const active = snap.get("activeTokenHash") ?? null;
+  const opId = snap.get("activeOpId") ?? null;
+  const issued = snap.get("issuedAt");
+  const revision = snap.get("revision");
+  if (
+    snap.get("familyId") !== familyId ||
+    (active !== null && (typeof active !== "string" || !SHA256_HEX.test(active))) ||
+    (opId !== null && typeof opId !== "string") ||
+    !Array.isArray(issued) ||
+    !issued.every((t) => t instanceof Timestamp) ||
+    typeof revision !== "number" ||
+    !Number.isSafeInteger(revision) ||
+    revision < 1
+  ) {
+    throw new DomainError("INTERNAL");
+  }
+  return {
+    exists: true,
+    activeTokenHash: active,
+    activeOpId: opId,
+    issuedAtMillis: (issued as Timestamp[]).map((t) => t.toMillis()),
+    revision,
+  };
+}
+
+export function writeConfirmationPointer(
+  db: Firestore,
+  tx: Transaction,
+  familyId: string,
+  ownerUid: string,
+  previous: ConfirmationPointer,
+  next: { activeTokenHash: string | null; activeOpId: string | null; issuedAtMillis: readonly number[] },
+  nowMillis: number,
+): void {
+  tx.set(db.doc(paths.confirmationPointer(familyId)), {
+    familyId,
+    ownerUid,
+    activeTokenHash: next.activeTokenHash,
+    activeOpId: next.activeOpId,
+    issuedAt: next.issuedAtMillis.map((t) => Timestamp.fromMillis(t)),
+    revision: previous.revision + 1,
+    updatedAt: Timestamp.fromMillis(nowMillis),
+    schemaVersion: SCHEMA_VERSION,
+  });
+}
+
+/** The token document; only the digest names it and no field holds the plaintext. */
+export function tokenDoc(binding: ConfirmationBinding, issuedByOpId: string | null, nowMillis: number): Record<string, unknown> {
+  return {
+    uid: binding.uid,
+    familyId: binding.familyId,
+    action: binding.action,
+    familyEpoch: binding.familyEpoch,
+    issuedAt: Timestamp.fromMillis(nowMillis),
+    expiresAt: Timestamp.fromMillis(nowMillis + CONFIRMATION_TOKEN_TTL_MS),
+    consumedAt: null,
+    consumedByOpId: null,
+    issuedByOpId,
+    schemaVersion: SCHEMA_VERSION,
+  };
+}
+
+/**
+ * Internal, test-only seeder (3A). Since A2-D4 it supersedes like a real preparation: it records the
+ * new digest as the family's active token in the same transaction. It does not count toward the
+ * issuance throttle and runs no authorization; the public issuer is families.prepareLifecycleConfirmation.
  */
 export async function issueConfirmationToken(
   db: Firestore,
   nowMillis: number,
   binding: ConfirmationBinding,
 ): Promise<{ token: string; expiresAtMillis: number }> {
-  const token = randomBytes(32).toString("base64url");
-  const expiresAtMillis = nowMillis + CONFIRMATION_TOKEN_TTL_MS;
-  await db.doc(paths.confirmationToken(confirmationTokenHash(token))).create({
-    uid: binding.uid,
-    familyId: binding.familyId,
-    action: binding.action,
-    familyEpoch: binding.familyEpoch,
-    issuedAt: Timestamp.fromMillis(nowMillis),
-    expiresAt: Timestamp.fromMillis(expiresAtMillis),
-    consumedAt: null,
-    consumedByOpId: null,
-  });
-  return { token, expiresAtMillis };
+  const token = randomBytes(CONFIRMATION_TOKEN_BYTES).toString("base64url");
+  const hash = confirmationTokenHash(token);
+  const pointerRef = db.doc(paths.confirmationPointer(binding.familyId));
+  await db.runTransaction(async (tx) => {
+    const previous = confirmationPointerFrom(await tx.get(pointerRef), binding.familyId);
+    tx.create(db.doc(paths.confirmationToken(hash)), tokenDoc(binding, null, nowMillis));
+    writeConfirmationPointer(
+      db,
+      tx,
+      binding.familyId,
+      binding.uid,
+      previous,
+      { activeTokenHash: hash, activeOpId: null, issuedAtMillis: previous.issuedAtMillis },
+      nowMillis,
+    );
+  }, { maxAttempts: 10 });
+  return { token, expiresAtMillis: nowMillis + CONFIRMATION_TOKEN_TTL_MS };
 }
 
 // ---------------------------------------------------------------------------------------------
