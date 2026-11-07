@@ -1,6 +1,7 @@
 # Canonical ID PL-PP-WP03-32 assigned by GAI (GAI_WP03_S3B_Readiness_and_A2_Delta_Review_Report, marker
 # WP03-A2-D1D4-S3B-CONFORMANCE-01) and registered under PL decision D-4 (DECISION_REGISTER v1.13 WP03-A2-D1D4).
-# Contract only: families.prepareLifecycleConfirmation is PLANNED and not implemented. Nothing below has run.
+# Implemented locally under WP03-D4-ISSUER-LOCAL-GATE-C-GO (2026-11-06; branch feature/wp03-d4-confirmation-issuer).
+# Local-only: the callable refuses to issue outside the Functions emulator with a demo- project. Not deployed.
 id: PL-PP-WP03-32
 name: "Lifecycle Confirmation Token Preparation, Single-Use Invalidation, and Epoch Binding"
 feature: "Family lifecycle (families.prepareLifecycleConfirmation; consumption by families.close and families.waiveRecovery)"
@@ -9,15 +10,15 @@ risk: high
 owner: CODI
 independent_reviewer: GAI
 level: integration
-slice: "Future implementation gate (not yet authorized); contract API_SPEC_v0.4_CANONICAL.md, A2 controlled amendment section A2-D4"
+slice: "WP-03 D-4 local issuer sprint (WP03-D4-ISSUER-LOCAL-GATE-C-GO); contract API_SPEC_v0.4_CANONICAL.md, A2 controlled amendment section A2-D4"
 decision_basis:
   - "PL D-4 (2026-11-05): owner-only client token preparation, CLOSE | WAIVE_RECOVERY, 15-minute TTL, SHA-256 digest only, atomic single use, supersession, fail-closed same-opId retry, volatile client storage"
   - "PL D-1 and D-2 (2026-11-05): committed replay after current re-authorization; OWNER_REQUIRED for every non-owner"
-slice_coverage: "NONE. No client-accessible issuance endpoint exists. Substage 3A seeds tokens with the internal test-only issueConfirmationToken; that evidence belongs to PL-PP-WP03-17/-27/-29 and is not evidence for this ProofPoint."
+slice_coverage: "PARTIAL. Backend callable familiesPrepareLifecycleConfirmation and its consumption by families.close and families.waiveRecovery: local D1, D2 and D3 (emulator) only. Android volatile-memory handling, App Check enforcement and any deployed runtime are NOT_RUN. Sprint policies (5-minute recent sign-in, 5 issuances per family per 15 minutes) and their error mappings await PL ratification."
 preconditions:
   - "Auth, Firestore and Functions emulators, demo project only; injectable FakeClock"
   - "Deterministic FakeBillingProvider; never real Play"
-  - "families.prepareLifecycleConfirmation implemented under a future Gate C"
+  - "families.prepareLifecycleConfirmation implemented (local-only barrier: FUNCTIONS_EMULATOR=true and a demo- project)"
 steps:
   - "Authorization: unauthenticated; unverified email; current member; former member; unrelated user; unknown familyId; owner"
   - "Validation: action other than CLOSE | WAIVE_RECOVERY; unknown, missing or extra fields; bad apiVersion or opId"
@@ -46,12 +47,17 @@ expected:
   - "Exactly one valid token per family at any time (the last committed preparation); a preparation/consumption race serializes with a consistent end state; one token authorizes at most one committed lifecycle change"
   - "The plaintext token appears only in the successful issuing response; it never appears in logs, audit records, error details, idempotency records or Firestore"
   - "Every denial leaves the family, membership, billing, lifecycle, epoch and token state unchanged"
-evidence: []
-negative_controls: "To be defined when implemented (next free NC number at registration: NC-33)"
+evidence:
+  - "backend/functions/test/unit/prepareConfirmation.test.ts (D1: schema, TTL, supersession precedence, recent sign-in, throttle, pre-Firestore handler steps)"
+  - "backend/functions/test/emulator/prepareConfirmation.test.ts (D2: issuance and storage, authorization, eligibility, TTL, supersession, same-opId retry, throttle, fail-closed persistence, races, plaintext audit)"
+  - "backend/functions/test/e2e/prepareCallable.test.ts (D3 local: official client SDK and raw callable HTTP against the Functions emulator)"
+  - "backend/functions/test/rules/denyAll.test.ts (lifecycleConfirmations denied to clients)"
+  - "Implementation report docs/specs/R-04/CODI_WP03_D4_Confirmation_Issuer_Implementation_Report_v1.0.md (local, untracked)"
+negative_controls: "NC-50..NC-59 (CODI_WP03_D4_Confirmation_Issuer_Implementation_Report_v1.0.md, section 6); next free NC-60"
 depths:
-  D1: "NOT_RUN: pure binding, expiry, supersession and retry decision tables"
-  D2: "NOT_RUN: emulator transactions, races and storage audit"
-  D3: "NOT_RUN: official callable SDK over the wire; Android volatile-memory handling is client-integration scope"
-  D4: "NOT_RUN: GAI independent review"
-notes: "Registered as a contract only. Do not cite as passing evidence. Android volatile-memory retention is verified in client integration (WP-01/WP-02), not by backend tests."
-status: NOT_RUN
+  D1: "local PASS (backend/functions/test/unit/prepareConfirmation.test.ts)"
+  D2: "local PASS (backend/functions/test/emulator/prepareConfirmation.test.ts; races x50)"
+  D3: "local PASS against the emulator (backend/functions/test/e2e/prepareCallable.test.ts). The emulator does not verify ID-token signatures (W-01 D-5). Android volatile-memory handling is client-integration scope and NOT_RUN"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "Local emulator evidence only. App Check is not enforced (W-01 D-4); provider registration, Android integration and enforcement are deferred and block any live deployment. Android volatile-memory retention is verified in client integration (WP-01/WP-02), not by backend tests."
+status: "PARTIAL: local D1/D2/D3 PASS for the backend issuer; D4, Android, App Check and live NOT_RUN"

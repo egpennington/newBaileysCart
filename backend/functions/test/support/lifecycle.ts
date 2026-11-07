@@ -9,6 +9,8 @@ import { familiesCloseHandler } from "../../src/commands/familiesClose.js";
 import type { CloseDeps } from "../../src/commands/familiesClose.js";
 import { familiesCreateHandler } from "../../src/commands/familiesCreate.js";
 import { familiesGetClosureStatusHandler } from "../../src/commands/familiesGetClosureStatus.js";
+import { familiesPrepareLifecycleConfirmationHandler } from "../../src/commands/familiesPrepareLifecycleConfirmation.js";
+import type { PrepareDeps } from "../../src/commands/familiesPrepareLifecycleConfirmation.js";
 import { familiesRestoreHandler } from "../../src/commands/familiesRestore.js";
 import { familiesWaiveRecoveryHandler } from "../../src/commands/familiesWaiveRecovery.js";
 import { accountGetSessionHandler } from "../../src/commands/accountGetSession.js";
@@ -18,6 +20,7 @@ import { FakeClock, db, newOpId, uniqueUid } from "./emulator.js";
 
 export const T0 = Date.UTC(2026, 10, 4, 12, 0, 0, 0);
 export const verified = (uid: string) => ({ uid, emailVerified: true });
+export const DEMO_ENV = { FUNCTIONS_EMULATOR: "true", GCLOUD_PROJECT: "demo-newbaileyscart" } as const;
 
 export class World {
   readonly clock = new FakeClock(T0);
@@ -43,6 +46,23 @@ export class World {
   get status() {
     return familiesGetClosureStatusHandler(this.deps);
   }
+  /** A2-D4 issuer; `prepareHooks` injects test hooks (env defaults to the demo emulator runtime). */
+  prepareHooks: Partial<Pick<PrepareDeps, "env" | "randomToken" | "afterReads">> = {};
+  get prepare() {
+    return familiesPrepareLifecycleConfirmationHandler({ db, clock: this.clock, provider: this.provider, env: DEMO_ENV, ...this.prepareHooks });
+  }
+  /** A verified caller whose ID token was issued (signed in) at the current FakeClock instant. */
+  fresh(uid: string, signedInAgoMs = 0) {
+    return { uid, emailVerified: true, authTimeSeconds: Math.floor((this.clock.nowMillis() - signedInAgoMs) / 1000) };
+  }
+  prepareReq(familyId: string, action: "CLOSE" | "WAIVE_RECOVERY", opId = newOpId()) {
+    return { apiVersion: "v0.4", opId, familyId, action };
+  }
+  /** Token from the public issuer. */
+  async prepared(uid: string, familyId: string, action: "CLOSE" | "WAIVE_RECOVERY"): Promise<string> {
+    return (await this.prepare(this.fresh(uid), this.prepareReq(familyId, action))).data.confirmationToken;
+  }
+
   get session() {
     return accountGetSessionHandler({ db, clock: this.clock, integrityLog: () => undefined });
   }
