@@ -12,15 +12,18 @@ slice_coverage: "PARTIAL. uiautomator semantics and bounds inspection plus scree
 steps:
   - "Dump semantics at default scale and at 360 dp (wm density 480) / font scale 2.0"
   - "Measure every clickable bound in dp"
-  - "Open the Add dialog at 200% with the keyboard; scroll; select a category; confirm"
+  - "Open the Add dialog at 200% and in landscape with the keyboard; scroll; tap a category"
+  - "Open the Edit dialog in landscape with the keyboard; scroll to Save"
   - "Enable TalkBack and attempt explore-by-touch via adb"
 expected:
   - "Edit and Delete labels name the item and category (for example \"Delete apples from Produce\"); Undo is labelled \"Undo delete of <item>\""
   - "All clickable targets are at least 48 dp; category headers and dialog sections are headings"
-  - "At 360 dp / 200% all six categories are reachable by scrolling, the dialog buttons stay above the keyboard, and the category list scrolls"
+  - "At 360 dp / 200% and in landscape, all six list categories are reachable by scrolling. In both dialogs the title, field, controls and buttons share one scroll area padded above the keyboard, so every control is reachable with the keyboard visible. Keyboard Done in Add hides the keyboard to reveal the category buttons"
+  - "Landscape: status, Undo and Add item share one bottom row; the list scrolls fully and the bars do not overlap list items"
   - "No action needs a hidden gesture (no swipe or double-tap editing)"
 evidence:
   - "Emulator uiautomator dumps 01, 02, 17, 18, 20-24; screenshots 17-24"
+  - "Refinement: landscape/LS1-LS3 (before the fix: the Add dialog was squeezed to a clipped title with the keyboard) and refinement/R1-R10 (after: field, six category buttons and Cancel reachable; Edit Save reachable)"
   - "Touch targets: Edit 57.9x48 dp, Delete 64.4x48 dp, Add item 379x48 dp, radio rows 272x48 dp (default); 53.3 dp tall at 200%"
 preconditions:
   - "Emulator Medium_Phone_API_37.0 (Android 17, API 37, google_apis_playstore x86_64)"
@@ -29,5 +32,5 @@ depths:
   D2: "BLOCKED: no Compose UI test dependencies"
   D3: "local PASS for semantics, target size and scaling inspection. TalkBack journey BLOCKED: adb-injected taps bypass touch exploration, so spoken output and focus order need a manual pass"
   D4: "NOT_RUN: GAI independent review pending"
-notes: "A finding during D3 was fixed. At 200% the pinned header took about 38% of the screen, so only the LOCAL DEMO line stays pinned now. Dialog buttons were hidden by the keyboard, so the dialog now pads above the IME. After a delete, TalkBack focus is not moved programmatically; the result is announced through a polite live region."
+notes: "PL refinement fixed the landscape Add/Edit dialogs (one scroll area inside a full-window dialog padded by safeDrawing, which includes the IME) and compacted the landscape bottom bar. Category buttons are 48 dp minimum, 3 per row when wide and 2 otherwise. An earlier finding during D3 was also fixed. At 200% the pinned header took about 38% of the screen, so only the LOCAL DEMO line stays pinned now. Dialog buttons were hidden by the keyboard, so the dialog now pads above the IME. After a delete, TalkBack focus is not moved programmatically; the result is announced through a polite live region."
 status: "PARTIAL: local D3 inspection PASS; TalkBack journey BLOCKED; D2 BLOCKED; D4 NOT_RUN"

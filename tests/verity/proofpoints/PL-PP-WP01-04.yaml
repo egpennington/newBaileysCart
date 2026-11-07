@@ -12,16 +12,18 @@ slice_coverage: "PARTIAL. The debug entry flag (D1); release APK dex and resourc
 steps:
   - "Launch the debug build; scroll; open dialogs; change font scale"
   - "Inspect debug and release APKs (dexdump classes, aapt2 strings and permissions)"
-  - "Force-stop and relaunch the app"
+  - "Retention matrix with a marker item: Home, Back, Recents swipe, background am kill, force-stop, emulator RAM snapshot save/load (Quick Boot), adb reboot"
 expected:
-  - "The pinned header always shows \"LOCAL DEMO — not synced\"; the intro explains that changes stay in memory only and are lost when the app closes"
+  - "The pinned header always shows \"LOCAL DEMO — not synced\"; the scrolling intro says nothing is saved or shared and items can be lost at any time"
   - "Release APK: 0 demo classes, 0 demo strings, WP-00 placeholder entry; no INTERNET permission in either build"
-  - "After a process restart the list returns to the seed state (no persistence)"
+  - "Kept only while the app process and activity stay in memory: Home keeps items; Back, Recents swipe, background kill, force-stop and a cold reboot reset to the seed list. An emulator Quick Boot snapshot restores the whole process from RAM, so items reappear; this is not app persistence"
+  - "The intro wording matches this: nothing is saved or shared; items can be lost at any time (Back, swipe away, restart)"
 evidence:
   - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/DebugEntryTest.kt"
-  - "Local release-isolation.txt: release demo_classes=0, demo_strings=0; debug demo_classes=87"
+  - "Local release-isolation.txt (b1389e9: debug 87 demo classes) and release-isolation-refinement.txt (refinement: debug 106): release demo_classes=0, demo_strings=0, and the release APK SHA-256 e1814bcc... is unchanged"
   - "Negative control NC-65 (manual): reducer copied into src/main gives 24 release demo classes, so the inspection detects leakage"
   - "Emulator screenshot 29 (seed state after force-stop)"
+  - "Local lifecycle/matrix.txt and L*.png: L1 Home RETAINED; L2 Back RESET; L3 am kill RESET; L4 force-stop RESET; L5 Recents swipe RESET; L6b snapshot load RETAINED (original PID restored); L7 adb reboot RESET (uptime 71 s)"
 preconditions:
   - "Build-type source sets: src/debug (demo AppEntry) and src/release (placeholder AppEntry)"
 depths:
@@ -29,5 +31,5 @@ depths:
   D2: "NOT_RUN: release unit tests are not enabled in AGP 9 (onlyEnableUnitTestForTheTestedBuildType); enabling them changes build config and lockfiles and needs PL approval"
   D3: "local PASS (APK inspection and emulator restart check)"
   D4: "NOT_RUN: GAI independent review pending"
-notes: "No auth, entitlement or navigation gate exists in the app yet (WP-00 shell), so the demo bypasses none. The release placeholder behavior is unchanged."
+notes: "The PL report of items surviving app close or emulator power-off is explained by Home (backgrounded, process alive) and Android Studio Quick Boot (saveOnExit=true restores a RAM snapshot; guest uptime was 31,565 s after a fresh emulator start). No auth, entitlement or navigation gate exists in the app yet (WP-00 shell), so the demo bypasses none. The release placeholder behavior is unchanged."
 status: "PARTIAL: local D1 and D3 PASS; release isolation is verified by local APK inspection, not in CI; D4 NOT_RUN"

@@ -3,7 +3,10 @@ package com.penningtonlabs.baileyscart.demo
 import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,11 +15,11 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,7 +29,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalAccessibilityManager
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -59,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 
@@ -167,24 +172,17 @@ fun ShoppingListDemoScreen(
 
     when (val mode = dialog) {
         null -> Unit
-        DialogMode.Add -> ItemDialog(
-            titleRes = com.penningtonlabs.baileyscart.R.string.demo_dialog_add_title,
-            confirmRes = com.penningtonlabs.baileyscart.R.string.demo_add_item,
-            initialName = "",
-            initialCategory = DemoCategory.PRODUCE,
+        DialogMode.Add -> AddItemDialog(
             onDismiss = { dialog = null },
-            onConfirm = { name, category ->
+            onAdd = { name, category ->
                 onAction(DemoAction.Add(name, category))
                 dialog = null
             },
         )
-        is DialogMode.Edit -> ItemDialog(
-            titleRes = com.penningtonlabs.baileyscart.R.string.demo_dialog_edit_title,
-            confirmRes = com.penningtonlabs.baileyscart.R.string.demo_save,
-            initialName = mode.item.name,
-            initialCategory = mode.item.category,
+        is DialogMode.Edit -> EditItemDialog(
+            item = mode.item,
             onDismiss = { dialog = null },
-            onConfirm = { name, category ->
+            onSave = { name, category ->
                 onAction(DemoAction.Edit(mode.item.id, name, category))
                 dialog = null
             },
@@ -277,46 +275,65 @@ private fun ItemRow(item: DemoItem, onEdit: () -> Unit, onDelete: () -> Unit) {
     }
 }
 
+/** At this width or more (landscape), status, Undo and Add item share one row to keep list space. */
+private val WideLayout = 600.dp
+
 @Composable
 private fun DemoBottomBar(state: DemoListState, onUndo: (UndoSlot) -> Unit, onAdd: () -> Unit) {
     Surface(tonalElevation = 3.dp) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val event = state.lastEvent
-            if (event != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Single polite live region: TalkBack announces add, edit, delete and
-                    // restore results without moving focus.
-                    Text(
-                        text = eventText(event),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .weight(1f)
-                            .semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                    val slot = state.undo
-                    if (slot != null) {
-                        val undoCd = stringResource(com.penningtonlabs.baileyscart.R.string.demo_undo_cd, slot.item.name)
-                        OutlinedButton(
-                            onClick = { onUndo(slot) },
-                            modifier = Modifier
-                                .heightIn(min = MinTouchTarget)
-                                .semantics { contentDescription = undoCd },
-                        ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_undo)) }
-                    }
+            if (maxWidth >= WideLayout) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    StatusAndUndo(state, onUndo, Modifier.weight(1f))
+                    AddItemButton(onAdd, Modifier.widthIn(min = 200.dp))
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (state.lastEvent != null) StatusAndUndo(state, onUndo, Modifier.fillMaxWidth())
+                    AddItemButton(onAdd, Modifier.fillMaxWidth())
                 }
             }
-            Button(
-                onClick = onAdd,
+        }
+    }
+}
+
+@Composable
+private fun AddItemButton(onAdd: () -> Unit, modifier: Modifier) {
+    Button(onClick = onAdd, modifier = modifier.heightIn(min = MinTouchTarget)) {
+        Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_add_item))
+    }
+}
+
+@Composable
+private fun StatusAndUndo(state: DemoListState, onUndo: (UndoSlot) -> Unit, modifier: Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        // Single polite live region: TalkBack announces add, edit, delete and restore
+        // results without moving focus.
+        val event = state.lastEvent
+        Text(
+            text = if (event != null) eventText(event) else "",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier
+                .weight(1f)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        val slot = state.undo
+        if (slot != null) {
+            val undoCd = stringResource(com.penningtonlabs.baileyscart.R.string.demo_undo_cd, slot.item.name)
+            OutlinedButton(
+                onClick = { onUndo(slot) },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = MinTouchTarget),
-            ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_add_item)) }
+                    .heightIn(min = MinTouchTarget)
+                    .semantics { contentDescription = undoCd },
+            ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_undo)) }
         }
     }
 }
@@ -333,105 +350,249 @@ private fun eventText(event: DemoEvent): String {
     return stringResource(res, event.item.name, category)
 }
 
+/**
+ * Dialog frame used by Add and Edit. The title, field, controls and buttons share one scroll
+ * area that is padded above the system bars and the keyboard (safeDrawing includes the IME),
+ * so everything stays reachable in landscape with the keyboard open and at 200% font.
+ */
 @Composable
-private fun ItemDialog(
+private fun DemoDialogFrame(
     @StringRes titleRes: Int,
-    @StringRes confirmRes: Int,
-    initialName: String,
-    initialCategory: DemoCategory,
     onDismiss: () -> Unit,
-    onConfirm: (String, DemoCategory) -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    var name by remember { mutableStateOf(initialName) }
-    var category by remember { mutableStateOf(initialCategory) }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp,
+                modifier = Modifier
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                ) {
+                    Text(
+                        text = stringResource(titleRes),
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier
+                            .padding(bottom = 16.dp)
+                            .semantics { heading() },
+                    )
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NameField(
+    name: String,
+    onNameChange: (String) -> Unit,
+    check: NameCheck,
+    showBlankError: Boolean,
+    onDone: () -> Unit,
+    focusRequester: FocusRequester,
+) {
+    val errorRes = when (check) {
+        NameCheck.Blank -> com.penningtonlabs.baileyscart.R.string.demo_name_error_blank
+        NameCheck.TooLong -> com.penningtonlabs.baileyscart.R.string.demo_name_error_too_long
+        is NameCheck.Valid -> null
+    }
+    val visibleError = errorRes?.takeIf { showBlankError || check is NameCheck.TooLong }
+    OutlinedTextField(
+        value = name,
+        onValueChange = onNameChange,
+        label = { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_name_label)) },
+        singleLine = true,
+        isError = visibleError != null,
+        supportingText = visibleError?.let { res ->
+            {
+                Text(
+                    text = stringResource(res),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+        },
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester),
+    )
+}
+
+/**
+ * Add flow (PL feedback): type the name, then tap a category to add immediately. There is no
+ * separate confirm step. A blank or too-long name shows an inline error and adds nothing.
+ * Keyboard Done only hides the keyboard so the category buttons are in view.
+ */
+@Composable
+private fun AddItemDialog(onDismiss: () -> Unit, onAdd: (String, DemoCategory) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+    val check = LocalDemoList.validateName(name)
+    val focusRequester = remember { FocusRequester() }
+
+    DemoDialogFrame(titleRes = com.penningtonlabs.baileyscart.R.string.demo_dialog_add_title, onDismiss = onDismiss) {
+        // Read inside the dialog content so they act on the dialog window, not the activity.
+        val keyboard = LocalSoftwareKeyboardController.current
+        val focusManager = LocalFocusManager.current
+        NameField(
+            name = name,
+            onNameChange = {
+                name = it
+                showError = false
+            },
+            check = check,
+            showBlankError = showError,
+            onDone = {
+                focusManager.clearFocus()
+                keyboard?.hide()
+            },
+            focusRequester = focusRequester,
+        )
+        Text(
+            text = stringResource(com.penningtonlabs.baileyscart.R.string.demo_add_pick_category),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier
+                .padding(top = 12.dp, bottom = 8.dp)
+                .semantics { heading() },
+        )
+        CategoryButtons(
+            onPick = { category ->
+                if (check is NameCheck.Valid) {
+                    onAdd(check.name, category)
+                } else {
+                    showError = true
+                }
+            },
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) {
+                Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_cancel))
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+}
+
+/** Six labeled 48 dp buttons in the fixed category order: 3 per row when wide, else 2. */
+@Composable
+private fun CategoryButtons(onPick: (DemoCategory) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = if (maxWidth >= 480.dp) 3 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DemoCategory.entries.chunked(columns).forEach { rowCategories ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowCategories.forEach { category ->
+                        val label = stringResource(category.labelRes())
+                        val cd = stringResource(com.penningtonlabs.baileyscart.R.string.demo_add_to_cd, label)
+                        OutlinedButton(
+                            onClick = { onPick(category) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = MinTouchTarget)
+                                .semantics { contentDescription = cd },
+                        ) { Text(label) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Edit flow, unchanged in behavior: name field, category radio group, Save and Cancel. */
+@Composable
+private fun EditItemDialog(item: DemoItem, onDismiss: () -> Unit, onSave: (String, DemoCategory) -> Unit) {
+    var name by remember { mutableStateOf(item.name) }
+    var category by remember { mutableStateOf(item.category) }
     var showError by remember { mutableStateOf(false) }
     val check = LocalDemoList.validateName(name)
     val focusRequester = remember { FocusRequester() }
 
     val submit: () -> Unit = {
         if (check is NameCheck.Valid) {
-            onConfirm(check.name, category)
+            onSave(check.name, category)
         } else {
             showError = true
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        // The dialog handles insets itself and pads above the keyboard, so the Save/Cancel
-        // buttons stay visible and the field and category list scroll in the remaining space.
-        properties = DialogProperties(decorFitsSystemWindows = false),
-        modifier = Modifier
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .imePadding(),
-        title = { Text(stringResource(titleRes)) },
-        text = {
-            // Scrolls so the field, all six options and the error stay reachable at 200% font.
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                val errorRes = when (check) {
-                    NameCheck.Blank -> com.penningtonlabs.baileyscart.R.string.demo_name_error_blank
-                    NameCheck.TooLong -> com.penningtonlabs.baileyscart.R.string.demo_name_error_too_long
-                    is NameCheck.Valid -> null
-                }
-                val visibleError = errorRes?.takeIf { showError || check is NameCheck.TooLong }
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = {
-                        name = it
-                        showError = false
-                    },
-                    label = { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_name_label)) },
-                    singleLine = true,
-                    isError = visibleError != null,
-                    supportingText = visibleError?.let { res -> { Text(stringResource(res)) } },
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
+    DemoDialogFrame(titleRes = com.penningtonlabs.baileyscart.R.string.demo_dialog_edit_title, onDismiss = onDismiss) {
+        NameField(
+            name = name,
+            onNameChange = {
+                name = it
+                showError = false
+            },
+            check = check,
+            showBlankError = showError,
+            onDone = submit,
+            focusRequester = focusRequester,
+        )
+        Text(
+            text = stringResource(com.penningtonlabs.baileyscart.R.string.demo_category_label),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier
+                .padding(top = 12.dp, bottom = 4.dp)
+                .semantics { heading() },
+        )
+        Column(Modifier.selectableGroup()) {
+            DemoCategory.entries.forEach { option ->
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                )
-                Text(
-                    text = stringResource(com.penningtonlabs.baileyscart.R.string.demo_category_label),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 4.dp)
-                        .semantics { heading() },
-                )
-                Column(Modifier.selectableGroup()) {
-                    DemoCategory.entries.forEach { option ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = MinTouchTarget)
-                                .selectable(
-                                    selected = option == category,
-                                    onClick = { category = option },
-                                    role = Role.RadioButton,
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = option == category, onClick = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(option.labelRes()), style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
+                        .heightIn(min = MinTouchTarget)
+                        .selectable(
+                            selected = option == category,
+                            onClick = { category = option },
+                            role = Role.RadioButton,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = option == category, onClick = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(option.labelRes()), style = MaterialTheme.typography.bodyLarge)
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = submit, modifier = Modifier.heightIn(min = MinTouchTarget)) {
-                Text(stringResource(confirmRes))
-            }
-        },
-        dismissButton = {
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
             TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) {
                 Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_cancel))
             }
-        },
-    )
+            TextButton(onClick = submit, modifier = Modifier.heightIn(min = MinTouchTarget)) {
+                Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_save))
+            }
+        }
+    }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 }

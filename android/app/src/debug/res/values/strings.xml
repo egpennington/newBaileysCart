@@ -2,7 +2,10 @@
 <!-- BC-UI-S1 LOCAL DEMO strings (debug source set only). -->
 <resources>
     <string name="demo_banner">LOCAL DEMO — not synced</string>
-    <string name="demo_banner_detail">Changes stay in memory on this device only and are lost when the app closes. Nothing is saved or shared.</string>
+    <!-- Lifetime wording is backed by the BC-UI-S1 retention matrix: kept while the app stays in
+         memory (Home, emulator Quick Boot snapshot); cleared by Back, swiping the app away, being
+         stopped or a device restart. -->
+    <string name="demo_banner_detail">Nothing is saved or shared. Items exist only while the app stays in memory and can be lost at any time, for example when you leave with Back, swipe the app away, or restart the device.</string>
     <string name="demo_title">Shopping list</string>
 
     <string name="demo_category_produce">Produce</string>
@@ -23,6 +26,8 @@
     <string name="demo_dialog_edit_title">Edit item</string>
     <string name="demo_name_label">Item name</string>
     <string name="demo_category_label">Category</string>
+    <string name="demo_add_pick_category">Tap a category to add the item</string>
+    <string name="demo_add_to_cd">Add to %1$s</string>
     <string name="demo_name_error_blank">Enter an item name.</string>
     <string name="demo_name_error_too_long">Use 100 characters or fewer.</string>
     <string name="demo_save">Save</string>
