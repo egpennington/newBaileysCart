@@ -1,6 +1,9 @@
 # WP-03 Evidence Manifest (Slices 1–2, Slice 3 Substage 3A): PS-BILLING-LIFECYCLE, PS-ACCESS-ISOLATION, PS-BUILD-SUPPLY-CHAIN, PS-RETENTION, PS-OFFLINE-SYNC
 
-- **Version:** 1.7 (2026-11-05). Changes from v1.6:
+- **Version:** 1.8 (2026-11-07). Changes from v1.7:
+  - adds the section "WP-03 D-4 local confirmation issuer (v1.8)" before "History". It covers PR #15 (reviewed head `a74aaa1`; merge commit `ee3dbfe`), local D1/D2/D3 evidence, NC-50..NC-59, FORGE runs #60–#62, the GAI D4 record with the FORGE job-count correction (12/12, not 9/9), the three ratified issuance policies, ProofPoint status and carry-forward obligations. Every earlier section is unchanged, including the title.
+
+  v1.7 (2026-11-05) changes from v1.6:
   - adds the section "WP-03 Slice 3B Stage B1: local billing engine (v1.7)" before "History". It covers PR #11 (reviewed head `148415d`; merge commit `ad1b700`), local D1/D2 evidence, NC-33..NC-39, FORGE runs #49–#51, the GAI D4 record with CODI-inspected corrections, ProofPoint status and carry-forward obligations. Every earlier section is unchanged, including the title, which predates Slice 3B.
 
   v1.6 (2026-11-05) changes from v1.5:
@@ -868,6 +871,133 @@ D3 for -33..-36 is **DEFERRED**, because there is no callable surface. D4 is GAI
 - **Voided-purchase / refund notifications.** These are recorded with no effect; handling is unspecified (W-05 / PL).
 - **Security exception** (`GAI-S3B-LOW-02`): WP03-S2-SEC-DISP expires **2026-12-01T00:00:00Z**. It needs renewal (with a new PL decision) or remediation first, or every FORGE run fails.
 - **Evidence expiry.** Run #49–#51 artifacts expire 2026-11-19.
+
+## WP-03 D-4 local confirmation issuer (v1.8)
+
+This section records the D-4 issuer only. Every earlier section is unchanged. **Class** follows the same convention: *CODI-inspected*, *CODI-reported*, *GAI-reported*.
+
+**The D-4 PASS is local emulator evidence, not production coverage.** The issuer refuses every call outside the Functions emulator with a `demo-` project. No deployed, App Check or Android evidence exists. `PL-PP-WP03-32` is PARTIAL.
+
+### Scope and authority
+
+| Item | Value |
+|---|---|
+| Gate C | Local issuer sprint only (marker `WP03-D4-ISSUER-LOCAL-GATE-C-GO`; register v1.15, WP03-D4-ISSUER-LOCAL-GATE-C) |
+| Specification | `CODI_WP03_D4_Confirmation_Issuance_Local_Sprint_Handoff_v1.0.md` (SHA-256 `7a9de270…2ffc`; local, untracked), governed by `API_SPEC_v0.4_CANONICAL.md` §A2-D4 |
+| Ratified policies | WP03-D4-RECENT-AUTH (5 min, `UNAUTHENTICATED`); WP03-D4-THROTTLE (5 per family per rolling 15 min, `RATE_LIMITED`); WP03-D4-BARRIER (emulator-only, `INTERNAL`; production deferred). PL, 2026-11-07. |
+| Excluded | Deployment; production Firebase; App Check enforcement; Google Play; credentials; Android; Stages B2 and B3 (Gate C **CLOSED**) |
+| Branch | `feature/wp03-d4-confirmation-issuer`, base `develop` @ `f5116670d5366c76039ec94fbcd1c9f9049df432` |
+| PR | #15, https://github.com/egpennington/newBaileysCart/pull/15 |
+
+### Commits (PR #15)
+
+| Commit | Content |
+|---|---|
+| `99e7a6d` | `families.prepareLifecycleConfirmation` issuer: callable, digest-only token storage, per-family active-token pointer, supersession at consumption, recent-auth check, throttle, local-only barrier |
+| `a74aaa120e04b2b80b4ac6c26a264f2e74ffdde1` | D1/D2/D3 tests; `PL-PP-WP03-32` set to PARTIAL. **GAI-reviewed and PL-approved PR head.** |
+| `ee3dbfe04c64d2965ff81296727598fb0fcc57f7` | **Merge commit** of PR #15 into `develop` (parents `f511667…`, `a74aaa1…`). Its tree `01643334…` is identical to `a74aaa1`. |
+
+The PR changes 20 files (+1398 / −64) in 2 commits. There is no dependency, lockfile, workflow, Android or security-exception change.
+
+### Local test evidence (CODI-reported)
+
+| Run | Code | Result |
+|---|---|---|
+| Typecheck | `a74aaa1` content | clean |
+| **D1** `npm test` | `a74aaa1` content | **356/356** (340 pre-existing, 16 new) |
+| **D2/D3** `npm run test:emulator` | `a74aaa1` content | **356/356**, 2,704 s (includes five 50× races and client-SDK round trips) |
+| Verity cross-reference check | `a74aaa1` | PASS |
+| `check-osv-exceptions.mjs`, `check-no-real-firebase.sh` | `a74aaa1` | PASS (2 exceptions, expire 2026-12-01); PASS |
+| FORGE self-tests, `docs-check.mjs` | `a74aaa1` | 32/32; PASS |
+| `npm audit --audit-level=high` | `a74aaa1` | exit 0 (12 moderate; dependencies unchanged) |
+
+D3 uses unsigned emulator ID tokens (W-01 D-5). It proves how the server reads `auth_time`, not production token verification.
+
+### Negative controls NC-50..NC-59 (CODI-reported)
+
+| NC | Mutation | Verdict |
+|---|---|---|
+| NC-50 | Issuer ownership check disabled | CAUGHT (D2/D3) |
+| NC-51 | TTL `>=` weakened to `>` | CAUGHT (D1, D2/D3) |
+| NC-52 | Supersession check disabled at consumption | CAUGHT (D2/D3) |
+| NC-53 | Same-`opId` retry does not invalidate its token | CAUGHT (D2/D3) |
+| NC-54 | Single-use consumption removed | CAUGHT (D2/D3) |
+| NC-55 | Throttle disabled | CAUGHT (D1, D2/D3) |
+| NC-56 | Recent sign-in disabled | CAUGHT (D1, D2/D3) |
+| NC-57 | Local-only barrier disabled | CAUGHT (D1, D2/D3) |
+| NC-58 | Plaintext persisted in the idempotency record | CAUGHT (D2/D3) |
+| NC-59 | Retry invalidates unconditionally (clobbers a newer token) | CAUGHT (D2/D3) |
+
+- **Result:** 10 of 10 caught. Each source file was restored and its SHA-256 re-verified.
+- **First attempt discarded:** first-run mutations of NC-50, NC-52 and NC-53 did not type-check. They were discarded and rerun.
+- **Next free ID:** NC-60.
+
+**Raw evidence:** `baileysCartApp_evidence\WP03_D4_ISSUER_EVIDENCE_v1.0\`. It is outside the repository and not committed.
+
+### FORGE CI evidence (CODI-inspected, public read-only API)
+
+| Run | ID | Event / commit | Path | Conclusion |
+|---|---|---|---|---|
+| #60 | `42324597921` | push / `feature/wp03-d4-confirmation-issuer` @ `a74aaa1` | FULL | **success, 12/12** |
+| #61 | `42324625104` | pull_request (PR #15) / `a74aaa1` | FULL | **success, 12/12** |
+| **#62** | **`42350124922`** | **push / `develop` @ `ee3dbfe`** | FULL | attempt 1 **failure** (9/12); attempt 2 **success, 12/12** |
+
+**Jobs in a FULL run (12):** Change classification; Documentation and Verity validation; Gradle wrapper integrity; Dependency vulnerability scan and SBOM; Secret scan; No real Firebase configuration; Android compile, lint, unit tests *(FULL only)*; Clean repeat build *(FULL only)*; Backend typecheck, tests, npm audit *(FULL only)*; Backend emulator tests *(FULL only)*; Path verification; FORGE gate.
+
+- **FULL classification:** each FULL-only job runs only when `needs.classify.outputs.path == 'FULL'`, and all four ran and succeeded. Path verification ("Verify the classified path ran exactly its required jobs") succeeded, which independently confirms the path.
+- **Not inspected:** job logs (the logs endpoint needs authentication) and artifact contents. The classifier's literal output line, CI test totals and scanner findings are **NOT VERIFIED from CI**. Only job and step conclusions are verified.
+
+**Run #62 (post-merge, `develop` @ `ee3dbfe`), by attempt:**
+
+| Attempt | Trigger | Android compile, lint, unit tests | Path verification | FORGE gate | Run conclusion |
+|---|---|---|---|---|---|
+| 1 | push, 2026-11-07T07:10:10Z | `128336324640` **failure** | `128343381715` failure (consequential) | `128343406914` failure (consequential) | **failure** |
+| 2 | PL-authorized "Re-run failed jobs", 2026-11-07T16:22:21Z | `128458221064` **success** | `128458964720` success | `128458990456` success | **success, 12/12** |
+
+- **Attempt 1:** the step "Build, lint, unit tests" failed after 21 s and produced no reports (`android-reports` upload: "No files were found"). The PL reported the error as `Plugin [id: 'org.jetbrains.kotlin.jvm', version: '2.4.10', apply: false] was not found`; CODI did not read this text in the log. Path verification failed with `FULL path requires android to be success, found "failure"`, and the FORGE gate failed after it. The other 9 jobs succeeded, including the clean repeat build, which resolved the same plugins block on another runner.
+- **Root cause: UNRESOLVED.** The tree `01643334…` is identical to `a74aaa1` (#60/#61 green). Both Android jobs run with caching disabled on fresh runners. The plugin marker is available on Maven Central and on the Plugin Portal. A transient plugin-resolution failure is **probable but not proven**, because the raw log (endpoint needs authentication) was not inspected. See `CODI_FORGE62_Gradle_Failure_Investigation_Report_v1.0.md` (local, untracked).
+- **Attempt 2:** there was no code, dependency or configuration change between the attempts. The three re-run jobs succeeded, and the 9 carried-over jobs keep their attempt 1 success.
+
+### GAI verification record (GAI-reported; local, untracked report)
+
+| Report | Target | Verdict |
+|---|---|---|
+| `GAI_WP03_D4_Confirmation_Issuer_D4_Verification_Report.md` (SHA-256 `673755c3…f1ae`) | PR #15 @ `a74aaa1`; runs #60, #61 | **GO** (technical recommendation to merge) |
+
+**CODI-inspected correction** in GAI's text, recorded here and not adopted:
+
+| GAI statement | Repository fact |
+|---|---|
+| Runs #60 and #61 "9/9 Jobs Green" | Both runs completed **12/12** on the FULL path. The pipeline has had 12 jobs since FORGE-FP-01 (PR #13, `cb80649`). 9 is the pre-FP-01 job count. |
+
+GAI's statements about the storage paths (`confirmationTokens/{sha256}`, `lifecycleConfirmations/{familyId}`) match the source. GAI did not rerun tests or negative controls.
+
+### ProofPoint status (D-4)
+
+| ProofPoint | Suite | D-4 result | Deferred (not claimed) |
+|---|---|---|---|
+| `PL-PP-WP03-32` | PS-ACCESS-ISOLATION | **PARTIAL:** local D1/D2/D3 PASS; D4 GAI GO | Android volatile-memory handling; App Check; any deployed runtime |
+
+CODI does not upgrade any ProofPoint to production PASS.
+
+### Post-merge state (v1.8)
+
+| Item | Value | Class / source |
+|---|---|---|
+| PR #15 | **MERGED** 2026-11-07T07:10:08Z (standard merge commit; pushed by CODI under PL authorization; merged head `a74aaa1`) | CODI-inspected |
+| `develop` HEAD | `ee3dbfe04c64d2965ff81296727598fb0fcc57f7` | CODI-inspected |
+| `main` | unchanged at `b6ac365` | CODI-inspected |
+| Feature branch | preserved at `a74aaa1` | CODI-inspected |
+| Deployment / cloud / Play | none | CODI-inspected |
+| Stages B2, B3 | **Gate C CLOSED** | PL |
+
+### Remaining obligations (D-4 carry-forward)
+
+- **App Check enforcement.** `APP_CHECK_REQUIRED` is defined but not wired. This blocks any deployment.
+- **Production behavior** to replace the local-only barrier (WP03-D4-BARRIER, deferred).
+- **Android client:** volatile-memory handling of `confirmationToken` and the explicit confirmation screen (WP-01/WP-02).
+- **Contract-unspecified orderings** recorded in the implementation report §5: superseded-and-expired returns `CONFIRMATION_REQUIRED`; a same-`opId` retry with stale `auth_time` returns `UNAUTHENTICATED` without invalidating the token.
+- **Security exception:** WP03-S2-SEC-DISP expires **2026-12-01T00:00:00Z**.
 
 ## History: superseded v1.2 sections (retained unchanged)
 
