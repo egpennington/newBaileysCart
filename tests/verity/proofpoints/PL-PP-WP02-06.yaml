@@ -1,0 +1,33 @@
+# New in BC-UI-S2a (decision marker BC-UI-S2A-LOCAL-DOMAIN-ONLY-PL-GO). Planned WP-02 ID (Feature spec v0.2 §5);
+# no prior file or suite entry. Pure-Kotlin domain evidence only.
+id: PL-PP-WP02-06
+name: "Old-epoch operations are never re-tagged or dispatched; stale or foreign snapshots are refused; account and family scopes never mix"
+feature: "Offline shopping-list domain core (BC-UI-S2a, :core:model)"
+suite: PS-OFFLINE-SYNC
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: unit
+slice: "BC-UI-S2a (pure Kotlin, no persistence, no UI wiring)"
+slice_coverage: "PARTIAL. D1 domain transitions only. No durable store, sync coordinator, network or UI integration exists."
+steps:
+  - "Enqueue under stale and future epochs"
+  - "Advance the epoch with PENDING, RETRY_WAIT and IN_FLIGHT operations; enqueue a dependent of a quarantined add"
+  - "Attempt an epoch regression; restore with a stale IN_FLIGHT; project foreign, stale and future snapshots"
+expected:
+  - "Stale and future epochs are refused; old-epoch PENDING and RETRY_WAIT operations become QUARANTINED_STALE_EPOCH with their captured epoch unchanged"
+  - "An IN_FLIGHT old-epoch operation accepts an authoritative commit, but ambiguity quarantines it (fail closed)"
+  - "Snapshot projection refuses SCOPE_MISMATCH, STALE_SNAPSHOT and FUTURE_SNAPSHOT"
+evidence:
+  - "android/core/model/src/test/kotlin/com/penningtonlabs/baileyscart/core/model/offline/EpochScopeRevocationTest.kt (enqueueRejectsStaleAndFutureEpochs, epochAdvanceQuarantinesOldOperationsWithoutRetagging, inFlightOldEpochWaitsForOutcomeAndAmbiguityQuarantines, newEpochDependentOnQuarantinedAddIsBlocked, epochNeverMovesBackwards, restoreQuarantinesStaleInFlight)"
+  - "android/core/model/src/test/kotlin/com/penningtonlabs/baileyscart/core/model/offline/ProjectionAndPortsTest.kt (foreignOrStaleSnapshotsAreRefused)"
+  - "Negative control NC-68 (re-tag instead of quarantine) caught"
+preconditions:
+  - "Fictional AccountKey and FamilyId values only; deterministic UUIDs; no clock, network or storage"
+depths:
+  D1: "local PASS (:core:model JUnit 4)"
+  D2: "NOT_RUN / OUT_OF_SCOPE: no storage or integration dependencies approved (S2b)"
+  D3: "NOT_RUN / OUT_OF_SCOPE: the S2a core is not wired to the UI"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "W-03 canonicalization is not implemented (PL D-6a Cafe = Café is recorded only). The QUARANTINED_AGED cutoff is unset (D-9)."
+status: "PARTIAL: local D1 PASS; D2/D3 out of scope for S2a; D4 NOT_RUN"

@@ -1,0 +1,34 @@
+# New in BC-UI-S2a (decision marker BC-UI-S2A-LOCAL-DOMAIN-ONLY-PL-GO). Planned WP-02 ID (Feature spec v0.2 §5);
+# no prior file or suite entry. Pure-Kotlin domain evidence only.
+id: PL-PP-WP02-04
+name: "Delete/Undo causal order: an unsent pair coalesces to a recorded local no-op; a dispatched or committed delete is never erased; Undo follows its delete"
+feature: "Offline shopping-list domain core (BC-UI-S2a, :core:model)"
+suite: PS-OFFLINE-SYNC
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: unit
+slice: "BC-UI-S2a (pure Kotlin, no persistence, no UI wiring)"
+slice_coverage: "PARTIAL. D1 domain transitions only. No durable store, sync coordinator, network or UI integration exists."
+steps:
+  - "Undo a never-dispatched delete"
+  - "Undo while the delete is IN_FLIGHT, RETRY_WAIT (ambiguous) and COMMITTED"
+  - "Undo with a later operation on the same item; Undo of a rejected delete"
+expected:
+  - "Only a never-dispatched PENDING delete with no later operation on its item coalesces; both records become COALESCED_NO_OP and neither is sent"
+  - "Otherwise Undo is a separate command depending on the delete and is dispatched only after the delete commits"
+  - "Undo of a rejected delete is BLOCKED_DEPENDENCY"
+  - "The S1 five-second visual timer is not part of the core"
+evidence:
+  - "android/core/model/src/test/kotlin/com/penningtonlabs/baileyscart/core/model/offline/UndoAndDependencyTest.kt (unsentDeleteAndUndoCoalesceToRecordedNoOp, deleteInFlightIsNotCoalescedAndUndoWaitsBehindIt, ambiguouslySentDeleteIsNeverTreatedAsUnsent, committedDeleteIsNeverErasedByUndo, noCoalescingWhenALaterOperationTargetsTheSameItem, undoOfRejectedDeleteIsBlocked)"
+  - "android/core/model/src/test/kotlin/com/penningtonlabs/baileyscart/core/model/offline/ProjectionAndPortsTest.kt (undoRendersFromCapturedImageAndCoalescedPairShowsSnapshot)"
+  - "Negative control NC-71 (coalescing after dispatch) caught"
+preconditions:
+  - "Fictional AccountKey and FamilyId values only; deterministic UUIDs; no clock, network or storage"
+depths:
+  D1: "local PASS (:core:model JUnit 4)"
+  D2: "NOT_RUN / OUT_OF_SCOPE: no storage or integration dependencies approved (S2b)"
+  D3: "NOT_RUN / OUT_OF_SCOPE: the S2a core is not wired to the UI"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "W-03 canonicalization is not implemented (PL D-6a Cafe = Café is recorded only). The QUARANTINED_AGED cutoff is unset (D-9)."
+status: "PARTIAL: local D1 PASS; D2/D3 out of scope for S2a; D4 NOT_RUN"

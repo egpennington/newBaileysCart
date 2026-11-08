@@ -1,0 +1,33 @@
+# New in BC-UI-S2a (decision marker BC-UI-S2A-LOCAL-DOMAIN-ONLY-PL-GO). Planned WP-02 ID (Feature spec v0.2 §5);
+# no prior file or suite entry. Pure-Kotlin domain evidence only.
+id: PL-PP-WP02-05
+name: "A terminal add failure (or an add satisfied by an existing item) blocks dependents as BLOCKED_DEPENDENCY, fail-closed with no automatic recovery or retargeting"
+feature: "Offline shopping-list domain core (BC-UI-S2a, :core:model)"
+suite: PS-OFFLINE-SYNC
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: unit
+slice: "BC-UI-S2a (pure Kotlin, no persistence, no UI wiring)"
+slice_coverage: "PARTIAL. D1 domain transitions only. No durable store, sync coordinator, network or UI integration exists."
+steps:
+  - "Reject an add with dependents queued before and after the rejection"
+  - "Commit an add as SATISFIED_BY_EXISTING_ITEM"
+  - "Attempt every outcome on a blocked operation; advance the epoch"
+expected:
+  - "Dependents (transitively, including Undo of a blocked delete) become BLOCKED_DEPENDENCY and are never dispatched or re-pointed"
+  - "Unrelated operations continue in order"
+  - "Blocked operations are reported in attention; no transition unblocks them (D-9 deferred); QUARANTINED_AGED is never produced"
+evidence:
+  - "android/core/model/src/test/kotlin/com/penningtonlabs/baileyscart/core/model/offline/UndoAndDependencyTest.kt (terminalAddFailureBlocksDependentsTransitively, addSatisfiedByExistingItemBlocksDependentsWithoutRetargeting, dependentEnqueuedAfterFailureIsBlockedImmediately, blockedStateHasNoAutomaticRecovery)"
+  - "android/core/model/src/test/kotlin/com/penningtonlabs/baileyscart/core/model/offline/ProjectionAndPortsTest.kt (rejectedAndBlockedNeverRenderAsCommitted)"
+  - "Negative control NC-69 (dependency failure ignored) caught"
+preconditions:
+  - "Fictional AccountKey and FamilyId values only; deterministic UUIDs; no clock, network or storage"
+depths:
+  D1: "local PASS (:core:model JUnit 4)"
+  D2: "NOT_RUN / OUT_OF_SCOPE: no storage or integration dependencies approved (S2b)"
+  D3: "NOT_RUN / OUT_OF_SCOPE: the S2a core is not wired to the UI"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "W-03 canonicalization is not implemented (PL D-6a Cafe = Café is recorded only). The QUARANTINED_AGED cutoff is unset (D-9)."
+status: "PARTIAL: local D1 PASS; D2/D3 out of scope for S2a; D4 NOT_RUN"
