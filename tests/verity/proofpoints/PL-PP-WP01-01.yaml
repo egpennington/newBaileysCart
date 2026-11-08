@@ -1,0 +1,32 @@
+# New in BC-UI-S1. Unallocated ID (no prior PL-PP-WP01-* file or suite entry). Local demo scope.
+id: PL-PP-WP01-01
+name: "Six categories always shown in fixed order; empty categories say \"No items yet.\"; items sorted case-insensitively with a stable tie-breaker"
+feature: "Shopping list screen (BC-UI-S1 LOCAL DEMO, debug build)"
+suite: PS-CORE-LIST
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: unit + emulator
+slice: "BC-UI-S1 (debug-only LOCAL DEMO)"
+slice_coverage: "PARTIAL. Reducer ordering (D1) and on-device rendering (D3). Compose UI tests are not available without new test dependencies."
+steps:
+  - "Render the seed list (MISC and MEAT empty)"
+  - "Add mixed-case and duplicate names to one category"
+  - "Delete every item in a category; edit an item into an empty category"
+expected:
+  - "Produce, Dairy, Dry, Frozen, Misc, Meat in that order, always expanded; no category is omitted"
+  - "An empty category body shows exactly \"No items yet.\""
+  - "Order: case-insensitive name, then exact name, then insertion id; deterministic across evaluations"
+evidence:
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/LocalDemoListTest.kt (categoriesAreTheSixInFixedOrder, seedLeavesMiscAndMeatEmptyAndIsSortedCaseInsensitively, sortIsCaseInsensitiveWithStableTieBreakers)"
+  - "Emulator screenshots 01, 08, 11, 19 and uiautomator dumps (local evidence folder BC_UI_S1_EVIDENCE_v1.0)"
+  - "Negative control NC-63 (category order changed) caught"
+preconditions:
+  - "Debug build only; in-memory state; no network permission"
+depths:
+  D1: "local PASS (LocalDemoListTest)"
+  D2: "BLOCKED: no Compose UI test or instrumentation dependencies in the project; adding them needs PL approval"
+  D3: "local PASS (manual, adb-driven emulator walkthrough, API 37)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "Display order is the enum order rendered by ShoppingListDemoScreen. The empty-state text is rendered by the UI and verified only on the emulator (D3)."
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"

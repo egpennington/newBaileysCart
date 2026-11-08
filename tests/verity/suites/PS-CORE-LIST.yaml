@@ -1,0 +1,15 @@
+id: PS-CORE-LIST
+name: Core shopping list (categories, ordering, add, edit, delete and local Undo, scope indicator, accessibility)
+work_package: WP-01 (BC-UI-S1 LOCAL DEMO precursor)
+owner: CODI
+independent_reviewer: GAI
+executed_by: FORGE (forge-wp00.yml, job android) and local CODI runs (D1 unit tests; D3 emulator walkthrough)
+created_in: BC-UI-S1 First Usable Shopping List (debug-only LOCAL DEMO; PL-authorized 2026-11-07)
+scope_note: "Debug build only, with in-memory demo state. There is no persistence, sync, family, account, Firebase or Play integration, and server items.undoDelete is not used. Release builds contain no demo code. These ProofPoints cover the client UI contract only; WP-03 server item commands are not exercised."
+proofpoints_in_bc_ui_s1:
+  - PL-PP-WP01-01 (partial)
+  - PL-PP-WP01-02 (partial)
+  - PL-PP-WP01-03 (partial)
+  - PL-PP-WP01-04 (partial)
+  - PL-PP-WP01-05 (partial)
+status_source: "CODI_BC_UI_S1_Implementation_Report_v1.0.md (local, untracked) and the PR description"

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BC-UI-S1 LOCAL DEMO strings (debug source set only). -->
+<resources>
+    <string name="demo_banner">LOCAL DEMO — not synced</string>
+    <!-- Lifetime wording is backed by the BC-UI-S1 retention matrix: kept while the app stays in
+         memory (Home, emulator Quick Boot snapshot); cleared by Back, swiping the app away, being
+         stopped or a device restart. -->
+    <string name="demo_banner_detail">Nothing is saved or shared. Items exist only while the app stays in memory and can be lost at any time, for example when you leave with Back, swipe the app away, or restart the device.</string>
+    <string name="demo_title">Shopping list</string>
+
+    <string name="demo_category_produce">Produce</string>
+    <string name="demo_category_dairy">Dairy</string>
+    <string name="demo_category_dry">Dry</string>
+    <string name="demo_category_frozen">Frozen</string>
+    <string name="demo_category_misc">Misc</string>
+    <string name="demo_category_meat">Meat</string>
+    <string name="demo_category_empty">No items yet.</string>
+
+    <string name="demo_add_item">Add item</string>
+    <string name="demo_edit">Edit</string>
+    <string name="demo_delete">Delete</string>
+    <string name="demo_edit_cd">Edit %1$s in %2$s</string>
+    <string name="demo_delete_cd">Delete %1$s from %2$s</string>
+
+    <string name="demo_dialog_add_title">Add item</string>
+    <string name="demo_dialog_edit_title">Edit item</string>
+    <string name="demo_name_label">Item name</string>
+    <string name="demo_category_label">Category</string>
+    <string name="demo_add_pick_category">Tap a category to add the item</string>
+    <string name="demo_add_to_cd">Add to %1$s</string>
+    <string name="demo_name_error_blank">Enter an item name.</string>
+    <string name="demo_name_error_too_long">Use 100 characters or fewer.</string>
+    <string name="demo_save">Save</string>
+    <string name="demo_cancel">Cancel</string>
+
+    <string name="demo_undo">Undo</string>
+    <string name="demo_undo_cd">Undo delete of %1$s</string>
+    <string name="demo_event_added">Added %1$s to %2$s.</string>
+    <string name="demo_event_updated">Updated %1$s in %2$s.</string>
+    <string name="demo_event_deleted">Deleted %1$s from %2$s.</string>
+    <string name="demo_event_restored">Restored %1$s to %2$s.</string>
+</resources>

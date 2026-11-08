@@ -1,0 +1,31 @@
+# New in BC-UI-S1. Unallocated ID. Local demo scope.
+id: PL-PP-WP01-02
+name: "Two-action Add (type the name, tap a category button to add immediately) and labeled Edit dialog; blank names rejected; names limited to 100 code points; edits re-sort and can move category"
+feature: "Shopping list screen (BC-UI-S1 LOCAL DEMO, debug build)"
+suite: PS-CORE-LIST
+risk: medium
+owner: CODI
+independent_reviewer: GAI
+level: unit + emulator
+slice: "BC-UI-S1 (debug-only LOCAL DEMO)"
+slice_coverage: "PARTIAL. Reducer and validation (D1); dialog flow on the emulator (D3). The canonical NameKey and duplicate policy (W-03) is OPEN and deliberately not implemented."
+steps:
+  - "Submit empty, whitespace-only, 100- and 101-code-point names (including surrogate pairs)"
+  - "Add an item; edit its name and move it to another category; edit an unknown id; submit a no-op edit"
+expected:
+  - "Add: tapping a category with a valid name adds immediately (no separate confirm); with a blank name it shows \"Enter an item name.\", adds nothing and keeps the dialog open"
+  - "Names are trimmed; more than 100 code points shows \"Use 100 characters or fewer.\""
+  - "Edit keeps the item id, updates the name and category, and re-sorts; unknown or no-op edits change nothing"
+  - "Duplicate names are neither merged nor rejected (no invented canonicalization)"
+evidence:
+  - "LocalDemoListTest (addTrimsNameAndAssignsCategory, blankAndWhitespaceOnlyNamesAreRejectedWithoutStateChange, nameLimitIsOneHundredCodePointsAfterTrim, duplicateNamesAreNotCanonicalizedOrMerged, editRenamesAndMovesCategoryAndResorts, invalidOrUnknownOrNoOpEditLeavesStateUnchanged)"
+  - "Emulator screenshots 02-08 and 20-24"
+preconditions:
+  - "Debug build only; in-memory state"
+depths:
+  D1: "local PASS (LocalDemoListTest)"
+  D2: "BLOCKED: no Compose UI test dependencies"
+  D3: "local PASS (manual emulator walkthrough: blank rejection, add Yogurt to Dairy, edit to Greek Yogurt in Misc. PL refinement: two-action add of Milk (landscape) and Eggs (portrait) to Dairy and Tofu to Meat at 360 dp / 200%; blank-name rejection with the category buttons; Edit Done still saves)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "PL hands-on feedback (2026-11-07) changed Add to the two-action flow; Edit behavior is unchanged. The 100-code-point limit comes from API v0.4 §6 (display names). Whitespace normalization beyond trimming the ends and canonical NameKey are OPEN W-03 and not implemented."
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"
