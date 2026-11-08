@@ -9,3 +9,11 @@ scope_note: Server-side epoch rejection for lifecycle mutations. No item command
 proofpoints_in_slice_3:
   - PL-PP-WP03-22 (partial)
 status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md
+scope_note_bc_ui_s2a: "BC-UI-S2a adds client-side domain ProofPoints (pure Kotlin :core:model, D1 only). There is still no Android durable queue, sync coordinator or item backend; storage, purge and integration remain deferred."
+proofpoints_in_bc_ui_s2a:
+  - PL-PP-WP02-02 (partial)
+  - PL-PP-WP02-03 (partial)
+  - PL-PP-WP02-04 (partial)
+  - PL-PP-WP02-05 (partial)
+  - PL-PP-WP02-06 (partial)
+  - PL-PP-WP02-11 (partial)
