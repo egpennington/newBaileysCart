@@ -14,12 +14,13 @@ steps:
   - "Add an item; edit its name and move it to another category; edit an unknown id; submit a no-op edit"
 expected:
   - "Add: tapping a category with a valid name adds immediately (no separate confirm); with a blank name it shows \"Enter an item name.\", adds nothing and keeps the dialog open"
-  - "Names are trimmed; more than 100 code points shows \"Use 100 characters or fewer.\""
+  - "Names are trimmed; more than 100 code points shows \"Use 100 characters or fewer.\". From BC-UI-S2-WIRE, names are checked by the S2a ItemName rules: line breaks, control and bidi characters and unpaired surrogates show \"Name contains characters that aren't allowed.\" (PL-approved wording) and add or edit nothing"
   - "Edit keeps the item id, updates the name and category, and re-sorts; unknown or no-op edits change nothing"
   - "Duplicate names are neither merged nor rejected (no invented canonicalization)"
 evidence:
   - "LocalDemoListTest (addTrimsNameAndAssignsCategory, blankAndWhitespaceOnlyNamesAreRejectedWithoutStateChange, nameLimitIsOneHundredCodePointsAfterTrim, duplicateNamesAreNotCanonicalizedOrMerged, editRenamesAndMovesCategoryAndResorts, invalidOrUnknownOrNoOpEditLeavesStateUnchanged)"
   - "Emulator screenshots 02-08 and 20-24"
+  - "BC-UI-S2-WIRE re-run: LocalDemoListTest validation and edit tests PASS; DomainWiringTest (disallowedCharactersAreRejectedAndEnqueueNothing, editSendsOnlyChangedFieldsAndNoOpEditEnqueuesNothing) PASS; NC-92 caught; emulator D3 02-06, 11, 12 (add Eggs to Dairy, edit to Free range eggs in Misc, blank and too-long errors). The not-allowed message was not exercised on device (adb input cannot type those characters); D1 only"
 preconditions:
   - "Debug build only; in-memory state"
 depths:

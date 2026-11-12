@@ -1,0 +1,39 @@
+# New in BC-UI-S2-WIRE. Unallocated ID (no prior PL-PP-WP01-06 file or suite entry). Debug-only LOCAL DEMO.
+id: PL-PP-WP01-06
+name: "The LOCAL DEMO list is driven only by the S2a outbox and projection, in memory: Add, Edit, Delete and Undo enqueue domain commands, Undo references its delete and an unsent pair coalesces, refusals change nothing, and nothing is dispatched or persisted"
+feature: "Shopping list screen (BC-UI-S2-WIRE LOCAL DEMO, debug build) over the BC-UI-S2a offline domain core"
+suite: PS-CORE-LIST
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: unit + emulator + build inspection
+slice: "BC-UI-S2-WIRE (debug-only, in-memory S1 UI to S2a domain wiring)"
+slice_coverage: "PARTIAL. D1 wiring tests over the real S2a FamilyOutbox and ListProjector; D3 emulator walkthrough of the unchanged S1 controls. No transport, sync coordinator, storage port implementation or server exists, so every operation stays PENDING or COALESCED_NO_OP."
+steps:
+  - "Start from the seed; Add Eggs to Dairy; Edit to Free range eggs in Misc; Delete; Undo inside the window"
+  - "Delete; let the window expire; attempt Undo"
+  - "Delete two items in a row; Undo the latest"
+  - "Edit only the category, only the name, then nothing"
+  - "Force refusals: Undo naming an unknown delete, a revoked scope, a duplicate ItemId; names with line breaks, control, bidi or unpaired-surrogate characters"
+expected:
+  - "The seed is five PENDING items.add operations with fixed fictional ids; the projection baseline snapshot is empty (no fictional server state)"
+  - "The ItemId never changes across Add, Edit, Delete and Undo; the restored item equals the deleted one"
+  - "The Undo slot records the delete opId; Undo enqueues items.undoDelete{deleteOpId} that depends on that delete; the unsent pair becomes COALESCED_NO_OP and both records are kept"
+  - "An expired or superseded Undo enqueues nothing; the earlier delete stays PENDING"
+  - "Edit sends only the changed fields; a no-op edit enqueues nothing"
+  - "Every domain refusal leaves the UI state unchanged (fail closed); no operation is ever IN_FLIGHT, dispatched or COMMITTED"
+  - "The visible list always equals ListProjector's projection in S2a order"
+evidence:
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/DomainWiringTest.kt (11 tests: addEditDeleteUndoJourneyPreservesIdentityAndLinksTheUndoToItsDelete, seedIsFivePendingAddsAndNoServerState, seedItemDeleteAndUndoCoalescesAndRestoresTheSameItem, editSendsOnlyChangedFieldsAndNoOpEditEnqueuesNothing, expiredUndoEnqueuesNothingAndTheDeleteStands, supersededDeleteStaysPendingAndOnlyTheLatestIsCoalesced, undoReferencingAnUnknownDeleteIsRefusedAndStateIsUnchanged, revokedScopeRefusesEveryCommandAndStateIsUnchanged, duplicateItemIdAddIsRefusedAndStateIsUnchanged, disallowedCharactersAreRejectedAndEnqueueNothing, visibleItemsAlwaysEqualTheDomainProjection)"
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/LocalDemoListTest.kt (20 tests: the 19 S1 behavior tests re-run on the wired reducer, plus categoryTypeIsTheS2aDomainEnum)"
+  - "Negative controls NC-91 (Undo does not reference the slot's deleteOpId), NC-92 (Edit always sends both fields), NC-93 (Undo expiry check removed), NC-94 (refused Undo reported as restored), NC-95 (delete without pre-image), NC-96 (list not taken from the projection) and NC-97 (demo reducer copied into src/main; release inspection) all caught. NC-74..NC-90 are reserved by the PL and were not used"
+  - "Local emulator walkthrough (Medium_Phone API 37) screenshots 01-12 and uiautomator dumps; release/debug APK dexdump and aapt2 inspection"
+preconditions:
+  - "Debug build only; in-memory state; fixed fictional AccountKey/FamilyId (local-demo-account / local-demo-family), FamilyEpoch 1"
+depths:
+  D1: "local PASS (DomainWiringTest 11/11, LocalDemoListTest 20/20; :core:model 48/48 unchanged)"
+  D2: "BLOCKED: no Compose UI test or instrumentation dependencies; adding them needs PL approval"
+  D3: "local PASS (manual, adb-driven emulator walkthrough, API 37): seed, add, edit, delete, Undo at about +1.2 s, expired Undo at about +7.5 s, blank and too-long errors. The not-allowed-characters message is D1 only"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "The Undo window (5 s, accessibility-extended, monotonic, latest-only, generation-keyed) remains UI policy; the domain sees only items.delete and items.undoDelete. The in-memory outbox grows by one operation per action for the process lifetime and is never compacted, dispatched or persisted (PL condition 6). No S2b storage, transport, cloud or new dependency. Cross-reference: PL-PP-WP02-04 (coalescing of an unsent delete and Undo) is exercised through the UI path here; its own record is unchanged."
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"

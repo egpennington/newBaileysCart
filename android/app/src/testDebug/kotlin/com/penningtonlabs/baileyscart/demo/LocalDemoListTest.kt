@@ -1,20 +1,29 @@
 package com.penningtonlabs.baileyscart.demo
 
+import com.penningtonlabs.baileyscart.core.model.offline.Category
+import com.penningtonlabs.baileyscart.core.model.offline.ItemId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** BC-UI-S1 D1: LOCAL DEMO reducer (PL-PP-WP01-01..04). */
+/**
+ * BC-UI-S1 D1 behavior (PL-PP-WP01-01..04), re-run against the BC-UI-S2-WIRE domain-backed
+ * reducer. Behavior is unchanged except where noted: ids are ItemIds and the exact-name tie-break
+ * is the S2a ItemId order (PL-approved, BC-UI-S2-WIRE item 3).
+ */
 class LocalDemoListTest {
     private val r = LocalDemoList
     private val timeout = LocalDemoList.UNDO_TIMEOUT_MS
+    private val ids = SeqIds()
 
-    private fun empty() = DemoListState(items = emptyList(), nextId = 1, undo = null, nextGeneration = 1, lastEvent = null)
-    private fun DemoListState.add(name: String, c: DemoCategory) = r.reduce(this, DemoAction.Add(name, c))
+    private fun empty() = r.emptyState()
+    private fun DemoListState.act(a: DemoAction) = r.reduce(this, a, ids)
+    private fun DemoListState.add(name: String, c: DemoCategory) = act(DemoAction.Add(name, c))
     private fun DemoListState.names(c: DemoCategory) = itemsIn(c).map { it.name }
     private fun DemoListState.idOf(name: String) = items.single { it.name == name }.id
+    private val unknownId: ItemId = ItemId.parse("00000000-0000-4000-8000-0000000fffff")!!
 
     // --- PL-PP-WP01-01: categories, ordering, empty categories ---
 
@@ -40,9 +49,9 @@ class LocalDemoListTest {
             .add("apple", DemoCategory.PRODUCE)
             .add("Cherry", DemoCategory.PRODUCE)
             .add("Apple", DemoCategory.PRODUCE)
-        // Case-insensitive primary key; exact name ("A" < "a") second; insertion id last.
+        // Case-insensitive primary key; exact name ("A" < "a") second; ItemId value last (S2a order).
         assertEquals(listOf("Apple", "Apple", "apple", "banana", "Cherry"), s.names(DemoCategory.PRODUCE))
-        val apples = s.itemsIn(DemoCategory.PRODUCE).filter { it.name == "Apple" }.map { it.id }
+        val apples = s.itemsIn(DemoCategory.PRODUCE).filter { it.name == "Apple" }.map { it.id.value }
         assertEquals(apples.sorted(), apples)
         // Repeated evaluation is deterministic.
         assertEquals(s.itemsIn(DemoCategory.PRODUCE), s.itemsIn(DemoCategory.PRODUCE))
@@ -82,10 +91,10 @@ class LocalDemoListTest {
 
     @Test fun editRenamesAndMovesCategoryAndResorts() {
         var s = empty().add("Zucchini", DemoCategory.PRODUCE).add("Kale", DemoCategory.PRODUCE)
-        s = r.reduce(s, DemoAction.Edit(s.idOf("Zucchini"), " avocado ", DemoCategory.PRODUCE))
+        s = s.act(DemoAction.Edit(s.idOf("Zucchini"), " avocado ", DemoCategory.PRODUCE))
         assertEquals(listOf("avocado", "Kale"), s.names(DemoCategory.PRODUCE))
         val id = s.idOf("Kale")
-        s = r.reduce(s, DemoAction.Edit(id, "Kale chips", DemoCategory.DRY))
+        s = s.act(DemoAction.Edit(id, "Kale chips", DemoCategory.DRY))
         assertEquals(listOf("avocado"), s.names(DemoCategory.PRODUCE))
         assertEquals(listOf("Kale chips"), s.names(DemoCategory.DRY))
         assertEquals(id, s.idOf("Kale chips"))
@@ -95,9 +104,9 @@ class LocalDemoListTest {
     @Test fun invalidOrUnknownOrNoOpEditLeavesStateUnchanged() {
         val s = empty().add("Bread", DemoCategory.DRY)
         val id = s.idOf("Bread")
-        assertSame(s, r.reduce(s, DemoAction.Edit(id, "   ", DemoCategory.DRY)))
-        assertSame(s, r.reduce(s, DemoAction.Edit(999, "Toast", DemoCategory.DRY)))
-        assertSame(s, r.reduce(s, DemoAction.Edit(id, " Bread ", DemoCategory.DRY)))
+        assertSame(s, s.act(DemoAction.Edit(id, "   ", DemoCategory.DRY)))
+        assertSame(s, s.act(DemoAction.Edit(unknownId, "Toast", DemoCategory.DRY)))
+        assertSame(s, s.act(DemoAction.Edit(id, " Bread ", DemoCategory.DRY)))
     }
 
     // --- PL-PP-WP01-03: latest-only delete and Undo ---
@@ -105,79 +114,82 @@ class LocalDemoListTest {
     @Test fun deleteRemovesItemAndOpensUndoSlotOnMonotonicClock() {
         val s0 = empty().add("Cheese", DemoCategory.DAIRY)
         val item = s0.items.single()
-        val s = r.reduce(s0, DemoAction.Delete(item.id, nowElapsedMs = 1_000, timeoutMs = timeout))
+        val s = s0.act(DemoAction.Delete(item.id, nowElapsedMs = 1_000, timeoutMs = timeout))
         assertTrue(s.items.isEmpty())
-        assertEquals(UndoSlot(generation = 1, item = item, expiresAtElapsedMs = 6_000), s.undo)
+        val slot = s.undo!!
+        assertEquals(1L, slot.generation)
+        assertEquals(item, slot.item)
+        assertEquals(6_000L, slot.expiresAtElapsedMs)
         assertEquals(DemoEvent.Deleted(item), s.lastEvent)
     }
 
     @Test fun undoBeforeExpiryRestoresExactItemOnce() {
         val s0 = empty().add("Ham", DemoCategory.MEAT)
         val item = s0.items.single()
-        val s1 = r.reduce(s0, DemoAction.Delete(item.id, 0, timeout))
-        val s2 = r.reduce(s1, DemoAction.Undo(s1.undo!!.generation, nowElapsedMs = 4_999))
+        val s1 = s0.act(DemoAction.Delete(item.id, 0, timeout))
+        val s2 = s1.act(DemoAction.Undo(s1.undo!!.generation, nowElapsedMs = 4_999))
         assertEquals(listOf(item), s2.items)
         assertNull(s2.undo)
         assertEquals(DemoEvent.Restored(item), s2.lastEvent)
         // Repeated Undo (fast double tap) is idempotent: no duplicate restoration.
-        val s3 = r.reduce(s2, DemoAction.Undo(1, nowElapsedMs = 5_000 - 1))
+        val s3 = s2.act(DemoAction.Undo(1, nowElapsedMs = 5_000 - 1))
         assertSame(s2, s3)
         assertEquals(1, s3.items.size)
     }
 
     @Test fun undoAtOrAfterExpiryBoundaryDoesNotRestore() {
         val s0 = empty().add("Ham", DemoCategory.MEAT)
-        val s1 = r.reduce(s0, DemoAction.Delete(s0.items.single().id, 0, timeout))
-        val atBoundary = r.reduce(s1, DemoAction.Undo(1, nowElapsedMs = 5_000))
+        val s1 = s0.act(DemoAction.Delete(s0.items.single().id, 0, timeout))
+        val atBoundary = s1.act(DemoAction.Undo(1, nowElapsedMs = 5_000))
         assertTrue(atBoundary.items.isEmpty())
         assertNull(atBoundary.undo)
-        assertTrue(r.reduce(s1, DemoAction.Undo(1, nowElapsedMs = 60_000)).items.isEmpty())
+        assertTrue(s1.act(DemoAction.Undo(1, nowElapsedMs = 60_000)).items.isEmpty())
     }
 
     @Test fun expiryClearsSlotOnlyAtOrAfterBoundary() {
         val s0 = empty().add("Ham", DemoCategory.MEAT)
-        val s1 = r.reduce(s0, DemoAction.Delete(s0.items.single().id, 0, timeout))
-        assertSame(s1, r.reduce(s1, DemoAction.Expire(1, nowElapsedMs = 4_999)))
-        val s2 = r.reduce(s1, DemoAction.Expire(1, nowElapsedMs = 5_000))
+        val s1 = s0.act(DemoAction.Delete(s0.items.single().id, 0, timeout))
+        assertSame(s1, s1.act(DemoAction.Expire(1, nowElapsedMs = 4_999)))
+        val s2 = s1.act(DemoAction.Expire(1, nowElapsedMs = 5_000))
         assertNull(s2.undo)
         assertTrue(s2.items.isEmpty())
         // After expiry, a late Undo cannot resurrect the item.
-        assertSame(s2, r.reduce(s2, DemoAction.Undo(1, nowElapsedMs = 5_000)))
+        assertSame(s2, s2.act(DemoAction.Undo(1, nowElapsedMs = 5_000)))
     }
 
     @Test fun secondDeleteReplacesSlotAndFirstDeletionBecomesFinal() {
         val s0 = empty().add("Apple", DemoCategory.PRODUCE).add("Pear", DemoCategory.PRODUCE)
         val apple = s0.items.single { it.name == "Apple" }
         val pear = s0.items.single { it.name == "Pear" }
-        val s1 = r.reduce(s0, DemoAction.Delete(apple.id, 0, timeout))
-        val s2 = r.reduce(s1, DemoAction.Delete(pear.id, 10, timeout)) // rapid double delete
+        val s1 = s0.act(DemoAction.Delete(apple.id, 0, timeout))
+        val s2 = s1.act(DemoAction.Delete(pear.id, 10, timeout)) // rapid double delete
         assertEquals(2L, s2.undo!!.generation)
         assertEquals(pear, s2.undo.item)
         // An Undo for the superseded slot does nothing.
-        assertSame(s2, r.reduce(s2, DemoAction.Undo(1, 20)))
-        val s3 = r.reduce(s2, DemoAction.Undo(2, 20))
+        assertSame(s2, s2.act(DemoAction.Undo(1, 20)))
+        val s3 = s2.act(DemoAction.Undo(2, 20))
         assertEquals(listOf(pear), s3.items)
     }
 
     @Test fun oldTimerCannotDismissNewerSlot() {
         val s0 = empty().add("Apple", DemoCategory.PRODUCE).add("Pear", DemoCategory.PRODUCE)
-        val s1 = r.reduce(s0, DemoAction.Delete(s0.idOf("Apple"), 0, timeout))
-        val s2 = r.reduce(s1, DemoAction.Delete(s1.idOf("Pear"), 4_000, timeout))
+        val s1 = s0.act(DemoAction.Delete(s0.idOf("Apple"), 0, timeout))
+        val s2 = s1.act(DemoAction.Delete(s1.idOf("Pear"), 4_000, timeout))
         // The first slot's timer fires late, at its own boundary and beyond.
-        assertSame(s2, r.reduce(s2, DemoAction.Expire(1, 5_000)))
-        assertSame(s2, r.reduce(s2, DemoAction.Expire(1, 8_999)))
+        assertSame(s2, s2.act(DemoAction.Expire(1, 5_000)))
+        assertSame(s2, s2.act(DemoAction.Expire(1, 8_999)))
         assertEquals(9_000L, s2.undo!!.expiresAtElapsedMs)
-        assertNull(r.reduce(s2, DemoAction.Expire(2, 9_000)).undo)
+        assertNull(s2.act(DemoAction.Expire(2, 9_000)).undo)
     }
 
     @Test fun noStaleSlotResurrectionAfterUndoThenDelete() {
         var s = empty().add("Apple", DemoCategory.PRODUCE).add("Pear", DemoCategory.PRODUCE)
         val apple = s.items.single { it.name == "Apple" }
-        s = r.reduce(s, DemoAction.Delete(apple.id, 0, timeout))
-        s = r.reduce(s, DemoAction.Undo(1, 1))
-        s = r.reduce(s, DemoAction.Delete(s.idOf("Pear"), 2, timeout))
+        s = s.act(DemoAction.Delete(apple.id, 0, timeout))
+        s = s.act(DemoAction.Undo(1, 1))
+        s = s.act(DemoAction.Delete(s.idOf("Pear"), 2, timeout))
         // Replaying the consumed generation-1 Undo must not restore Apple twice or drop Pear's slot.
-        val replay = r.reduce(s, DemoAction.Undo(1, 3))
+        val replay = s.act(DemoAction.Undo(1, 3))
         assertSame(s, replay)
         assertEquals(listOf(apple), replay.items)
         assertEquals(2L, replay.undo!!.generation)
@@ -185,20 +197,25 @@ class LocalDemoListTest {
 
     @Test fun deleteOfUnknownItemIsNoOp() {
         val s = empty().add("Apple", DemoCategory.PRODUCE)
-        assertSame(s, r.reduce(s, DemoAction.Delete(42, 0, timeout)))
+        assertSame(s, s.act(DemoAction.Delete(unknownId, 0, timeout)))
     }
 
     @Test fun extendedAccessibilityTimeoutIsHonored() {
         val s0 = empty().add("Ham", DemoCategory.MEAT)
-        val s1 = r.reduce(s0, DemoAction.Delete(s0.items.single().id, 0, timeoutMs = 20_000))
-        assertEquals(1, r.reduce(s1, DemoAction.Undo(1, 19_999)).items.size)
-        assertSame(s1, r.reduce(s1, DemoAction.Expire(1, 19_999)))
+        val s1 = s0.act(DemoAction.Delete(s0.items.single().id, 0, timeoutMs = 20_000))
+        assertEquals(1, s1.act(DemoAction.Undo(1, 19_999)).items.size)
+        assertSame(s1, s1.act(DemoAction.Expire(1, 19_999)))
     }
 
     @Test fun negativeTimeoutIsClampedToImmediateExpiry() {
         val s0 = empty().add("Ham", DemoCategory.MEAT)
-        val s1 = r.reduce(s0, DemoAction.Delete(s0.items.single().id, 100, timeoutMs = -5))
+        val s1 = s0.act(DemoAction.Delete(s0.items.single().id, 100, timeoutMs = -5))
         assertEquals(100L, s1.undo!!.expiresAtElapsedMs)
-        assertTrue(r.reduce(s1, DemoAction.Undo(1, 100)).items.isEmpty())
+        assertTrue(s1.act(DemoAction.Undo(1, 100)).items.isEmpty())
+    }
+
+    @Test fun categoryTypeIsTheS2aDomainEnum() {
+        // BC-UI-S2-WIRE: one category source of truth.
+        assertSame(Category.PRODUCE, DemoCategory.PRODUCE)
     }
 }
