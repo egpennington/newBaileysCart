@@ -24,6 +24,7 @@ evidence:
   - "Negative control NC-65 (manual): reducer copied into src/main gives 24 release demo classes, so the inspection detects leakage"
   - "Emulator screenshot 29 (seed state after force-stop)"
   - "Local lifecycle/matrix.txt and L*.png: L1 Home RETAINED; L2 Back RESET; L3 am kill RESET; L4 force-stop RESET; L5 Recents swipe RESET; L6b snapshot load RETAINED (original PID restored); L7 adb reboot RESET (uptime 71 s)"
+  - "BC-UI-S2-WIRE re-run: release APK demo_classes=0 and demo string resources=0 (debug 106 demo classes, 32 demo strings); no INTERNET permission; release source set unchanged; NC-97 (reducer copied into src/main) gave 24 release demo classes and was reverted (release demo_classes=0 again)"
 preconditions:
   - "Build-type source sets: src/debug (demo AppEntry) and src/release (placeholder AppEntry)"
 depths:

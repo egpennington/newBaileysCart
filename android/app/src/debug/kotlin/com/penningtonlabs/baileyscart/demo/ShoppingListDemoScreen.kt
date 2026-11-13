@@ -156,7 +156,7 @@ fun ShoppingListDemoScreen(
                         )
                     }
                 } else {
-                    items(categoryItems, key = { "item-${it.id}" }) { item ->
+                    items(categoryItems, key = { "item-${it.id.value}" }) { item ->
                         ItemRow(
                             item = item,
                             onEdit = { dialog = DialogMode.Edit(item) },
@@ -410,9 +410,11 @@ private fun NameField(
     val errorRes = when (check) {
         NameCheck.Blank -> com.penningtonlabs.baileyscart.R.string.demo_name_error_blank
         NameCheck.TooLong -> com.penningtonlabs.baileyscart.R.string.demo_name_error_too_long
+        NameCheck.NotAllowed -> com.penningtonlabs.baileyscart.R.string.demo_name_error_not_allowed
         is NameCheck.Valid -> null
     }
-    val visibleError = errorRes?.takeIf { showBlankError || check is NameCheck.TooLong }
+    // A blank name is flagged only after a submit attempt; the other problems show as typed.
+    val visibleError = errorRes?.takeIf { showBlankError || check !is NameCheck.Blank }
     OutlinedTextField(
         value = name,
         onValueChange = onNameChange,

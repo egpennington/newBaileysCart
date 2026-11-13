@@ -16,11 +16,12 @@ steps:
 expected:
   - "Produce, Dairy, Dry, Frozen, Misc, Meat in that order, always expanded; no category is omitted"
   - "An empty category body shows exactly \"No items yet.\""
-  - "Order: case-insensitive name, then exact name, then insertion id; deterministic across evaluations"
+  - "Order: case-insensitive name, then exact name, then a stable id tie-break; deterministic across evaluations. From BC-UI-S2-WIRE the order is the S2a ListProjector order and the final tie-break is the ItemId value (PL-approved)"
 evidence:
   - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/LocalDemoListTest.kt (categoriesAreTheSixInFixedOrder, seedLeavesMiscAndMeatEmptyAndIsSortedCaseInsensitively, sortIsCaseInsensitiveWithStableTieBreakers)"
   - "Emulator screenshots 01, 08, 11, 19 and uiautomator dumps (local evidence folder BC_UI_S1_EVIDENCE_v1.0)"
   - "Negative control NC-63 (category order changed) caught"
+  - "BC-UI-S2-WIRE re-run (feature/bc-ui-s2-wire): LocalDemoListTest 20/20 and DomainWiringTest.visibleItemsAlwaysEqualTheDomainProjection PASS; NC-96 (list not taken from the projection) caught; emulator seed and post-edit dumps (D3 01, 03, 06) match S1"
 preconditions:
   - "Debug build only; in-memory state; no network permission"
 depths:
