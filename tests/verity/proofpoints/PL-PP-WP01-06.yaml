@@ -26,14 +26,23 @@ expected:
 evidence:
   - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/DomainWiringTest.kt (11 tests: addEditDeleteUndoJourneyPreservesIdentityAndLinksTheUndoToItsDelete, seedIsFivePendingAddsAndNoServerState, seedItemDeleteAndUndoCoalescesAndRestoresTheSameItem, editSendsOnlyChangedFieldsAndNoOpEditEnqueuesNothing, expiredUndoEnqueuesNothingAndTheDeleteStands, supersededDeleteStaysPendingAndOnlyTheLatestIsCoalesced, undoReferencingAnUnknownDeleteIsRefusedAndStateIsUnchanged, revokedScopeRefusesEveryCommandAndStateIsUnchanged, duplicateItemIdAddIsRefusedAndStateIsUnchanged, disallowedCharactersAreRejectedAndEnqueueNothing, visibleItemsAlwaysEqualTheDomainProjection)"
   - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/LocalDemoListTest.kt (20 tests: the 19 S1 behavior tests re-run on the wired reducer, plus categoryTypeIsTheS2aDomainEnum)"
-  - "Negative controls NC-91 (Undo does not reference the slot's deleteOpId), NC-92 (Edit always sends both fields), NC-93 (Undo expiry check removed), NC-94 (refused Undo reported as restored), NC-95 (delete without pre-image), NC-96 (list not taken from the projection) and NC-97 (demo reducer copied into src/main; release inspection) all caught. NC-74..NC-90 are reserved by the PL and were not used"
-  - "Local emulator walkthrough (Medium_Phone API 37) screenshots 01-12 and uiautomator dumps; release/debug APK dexdump and aapt2 inspection"
+  - "Negative controls NC-91 (Undo does not reference the slot's deleteOpId), NC-92 (Edit always sends both fields), NC-93 (Undo expiry check removed), NC-94 (refused Undo reported as restored), NC-95 (delete without pre-image) and NC-96 (list not taken from the projection) caught, each with a retained Gradle log. NC-97 (demo reducer copied into src/main; release inspection) is reported caught in the CODI implementation report (24 demo classes, then 0 after revert), but its execution log was not retained; the only retained NC-97 evidence is the mutated release dex. GAI rated it CONDITIONAL PASS, not PASS, and the PL accepted the missing log as exception GAI-S2W-M01. NC-74..NC-90 are reserved by the PL and were not used"
+  - "Local emulator walkthrough (Medium_Phone API 37) screenshots 01-12 (the uiautomator dumps and logcat output used during the walkthrough were not retained); release/debug APK dexdump class lists and APK SHA-256 values retained. The aapt2 resource and permission inspection (0 demo_ strings, no INTERNET permission) is reported, but its raw output and the APKs were not retained; the PL accepted this as exception GAI-S2W-M02"
 preconditions:
   - "Debug build only; in-memory state; fixed fictional AccountKey/FamilyId (local-demo-account / local-demo-family), FamilyEpoch 1"
 depths:
   D1: "local PASS (DomainWiringTest 11/11, LocalDemoListTest 20/20; :core:model 48/48 unchanged)"
   D2: "BLOCKED: no Compose UI test or instrumentation dependencies; adding them needs PL approval"
   D3: "local PASS (manual, adb-driven emulator walkthrough, API 37): seed, add, edit, delete, Undo at about +1.2 s, expired Undo at about +7.5 s, blank and too-long errors. The not-allowed-characters message is D1 only"
-  D4: "NOT_RUN: GAI independent review pending"
+  D4: "GAI CONDITIONAL GO (GAI-D4-BC-UI-S2-WIRE-001, GAI_BC_UI_S2_WIRE_D4_Verification_Report_v1.0.md; local, untracked; SHA-256 ab700ef7…8617). Review target PR #20 at HEAD 78e889f; feature commit 02b9afe. GAI rated this ProofPoint D4 CONDITIONAL PASS. The PL accepted exceptions GAI-S2W-M01 and GAI-S2W-M02 on 2026-11-16"
 notes: "The Undo window (5 s, accessibility-extended, monotonic, latest-only, generation-keyed) remains UI policy; the domain sees only items.delete and items.undoDelete. The in-memory outbox grows by one operation per action for the process lifetime and is never compacted, dispatched or persisted (PL condition 6). No S2b storage, transport, cloud or new dependency. Cross-reference: PL-PP-WP02-04 (coalescing of an unsent delete and Undo) is exercised through the UI path here; its own record is unchanged."
-status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"
+accepted_exceptions:
+  - "GAI-S2W-M01 (MEDIUM): NC-97 execution log not retained. Accepted by the PL as a documented evidence exception, 2026-11-16. NC-97 is not recorded as PASS"
+  - "GAI-S2W-M02 (MEDIUM): raw release-APK aapt2 resource and permission output, and the APKs, not retained. Accepted by the PL as a documented evidence exception, 2026-11-16. Class-level release isolation rests on the retained release class list"
+limitations_preserved:
+  - "GAI-S2W-M03 (MEDIUM): D2 BLOCKED; no Compose UI or instrumentation test dependencies (S1 baseline). Not executed and not PASS"
+  - "GAI-S2W-L01 (LOW): the in-memory outbox grows without compaction for the process lifetime (PL condition 6)"
+  - "GAI-S2W-L02 (LOW): not run on device: the not-allowed-characters message (D1 only), rotation, 200% font scale and TalkBack"
+  - "GAI-S2W-L03 (LOW): the full D1 build log and the pre-change baseline log on 5139501 were not retained; D1 rests on the JUnit XML and the lint summary"
+  - "Verity, docs-check and Firebase-guard PASS results for this slice are reported, not retained as output"
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 GAI CONDITIONAL GO with PL risk acceptance of GAI-S2W-M01 and GAI-S2W-M02 (2026-11-16); NC-97 and D2 are not recorded as PASS"

@@ -28,6 +28,6 @@ depths:
   D1: "local PASS (LocalDemoListTest)"
   D2: "BLOCKED: no Compose UI test or instrumentation dependencies in the project; adding them needs PL approval"
   D3: "local PASS (manual, adb-driven emulator walkthrough, API 37)"
-  D4: "NOT_RUN: GAI independent review pending"
+  D4: "GAI PASS (GAI-D4-BC-UI-S2-WIRE-001 (BC-UI-S2-WIRE review of PR #20 at 78e889f, feature commit 02b9afe; local, untracked))"
 notes: "Display order is the enum order rendered by ShoppingListDemoScreen. The empty-state text is rendered by the UI and verified only on the emulator (D3)."
-status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 GAI PASS"

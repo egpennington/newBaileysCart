@@ -31,6 +31,6 @@ depths:
   D1: "NOT_APPLICABLE (UI semantics)"
   D2: "BLOCKED: no Compose UI test dependencies"
   D3: "local PASS for semantics, target size and scaling inspection. TalkBack journey BLOCKED: adb-injected taps bypass touch exploration, so spoken output and focus order need a manual pass"
-  D4: "NOT_RUN: GAI independent review pending"
+  D4: "NOT_RUN: not re-verified in GAI-D4-BC-UI-S2-WIRE-001 (layout and accessibility markup unchanged from S1; ProofPoint not re-run in BC-UI-S2-WIRE)"
 notes: "PL refinement fixed the landscape Add/Edit dialogs (one scroll area inside a full-window dialog padded by safeDrawing, which includes the IME) and compacted the landscape bottom bar. Category buttons are 48 dp minimum, 3 per row when wide and 2 otherwise. An earlier finding during D3 was also fixed. At 200% the pinned header took about 38% of the screen, so only the LOCAL DEMO line stays pinned now. Dialog buttons were hidden by the keyboard, so the dialog now pads above the IME. After a delete, TalkBack focus is not moved programmatically; the result is announced through a polite live region."
 status: "PARTIAL: local D3 inspection PASS; TalkBack journey BLOCKED; D2 BLOCKED; D4 NOT_RUN"

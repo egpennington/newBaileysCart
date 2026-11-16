@@ -24,13 +24,13 @@ evidence:
   - "Negative control NC-65 (manual): reducer copied into src/main gives 24 release demo classes, so the inspection detects leakage"
   - "Emulator screenshot 29 (seed state after force-stop)"
   - "Local lifecycle/matrix.txt and L*.png: L1 Home RETAINED; L2 Back RESET; L3 am kill RESET; L4 force-stop RESET; L5 Recents swipe RESET; L6b snapshot load RETAINED (original PID restored); L7 adb reboot RESET (uptime 71 s)"
-  - "BC-UI-S2-WIRE re-run: release APK demo_classes=0 and demo string resources=0 (debug 106 demo classes, 32 demo strings); no INTERNET permission; release source set unchanged; NC-97 (reducer copied into src/main) gave 24 release demo classes and was reverted (release demo_classes=0 again)"
+  - "BC-UI-S2-WIRE re-run: release APK demo_classes=0 and demo string resources=0 (debug 106 demo classes, 32 demo strings); no INTERNET permission; release source set unchanged; NC-97 (reducer copied into src/main) gave 24 release demo classes and was reverted (release demo_classes=0 again). Retained: the release and debug class lists, the APK SHA-256 values and the mutated NC-97 release dex. Not retained: the NC-97 execution log (GAI-S2W-M01) and the raw aapt2 resource and permission output and the APKs (GAI-S2W-M02); the string-resource and INTERNET-permission results rest on the CODI report. Both gaps are PL-accepted evidence exceptions (2026-11-16), not PASS results"
 preconditions:
   - "Build-type source sets: src/debug (demo AppEntry) and src/release (placeholder AppEntry)"
 depths:
   D1: "local PASS (DebugEntryTest)"
   D2: "NOT_RUN: release unit tests are not enabled in AGP 9 (onlyEnableUnitTestForTheTestedBuildType); enabling them changes build config and lockfiles and needs PL approval"
   D3: "local PASS (APK inspection and emulator restart check)"
-  D4: "NOT_RUN: GAI independent review pending"
+  D4: "GAI CONDITIONAL PASS (GAI-D4-BC-UI-S2-WIRE-001 (BC-UI-S2-WIRE review of PR #20 at 78e889f, feature commit 02b9afe; local, untracked)). Conditional on the PL-accepted evidence exceptions GAI-S2W-M01 (NC-97 execution log not retained) and GAI-S2W-M02 (raw aapt2 output and APKs not retained), accepted 2026-11-16; see decision register v1.17"
 notes: "The PL report of items surviving app close or emulator power-off is explained by Home (backgrounded, process alive) and Android Studio Quick Boot (saveOnExit=true restores a RAM snapshot; guest uptime was 31,565 s after a fresh emulator start). No auth, entitlement or navigation gate exists in the app yet (WP-00 shell), so the demo bypasses none. The release placeholder behavior is unchanged."
-status: "PARTIAL: local D1 and D3 PASS; release isolation is verified by local APK inspection, not in CI; D4 NOT_RUN"
+status: "PARTIAL: local D1 and D3 PASS; release isolation is verified by local APK inspection, not in CI; D2 NOT_RUN; D4 GAI CONDITIONAL PASS with PL-accepted exceptions GAI-S2W-M01 and GAI-S2W-M02"

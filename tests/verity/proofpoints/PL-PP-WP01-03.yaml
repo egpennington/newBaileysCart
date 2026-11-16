@@ -30,6 +30,6 @@ depths:
   D1: "local PASS (LocalDemoListTest)"
   D2: "BLOCKED: no Compose UI test dependencies"
   D3: "local PASS (manual, adb-driven emulator timings, API 37)"
-  D4: "NOT_RUN: GAI independent review pending"
+  D4: "GAI PASS (GAI-D4-BC-UI-S2-WIRE-001 (BC-UI-S2-WIRE review of PR #20 at 78e889f, feature commit 02b9afe; local, untracked))"
 notes: "The UI timer is a LaunchedEffect keyed by slot generation, so a newer slot cancels the older timer; Expire and Undo also carry the generation. The window is read from LocalAccessibilityManager.calculateRecommendedTimeoutMillis at each delete. Host timings come from adb command issue times and are approximate."
-status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"
+status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 GAI PASS"

@@ -26,7 +26,7 @@ preconditions:
 depths:
   D1: "local PASS (LocalDemoListTest)"
   D2: "BLOCKED: no Compose UI test dependencies"
-  D3: "local PASS (manual emulator walkthrough: blank rejection, add Yogurt to Dairy, edit to Greek Yogurt in Misc. PL refinement: two-action add of Milk (landscape) and Eggs (portrait) to Dairy and Tofu to Meat at 360 dp / 200%; blank-name rejection with the category buttons; Edit Done still saves)"
-  D4: "NOT_RUN: GAI independent review pending"
+  D3: "local PASS (manual emulator walkthrough: blank rejection, add Yogurt to Dairy, edit to Greek Yogurt in Misc. PL refinement: two-action add of Milk (landscape) and Eggs (portrait) to Dairy and Tofu to Meat at 360 dp / 200%; blank-name rejection with the category buttons; Edit Done still saves). BC-UI-S2-WIRE: PARTIAL (GAI-D4-BC-UI-S2-WIRE-001): the not-allowed-characters message was not exercised on device and is covered by D1 only"
+  D4: "GAI PASS (GAI-D4-BC-UI-S2-WIRE-001 (BC-UI-S2-WIRE review of PR #20 at 78e889f, feature commit 02b9afe; local, untracked))"
 notes: "PL hands-on feedback (2026-11-07) changed Add to the two-action flow; Edit behavior is unchanged. The 100-code-point limit comes from API v0.4 §6 (display names). Whitespace normalization beyond trimming the ends and canonical NameKey are OPEN W-03 and not implemented."
-status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"
+status: "PARTIAL: local D1 PASS; D3 PASS for S1, PARTIAL for BC-UI-S2-WIRE (not-allowed message D1 only); D2 BLOCKED; D4 GAI PASS"
