@@ -14,18 +14,19 @@ steps:
   - "Add an item; edit its name and move it to another category; edit an unknown id; submit a no-op edit"
 expected:
   - "Add: tapping a category with a valid name adds immediately (no separate confirm); with a blank name it shows \"Enter an item name.\", adds nothing and keeps the dialog open"
-  - "Names are trimmed; more than 100 code points shows \"Use 100 characters or fewer.\""
+  - "Names are trimmed; more than 100 code points shows \"Use 100 characters or fewer.\". From BC-UI-S2-WIRE, names are checked by the S2a ItemName rules: line breaks, control and bidi characters and unpaired surrogates show \"Name contains characters that aren't allowed.\" (PL-approved wording) and add or edit nothing"
   - "Edit keeps the item id, updates the name and category, and re-sorts; unknown or no-op edits change nothing"
   - "Duplicate names are neither merged nor rejected (no invented canonicalization)"
 evidence:
   - "LocalDemoListTest (addTrimsNameAndAssignsCategory, blankAndWhitespaceOnlyNamesAreRejectedWithoutStateChange, nameLimitIsOneHundredCodePointsAfterTrim, duplicateNamesAreNotCanonicalizedOrMerged, editRenamesAndMovesCategoryAndResorts, invalidOrUnknownOrNoOpEditLeavesStateUnchanged)"
   - "Emulator screenshots 02-08 and 20-24"
+  - "BC-UI-S2-WIRE re-run: LocalDemoListTest validation and edit tests PASS; DomainWiringTest (disallowedCharactersAreRejectedAndEnqueueNothing, editSendsOnlyChangedFieldsAndNoOpEditEnqueuesNothing) PASS; NC-92 caught; emulator D3 02-06, 11, 12 (add Eggs to Dairy, edit to Free range eggs in Misc, blank and too-long errors). The not-allowed message was not exercised on device (adb input cannot type those characters); D1 only"
 preconditions:
   - "Debug build only; in-memory state"
 depths:
   D1: "local PASS (LocalDemoListTest)"
   D2: "BLOCKED: no Compose UI test dependencies"
-  D3: "local PASS (manual emulator walkthrough: blank rejection, add Yogurt to Dairy, edit to Greek Yogurt in Misc. PL refinement: two-action add of Milk (landscape) and Eggs (portrait) to Dairy and Tofu to Meat at 360 dp / 200%; blank-name rejection with the category buttons; Edit Done still saves)"
-  D4: "NOT_RUN: GAI independent review pending"
+  D3: "local PASS (manual emulator walkthrough: blank rejection, add Yogurt to Dairy, edit to Greek Yogurt in Misc. PL refinement: two-action add of Milk (landscape) and Eggs (portrait) to Dairy and Tofu to Meat at 360 dp / 200%; blank-name rejection with the category buttons; Edit Done still saves). BC-UI-S2-WIRE: PARTIAL (GAI-D4-BC-UI-S2-WIRE-001): the not-allowed-characters message was not exercised on device and is covered by D1 only"
+  D4: "GAI PASS (GAI-D4-BC-UI-S2-WIRE-001 (BC-UI-S2-WIRE review of PR #20 at 78e889f, feature commit 02b9afe; local, untracked))"
 notes: "PL hands-on feedback (2026-11-07) changed Add to the two-action flow; Edit behavior is unchanged. The 100-code-point limit comes from API v0.4 §6 (display names). Whitespace normalization beyond trimming the ends and canonical NameKey are OPEN W-03 and not implemented."
-status: "PARTIAL: local D1 and D3 PASS; D2 BLOCKED; D4 NOT_RUN"
+status: "PARTIAL: local D1 PASS; D3 PASS for S1, PARTIAL for BC-UI-S2-WIRE (not-allowed message D1 only); D2 BLOCKED; D4 GAI PASS"
