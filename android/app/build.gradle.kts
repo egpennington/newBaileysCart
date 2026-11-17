@@ -57,5 +57,10 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
 
+    // BC-S2-LOCAL-PERSIST LP-2 (PL-authorized; LP-0 D-2 amendment): encrypted storage for the
+    // debug LOCAL DEMO only. Never implementation/api: release must not contain :core:storage,
+    // Room, androidx.sqlite or SQLCipher (NC-98; scripts/check-release-isolation.sh).
+    debugImplementation(project(":core:storage"))
+
     testImplementation(libs.junit)
 }

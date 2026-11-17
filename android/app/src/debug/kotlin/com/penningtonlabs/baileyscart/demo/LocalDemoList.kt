@@ -22,12 +22,13 @@ import com.penningtonlabs.baileyscart.core.model.offline.Transition
  * BC-UI-S2-WIRE LOCAL DEMO shopping-list state. Debug source set only.
  *
  * The visible list is driven by the BC-UI-S2a offline domain core: every Add, Edit, Delete and
- * Undo is enqueued on an in-memory FamilyOutbox, and the list shown is ListProjector's
- * projection. Nothing is dispatched, persisted or sent: there is no transport, so every
- * operation stays PENDING (or COALESCED_NO_OP) for the life of the process. State is lost when
- * the process ends, which is expected demo behavior. The Undo window (5 s, monotonic clock,
- * latest-only slot) is local UI policy; Undo itself is an items.undoDelete command that
- * references its delete operation.
+ * Undo is enqueued on a FamilyOutbox, and the list shown is ListProjector's projection. Nothing
+ * is dispatched or sent: there is no transport, so every operation stays PENDING (or
+ * COALESCED_NO_OP). The Undo window (5 s, monotonic clock, latest-only slot) is local UI policy;
+ * Undo itself is an items.undoDelete command that references its delete operation.
+ *
+ * This reducer is pure and in memory. BC-S2-LOCAL-PERSIST LP-2 persists the outbox (not this
+ * state object) through persist/PersistentDemoList; the Undo slot is never persisted.
  */
 
 /** The six categories, in their fixed display order. The S2a domain enum is the single source. */
@@ -103,17 +104,19 @@ object LocalDemoList {
      * Fixed, fictional demo scope. These are not account or family identifiers from any real
      * system and grant nothing; they only partition the in-memory outbox.
      */
+    val DEMO_FAMILY: FamilyId = checkNotNull(FamilyId.of("local-demo-family"))
     val DEMO_KEY: FamilyKey = FamilyKey(
         account = checkNotNull(AccountKey.of("local-demo-account")),
-        family = checkNotNull(FamilyId.of("local-demo-family")),
+        family = DEMO_FAMILY,
     )
     private val DEMO_EPOCH: FamilyEpoch = FamilyEpoch.INITIAL
 
     /**
      * ListProjector needs a baseline snapshot. This one is EMPTY: the demo has no server and
-     * claims no server state. Every visible item comes from a local pending operation.
+     * claims no server state. Every visible item comes from a local pending operation. The
+     * epoch is fixed, so a stored outbox at any other epoch (or revoked) is refused.
      */
-    private val NO_SERVER_STATE: ServerSnapshot = ServerSnapshot(DEMO_KEY, DEMO_EPOCH, emptyList())
+    private fun noServerState(key: FamilyKey): ServerSnapshot = ServerSnapshot(key, DEMO_EPOCH, emptyList())
 
     /** Small, clearly fictional seed, enqueued as pending Adds with fixed ids. MISC and MEAT start empty. */
     private val SEED: List<Pair<String, DemoCategory>> = listOf(
@@ -139,17 +142,29 @@ object LocalDemoList {
     fun emptyState(): DemoListState =
         DemoListState(outbox = FamilyOutbox.empty(DEMO_KEY, DEMO_EPOCH), items = emptyList(), undo = null, nextGeneration = 1L, lastEvent = null)
 
-    fun initialState(): DemoListState {
-        var outbox = FamilyOutbox.empty(DEMO_KEY, DEMO_EPOCH)
+    fun initialState(key: FamilyKey = DEMO_KEY): DemoListState =
+        fromOutbox(seededOutbox(key)) ?: error("seed projection refused")
+
+    /** The fixed fictional seed as pending Adds with fixed ids, for [key]. Deterministic. */
+    fun seededOutbox(key: FamilyKey = DEMO_KEY): FamilyOutbox {
+        var outbox = FamilyOutbox.empty(key, DEMO_EPOCH)
         SEED.forEachIndexed { i, (name, category) ->
             val n = "%012x".format(i + 1)
             val itemId = checkNotNull(ItemId.parse("5eed0000-0000-4000-8000-$n"))
             val opId = checkNotNull(OpId.parse("5eed0000-0000-4000-9000-$n"))
             val itemName = (ItemName.validate(name) as NameValidation.Valid).name
-            val t = outbox.enqueue(opId, DEMO_KEY, outbox.currentEpoch, ItemCommand.Add(itemId, itemName, category))
+            val t = outbox.enqueue(opId, key, outbox.currentEpoch, ItemCommand.Add(itemId, itemName, category))
             outbox = (t as? Transition.Applied)?.outbox ?: error("seed enqueue refused: $t")
         }
-        val items = project(outbox) ?: error("seed projection refused")
+        return outbox
+    }
+
+    /**
+     * State for a recovered (or freshly seeded) outbox: its projection, no Undo slot and no
+     * event. Returns null (fail closed) if ListProjector refuses the outbox.
+     */
+    fun fromOutbox(outbox: FamilyOutbox): DemoListState? {
+        val items = project(outbox) ?: return null
         return DemoListState(outbox = outbox, items = items, undo = null, nextGeneration = 1L, lastEvent = null)
     }
 
@@ -164,7 +179,7 @@ object LocalDemoList {
     // ---- domain plumbing -------------------------------------------------------------------
 
     private fun project(outbox: FamilyOutbox): List<DemoItem>? =
-        when (val r = ListProjector.project(NO_SERVER_STATE, outbox)) {
+        when (val r = ListProjector.project(noServerState(outbox.key), outbox)) {
             is ProjectionResult.Projected -> r.projection.items.map { DemoItem(it.itemId, it.name, it.category) }
             is ProjectionResult.Refused -> null
         }

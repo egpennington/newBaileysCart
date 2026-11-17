@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
 # Draft for GAI D4. Not committed.
 id: PL-PP-WP02-01
@@ -9,27 +10,35 @@ owner: CODI
 independent_reviewer: GAI
 level: "instrumented (D2)"
 slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
-slice_coverage: "PARTIAL. Module-level process death (real SIGKILL of a separate :victim process). No app-level restart until LP-2/LP-3."
+slice_coverage: "PARTIAL. Module-level process death (real SIGKILL of a separate :victim process). No app-level restart until LP-2/LP-3. | LP-2: app-level wiring of the debug LOCAL DEMO: seed once, startup recovery, ordered commit-before-render (D1) and app restart after SIGKILL (D3)"
 steps:
   - "Run the coordinator scenario in VictimService and kill it at 7 crash points x 50 runs; recover with SpikeStores.recover and drain"
   - "Interrupt a set-aside after 1..3 file moves; resume"
+  - "LP-2 D1: PersistentDemoListTest over a fake store (seed once, restart recovery, Undo not restored, commit before render, refused/throwing commit, 25 rapid actions in order)"
+  - "LP-2 D3: debug app on the emulator: Add, Edit, Delete+Undo, Delete; SIGKILL (kill -9) with and without an open Undo slot; force-stop; relaunch"
 expected:
   - "The recovered disk state equals the model at every crash point (350/350); IN_FLIGHT recovers as RETRY_WAIT; the sibling family is intact; no Q-7 violation"
   - "An interrupted set-aside resumes byte-identically"
+  - "LP-2: the list after relaunch equals the list before the kill; the Undo slot is not restored and the delete stands; the seed is never written again; nothing renders before its commit succeeds; each write's expected value is the previous committed value"
 evidence:
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/CrashRecoveryTest.kt (processKillAtEveryCrashPointRecoversModelStateAndConverges, interruptedSetAsideResumesWithoutLoss)"
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/DurabilityTest.kt (dur2CommitPrecedesSendAndRejectionWithBlockedDependentsPrecedesYoungerDispatch)"
   - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): runs/LP1-4KB-full evidence-logcat DUR3 7 points x 50/50"
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/persist/PersistentDemoListTest.kt (26 tests) and demo/LocalDemoListRecoveryTest.kt (5 tests)"
+  - "LP-2 evidence C:/dev/bc-lp2-evidence (local, untracked): d3/D3-01..D3-05 (screenshots, UI text dumps, store listings): list identical across SIGKILL; Undo open before kill, absent after; seed not re-written after force-stop"
+  - "LP-2 evidence C:/dev/bc-lp2-evidence (local, untracked): runs/LP2-LP1-regression-4KB-full: LP-1 instrumented suite re-run 37/37 PASS (DUR3 7 points x 50/50) on the unchanged :core:storage source"
 negative_controls:
   - "NC-76 CAUGHT (BLOCKED_DEPENDENCY not written)"
   - "NC-78 CAUGHT (send without durable IN_FLIGHT commit)"
+  - "LP-2 NC-101 (provisional ID) CAUGHT (render before commit: 3 tests failed)"
+  - "LP-2 NC-102 (provisional ID) CAUGHT (re-seed over the recovered outbox on restart: 6 tests failed)"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
 depths:
-  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only)"
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only) | LP-2: local PASS (app-level, fake store; 31 new tests)"
   D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
-  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
-  D4: "NOT_RUN: GAI independent review pending"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-2: local PASS (debug app restart after SIGKILL and force-stop on 4 KiB API 37)"
+  D4: "NOT_RUN: GAI independent review pending | LP-2: NOT_RUN: GAI independent review of LP-2 pending"
 notes: "DUR-4 physical power loss is NOT_VERIFIED (emulator); WAL + synchronous=FULL is relied on per SQLite documentation. Existing PL-PP-WP02-02/03/05 (PS-OFFLINE-SYNC) are not promoted by this evidence."
-status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN"
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; LP-1 D2 re-run PASS; D4 NOT_RUN for LP-2"

@@ -86,11 +86,19 @@ private sealed interface DialogMode {
     data class Edit(val item: DemoItem) : DialogMode
 }
 
+/**
+ * [editable] false (LP-2: a save failed) shows the last saved list read-only: no Add, Edit,
+ * Delete or Undo. [notice] is shown above the list. [onResetRequest] opens the reset
+ * confirmation (null hides the reset control).
+ */
 @Composable
 fun ShoppingListDemoScreen(
     state: DemoListState,
     onAction: (DemoAction) -> Unit,
     modifier: Modifier = Modifier,
+    editable: Boolean = true,
+    notice: (@Composable () -> Unit)? = null,
+    onResetRequest: (() -> Unit)? = null,
 ) {
     var dialog by remember { mutableStateOf<DialogMode?>(null) }
 
@@ -128,6 +136,7 @@ fun ShoppingListDemoScreen(
         bottomBar = {
             DemoBottomBar(
                 state = state,
+                editable = editable,
                 onUndo = { slot -> onAction(DemoAction.Undo(slot.generation, SystemClock.elapsedRealtime())) },
                 onAdd = { dialog = DialogMode.Add },
             )
@@ -142,7 +151,8 @@ fun ShoppingListDemoScreen(
                 end = 16.dp,
             ),
         ) {
-            item(key = "intro") { DemoIntro() }
+            item(key = "intro") { DemoIntro(onResetRequest) }
+            if (notice != null) item(key = "notice") { notice() }
             DemoCategory.entries.forEach { category ->
                 item(key = "header-${category.name}") { CategoryHeader(category) }
                 val categoryItems = state.itemsIn(category)
@@ -159,6 +169,7 @@ fun ShoppingListDemoScreen(
                     items(categoryItems, key = { "item-${it.id.value}" }) { item ->
                         ItemRow(
                             item = item,
+                            editable = editable,
                             onEdit = { dialog = DialogMode.Edit(item) },
                             onDelete = {
                                 onAction(DemoAction.Delete(item.id, SystemClock.elapsedRealtime(), undoTimeoutMs()))
@@ -212,13 +223,18 @@ private fun DemoHeader() {
 
 /** Scrolls with the list: the demo-scope explanation and the screen title. */
 @Composable
-private fun DemoIntro() {
+private fun DemoIntro(onResetRequest: (() -> Unit)?) {
     Column(Modifier.padding(top = 4.dp)) {
         Text(
             text = stringResource(com.penningtonlabs.baileyscart.R.string.demo_banner_detail),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (onResetRequest != null) {
+            TextButton(onClick = onResetRequest, modifier = Modifier.heightIn(min = MinTouchTarget)) {
+                Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_reset_action))
+            }
+        }
         Text(
             text = stringResource(com.penningtonlabs.baileyscart.R.string.demo_title),
             style = MaterialTheme.typography.headlineSmall,
@@ -243,7 +259,7 @@ private fun CategoryHeader(category: DemoCategory) {
 }
 
 @Composable
-private fun ItemRow(item: DemoItem, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun ItemRow(item: DemoItem, editable: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
     val categoryLabel = stringResource(item.category.labelRes())
     val editCd = stringResource(com.penningtonlabs.baileyscart.R.string.demo_edit_cd, item.name, categoryLabel)
     val deleteCd = stringResource(com.penningtonlabs.baileyscart.R.string.demo_delete_cd, item.name, categoryLabel)
@@ -260,18 +276,20 @@ private fun ItemRow(item: DemoItem, onEdit: () -> Unit, onDelete: () -> Unit) {
                 .weight(1f)
                 .padding(vertical = 8.dp),
         )
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier
-                .heightIn(min = MinTouchTarget)
-                .semantics { contentDescription = editCd },
-        ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_edit)) }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier
-                .heightIn(min = MinTouchTarget)
-                .semantics { contentDescription = deleteCd },
-        ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_delete)) }
+        if (editable) {
+            TextButton(
+                onClick = onEdit,
+                modifier = Modifier
+                    .heightIn(min = MinTouchTarget)
+                    .semantics { contentDescription = editCd },
+            ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_edit)) }
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .heightIn(min = MinTouchTarget)
+                    .semantics { contentDescription = deleteCd },
+            ) { Text(stringResource(com.penningtonlabs.baileyscart.R.string.demo_delete)) }
+        }
     }
 }
 
@@ -279,7 +297,8 @@ private fun ItemRow(item: DemoItem, onEdit: () -> Unit, onDelete: () -> Unit) {
 private val WideLayout = 600.dp
 
 @Composable
-private fun DemoBottomBar(state: DemoListState, onUndo: (UndoSlot) -> Unit, onAdd: () -> Unit) {
+private fun DemoBottomBar(state: DemoListState, editable: Boolean, onUndo: (UndoSlot) -> Unit, onAdd: () -> Unit) {
+    if (!editable) return
     Surface(tonalElevation = 3.dp) {
         BoxWithConstraints(
             modifier = Modifier

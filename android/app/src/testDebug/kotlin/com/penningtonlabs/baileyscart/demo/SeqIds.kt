@@ -8,9 +8,9 @@ import com.penningtonlabs.baileyscart.core.model.offline.OpId
  * different variant nibbles (8 and a) so they never collide with each other or with the seed
  * ids (prefix 5eed0000).
  */
-class SeqIds : DemoIds {
-    private var nextItem = 1L
-    private var nextOp = 1L
+class SeqIds(start: Long = 1L) : DemoIds {
+    private var nextItem = start
+    private var nextOp = start
 
     override fun newItemId(): ItemId = ItemId.parse("00000000-0000-4000-8000-%012x".format(nextItem++))!!
     override fun newOpId(): OpId = OpId.parse("00000000-0000-4000-a000-%012x".format(nextOp++))!!
