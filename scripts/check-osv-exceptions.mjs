@@ -32,11 +32,11 @@ const WORKFLOW = '.github/workflows/forge-wp00.yml';
 const POLICY_STEP = { name: 'Verify security exception policy', run: 'node scripts/check-osv-exceptions.mjs' };
 const SCAN_STEP = {
   name: 'Scan lockfiles',
-  run: './osv-scanner scan source -L android/app/gradle.lockfile -L android/core/model/gradle.lockfile -L backend/functions/package-lock.json',
+  run: './osv-scanner scan source -L android/app/gradle.lockfile -L android/core/model/gradle.lockfile -L android/core/storage/gradle.lockfile -L backend/functions/package-lock.json',
 };
 const SBOM_STEP = {
   name: 'CycloneDX SBOM',
-  run: './osv-scanner scan source --all-packages --format cyclonedx-1-6 --output-file sbom.cdx.json -L android/app/gradle.lockfile -L android/core/model/gradle.lockfile -L backend/functions/package-lock.json || true',
+  run: './osv-scanner scan source --all-packages --format cyclonedx-1-6 --output-file sbom.cdx.json -L android/app/gradle.lockfile -L android/core/model/gradle.lockfile -L android/core/storage/gradle.lockfile -L backend/functions/package-lock.json || true',
 };
 // Flags that change which configuration osv-scanner applies, or that skip/alter scanning.
 const FORBIDDEN_SCANNER_FLAGS = /(^|\s)(--config\b|--no-ignore\b|--experimental-[\w-]+|--allow-no-lockfiles\b|--offline\b|--no-resolve\b|-r\b|--recursive\b)/;

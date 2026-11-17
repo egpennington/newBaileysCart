@@ -1,0 +1,31 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-08
+name: "Encryption confidentiality: no fictional item, family or sentinel string is present in plaintext in the database, live WAL, journal, temp files or logcat; whole-DB SQLCipher with a Keystore-wrapped DEK"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: "instrumented (D2)"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. Byte scan of canaries in UTF-8 and UTF-16 with a positive control. Memory is not covered."
+steps:
+  - "Write sentinel values; scan every account file (db, live -wal before close, -shm, journal) and the app logcat; run the same scan on a deliberately plaintext database"
+expected:
+  - "Scan clean on 8 files including a live WAL; the positive control detects the canary; cipher_version 4.20.0 community"
+evidence:
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/EncryptionIsolationTest.kt (noPlaintextAtRestAndScannerPositiveControl, roundTripReopenAndObservedSecurityLevel, noKeyMaterialInToStringAndNoMainThreadDatabaseWork)"
+  - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): evidence-logcat PLAINTEXT scan clean files=8 walBytesBeforeClose=98912; positive control detected"
+negative_controls:
+  - "NC-75 CAUGHT (SQLCipher wiring removed; canary found in -wal)"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "A scan proves only the absence of the specific canaries in the files examined; it does not prove absence of other plaintext or cover memory. Keystore securityLevel observed SOFTWARE (emulator)."
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN"

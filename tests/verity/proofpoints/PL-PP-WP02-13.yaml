@@ -1,0 +1,33 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-13
+name: "Bounded WAL media-damage behavior: damage to the final WAL frame loses exactly the final committed transaction; earlier transactions and the sibling family are intact; the store opens normally (no lock, no destructive fallback, no set-aside) and stays writable"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: medium
+owner: CODI
+independent_reviewer: GAI
+level: "instrumented (D2)"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. Media damage to the last WAL frame only. The loss is silent by design of SQLite WAL recovery; it is a disclosed limitation for fictional demo data (LP-0 P-5)."
+steps:
+  - "Commit T1 (family A), T2 (sibling B), T3 (A), T4 (A); prove T4 is appended after T3 with no checkpoint (db hash and WAL salts unchanged)"
+  - "Copy db + wal while open as a crash image; reopen the undamaged image (control); then flip 8 bytes in the middle of the page image of the final (commit) frame and reopen"
+expected:
+  - "Control: T1..T4 all present"
+  - "Damaged: Opened (not LOCKED); family A holds exactly the T1 and T3 operations (T4 lost); sibling intact; no set-aside or quarantine; DEK untouched; a CAS from the recovered state succeeds"
+evidence:
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/WalLastFrameBoundTest.kt (lastFrameDamageLosesExactlyTheFinalTransactionAndNothingElse)"
+  - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): evidence-logcat WAL-BOUND pageSize=4096 walBytes=119512 t4Bytes=16480 lastFrameAt=115392 damageAt=117464 control=ALL_4_TXNS damaged=OPENED lostOnly=T4 sibling=INTACT setAside=NO writable=YES"
+negative_controls:
+  - "NC-99 CAUGHT (open() discards -wal/-shm: the control lost all transactions, exceeding the bound)"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "Detection of this loss (for example a commit-counter sidecar) is not implemented; it is a Stage B3 decision before real-user data. Crash and power loss are a different case (WAL + synchronous=FULL; DUR-4 not hardware-verified). The earlier observation test walFrameDamageObservation is retained."
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN"

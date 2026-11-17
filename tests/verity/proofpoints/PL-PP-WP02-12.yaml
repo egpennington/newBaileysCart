@@ -1,0 +1,36 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-12
+name: "Account and family isolation: one database per account; (familyId, opId) unique; another account cannot read or open A; colliding opIds in another family never change family A; a failed CAS rolls back entirely"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: "instrumented (D2)"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. Store-level. The LOCAL DEMO uses one account and one family, so the app does not exercise this."
+steps:
+  - "Two accounts with the same familyId; two families with colliding opIds 1..4 through insert, IN_FLIGHT, reject, block, commit and revoke"
+  - "Inject an immutable-identity change and a uniqueness conflict inside a CAS; reopen; retry"
+expected:
+  - "B sees nothing of A; B key cannot open A; family A raw rows byte-identical at every step"
+  - "CasConflictException and SQLiteConstraintException roll back the whole CAS including the scope rev; retry after reopen yields the opId exactly once"
+evidence:
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/EncryptionIsolationTest.kt (accountsAndFamiliesAreIsolated)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/F5RegressionTest.kt (sameOpIdsInTwoFamiliesPreserveBothFamiliesExactly, familyBInsertUpdateRejectRevokeWithCollidingOpIdsNeverTouchesFamilyA, immutableIdentityChangeInSameFamilyFailsAndRollsBackWholeCas, uniquenessConflictAbortsWholeCasAndSurvivesRestartWithoutDoubleEffect)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/FindingProbeTest.kt (sameOpIdInAnotherFamilyMustNotDeleteFirstFamilyRows)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/RecoveryLockTest.kt (signOutClosesWipesKeepsEncryptedOutboxAndHidesItFromOtherAccount, revocationPurgeRemovesOnlyThatFamily)"
+negative_controls:
+  - "NC-74 CAUGHT (family predicate removed)"
+  - "NC-90 CAUGHT on re-run, 4/4 targets (global opId index + REPLACE); the first attempt was INVALID because of infrastructure hang INC-LP1-01 and is not counted"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "D-7: purgeFamily is a single transaction (PL-approved for LP-1, internal only, not wired to UI); two-transaction handling is to be re-evaluated before Stage B3. Sign-out is not wired."
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN"

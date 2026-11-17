@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- :core:storage test APK only (BC-S2-LOCAL-PERSIST LP-1; promoted from the BC-UI-S2b spike). VictimService runs the crash scenarios in a separate process that is
+     SIGKILLed (Process.killProcess) at named crash points; the instrumentation process then verifies the
+     recovered on-disk state. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service
+            android:name="com.penningtonlabs.baileyscart.core.storage.VictimService"
+            android:exported="false"
+            android:process=":victim" />
+    </application>
+</manifest>

@@ -1,0 +1,40 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-10
+name: "Explicit migrations (v1 to v2 to v3) preserve every outbox, scope, epoch and snapshot field; a failing migration or a downgrade locks without data loss; durability pragmas hold on every connection"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: "instrumented (D2) + build (KSP)"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. Room uses explicit Migration objects (MIGRATION_1_2, MIGRATION_2_3), not auto-migrations."
+steps:
+  - "Create exact v1 and v2 stores (hand-built from the exported schemas) with multi-family rows in every state; open with the current code"
+  - "Force a failing v2 to v3 migration; open a store with user_version VERSION+1"
+  - "Read synchronous, journal_mode, temp_store and secure_delete at open, after readers, after a write and after reopen; downgrade synchronous externally and write"
+expected:
+  - "Every row byte-identical after migration; colliding opIds then accepted per family"
+  - "LOCKED(MIGRATION_FAILED) and LOCKED(DOWNGRADE) with db and dek byte-identical"
+  - "synchronous=2, journal_mode=wal, temp_store=2, secure_delete=1 everywhere; FULL re-applied before every write transaction"
+evidence:
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/F5RegressionTest.kt (v2MultiFamilyStoreMigratesToV3PreservingEveryRowThenAcceptsCollidingOpIds, failingV2ToV3MigrationLocksWithoutDataLoss, runtimeSchemaHasFamilyScopedUniqueOpIdIndexAndNoGlobalOne)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/RecoveryLockTest.kt (migrationPreservesOutboxScopeEpochAndSnapshot, failingMigrationLocksAndPreserves, downgradeRefused)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/DurabilityTest.kt (dur1EveryConnectionIsWalAndFullBeforeAndAfterReopen, perTransactionEnforcementRestoresFullAfterExternalDowngrade, dur5EnqueueCommitLatency)"
+negative_controls:
+  - "NC-77 CAUGHT (migration drops rows)"
+  - "NC-85 CAUGHT (synchronous=NORMAL)"
+  - "NC-86 CAUGHT (onConfigure FULL removed)"
+  - "NC-87 CAUGHT (pre-BEGIN FULL removed)"
+  - "NC-89 CAUGHT (invalid @Query fails KSP)"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE (the KSP build control NC-89 is the compile-time check)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "DUR-5 enqueue-commit latency on 4 KiB: p95 9.09 ms (n=200); proposed target <= 100 ms, not an SLA. Schemas 2.json and 3.json are byte-identical to the spike exports."
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN"
