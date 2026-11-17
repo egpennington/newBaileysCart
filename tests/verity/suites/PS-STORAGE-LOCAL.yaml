@@ -1,0 +1,18 @@
+id: PS-STORAGE-LOCAL
+name: Encrypted local storage (durability, isolation, confidentiality, fail-closed recovery, migration, release isolation)
+work_package: WP-02 (BC-S2-LOCAL-PERSIST)
+owner: CODI
+independent_reviewer: GAI
+executed_by: "Local CODI runs only (instrumented on the 4 KiB API 37 emulator; build inspection). FORGE does not run instrumented tests or scan the :core:storage lockfile (Authorization B not granted)."
+created_in: "BC-S2-LOCAL-PERSIST LP-1 (PL-authorized; LP-0 decisions; GAI-REV-LP0-20261117-01 CONDITIONAL GO)"
+scope_note: "Module-level evidence for :core:storage, which is NOT a dependency of :app in LP-1. Fictional data and synthetic accounts only. No transport, sync, real accounts or UI. Existing PL-PP-WP02-02..06 and -11 remain in PS-OFFLINE-SYNC, unchanged."
+proofpoints_in_lp1:
+  - PL-PP-WP02-01 (partial)
+  - PL-PP-WP02-07 (partial)
+  - PL-PP-WP02-08 (partial)
+  - PL-PP-WP02-09 (partial)
+  - PL-PP-WP02-10 (partial)
+  - PL-PP-WP02-12 (partial)
+  - PL-PP-WP02-13 (partial)
+suite_status: "PARTIAL. D3 (app level) and D4 (GAI) not run; 16 KiB, arm64, API 26 and hardware Keystore not run in LP-1."
+status_source: "CODI_BC_S2_LOCAL_PERSIST_LP1_Implementation_Report_v1.0.md and LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked)"

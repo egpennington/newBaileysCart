@@ -1,0 +1,260 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "45d6613426ecb55fa9fe5b96c39ae013",
+    "entities": [
+      {
+        "tableName": "family_scope",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`familyId` TEXT NOT NULL, `epoch` INTEGER NOT NULL, `access` TEXT NOT NULL, `rev` INTEGER NOT NULL, PRIMARY KEY(`familyId`))",
+        "fields": [
+          {
+            "fieldPath": "familyId",
+            "columnName": "familyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epoch",
+            "columnName": "epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "access",
+            "columnName": "access",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rev",
+            "columnName": "rev",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "familyId"
+          ]
+        }
+      },
+      {
+        "tableName": "snapshot_header",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`familyId` TEXT NOT NULL, `epoch` INTEGER NOT NULL, `receivedAtWall` INTEGER, PRIMARY KEY(`familyId`))",
+        "fields": [
+          {
+            "fieldPath": "familyId",
+            "columnName": "familyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epoch",
+            "columnName": "epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receivedAtWall",
+            "columnName": "receivedAtWall",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "familyId"
+          ]
+        }
+      },
+      {
+        "tableName": "snapshot_item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`familyId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `name` TEXT NOT NULL, `category` TEXT NOT NULL, `version` INTEGER NOT NULL, `nameKeyId` TEXT, `canonVersion` INTEGER, PRIMARY KEY(`familyId`, `itemId`))",
+        "fields": [
+          {
+            "fieldPath": "familyId",
+            "columnName": "familyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nameKeyId",
+            "columnName": "nameKeyId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "canonVersion",
+            "columnName": "canonVersion",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "familyId",
+            "itemId"
+          ]
+        }
+      },
+      {
+        "tableName": "outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`familyId` TEXT NOT NULL, `sequence` INTEGER NOT NULL, `opId` TEXT NOT NULL, `epoch` INTEGER NOT NULL, `kind` TEXT NOT NULL, `itemId` TEXT NOT NULL, `name` TEXT, `category` TEXT, `deleteOpId` TEXT, `state` TEXT NOT NULL, `dispatched` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, `dependsOn` TEXT, `committedVersion` INTEGER, `addOutcome` TEXT, `rejection` TEXT, `preItemId` TEXT, `preName` TEXT, `preCategory` TEXT, PRIMARY KEY(`familyId`, `sequence`))",
+        "fields": [
+          {
+            "fieldPath": "familyId",
+            "columnName": "familyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sequence",
+            "columnName": "sequence",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "opId",
+            "columnName": "opId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epoch",
+            "columnName": "epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deleteOpId",
+            "columnName": "deleteOpId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dispatched",
+            "columnName": "dispatched",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dependsOn",
+            "columnName": "dependsOn",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "committedVersion",
+            "columnName": "committedVersion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "addOutcome",
+            "columnName": "addOutcome",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rejection",
+            "columnName": "rejection",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "preItemId",
+            "columnName": "preItemId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "preName",
+            "columnName": "preName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "preCategory",
+            "columnName": "preCategory",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "familyId",
+            "sequence"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_outbox_familyId_opId",
+            "unique": true,
+            "columnNames": [
+              "familyId",
+              "opId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_outbox_familyId_opId` ON `${TABLE_NAME}` (`familyId`, `opId`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '45d6613426ecb55fa9fe5b96c39ae013')"
+    ]
+  }
+}

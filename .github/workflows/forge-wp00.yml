@@ -296,6 +296,7 @@ jobs:
           ./osv-scanner scan source
           -L android/app/gradle.lockfile
           -L android/core/model/gradle.lockfile
+          -L android/core/storage/gradle.lockfile
           -L backend/functions/package-lock.json
       - name: CycloneDX SBOM
         if: always()
@@ -303,6 +304,7 @@ jobs:
           ./osv-scanner scan source --all-packages --format cyclonedx-1-6 --output-file sbom.cdx.json
           -L android/app/gradle.lockfile
           -L android/core/model/gradle.lockfile
+          -L android/core/storage/gradle.lockfile
           -L backend/functions/package-lock.json || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

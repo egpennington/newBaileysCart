@@ -1,0 +1,33 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-07
+name: "Release isolation: :core:storage, Room, androidx.sqlite and SQLCipher classes and native libraries are absent from the release APK (and, in LP-1, from the debug APK)"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: "build inspection"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. LP-1: the module is not a dependency of :app. Demo-identity (E-11a) isolation cannot be tested until LP-2 creates the provider."
+steps:
+  - "Build :app debug and release offline; dexdump every classes*.dex; aapt2 dump badging, permissions and resources; list APK entries"
+  - "Negative control NC-98: copy a :core:storage class into app/src/main and rebuild release"
+expected:
+  - "0 classes under core/storage, androidx/room, androidx/sqlite and net/zetetic; 0 libsqlcipher entries; release APK hash unchanged from develop (2c976a70...2dc9)"
+  - "Under NC-98 the check fails; after restoration it passes and the hash returns to 2c976a70...2dc9"
+evidence:
+  - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): isolation/release and isolation/debug (classes.txt, aapt2-badging/permissions/resources, apk-entries, verdict.txt); scripts/release_isolation_check.sh"
+  - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): pf/PF-7-run1 and PF-7-run2 hashes (APKs and model.jar identical to the PF-3 baseline)"
+negative_controls:
+  - "NC-98 CAUGHT (14 core/storage classes detected under mutation; restored byte-exact; APK hash restored)"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE"
+  D2: "NOT_APPLICABLE"
+  D3: "local PASS (build inspection of release and debug APKs; raw dexdump and aapt2 output retained)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "The release check is a local script, not a FORGE job (FORGE changes need Authorization B). Demo-identity isolation (E-11a, LP-2) is NOT tested here and is not claimed."
+status: "PARTIAL: local build-inspection PASS and NC-98 caught; not in CI; demo-identity isolation NOT_RUN (LP-2); D4 NOT_RUN"

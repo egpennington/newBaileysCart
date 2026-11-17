@@ -1,0 +1,37 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-09
+name: "Key loss and fail-closed recovery: missing KEK alias or DEK, tampered or foreign DEK, damaged or missing database, downgrade and missing tag key all LOCK with every file preserved; set-aside only after explicit acknowledgement"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: "instrumented (D2)"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. Store-level fail-closed behavior. The user-confirmed reset UI (P-4) does not exist until LP-2/LP-3."
+steps:
+  - "Damage each key and database artifact in turn; open twice; compare hashes of every protected file before and after"
+  - "Attempt set-aside with partial and full acknowledgement"
+expected:
+  - "Each case returns the expected LockReason; files byte-identical across repeated opens; no recreation over an unreadable store"
+  - "Set-aside refuses partial acknowledgement and moves (never deletes) files only with both flags"
+evidence:
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/RecoveryLockTest.kt (kekAliasDeleted, wrappedKeyFileMissing, wrappedKeyCiphertextTampered, wrappedKeyFromAnotherAccount, databaseHeaderSaltDamaged, databaseDataPageDamaged, databaseFileMissingAfterCreation, downgradeRefused, tagKeyMissingWhileFilesExist, defaultErrorHandlerDoesNotDeleteWithCodec, setAsideRequiresExplicitAcknowledgementAndPreservesEverything)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/EncryptionIsolationTest.kt (copiedForeignFilesDoNotUnlockAnotherAccount)"
+negative_controls:
+  - "NC-79 CAUGHT (AAD not bound)"
+  - "NC-80 CAUGHT (preflight bypassed)"
+  - "NC-81 CAUGHT (key not wiped on close)"
+  - "NC-88 CAUGHT (acknowledgement bypass)"
+  - "NC-84 NOT_APPLICABLE / DEFERRED (no KEK rotation); not counted as caught"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
+  D3: "NOT_RUN: no locked-state or reset UI until LP-2/LP-3"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "D-4 (PL-approved, demo scope): an unsynced demo outbox may be unrecoverable after key loss. Quarantine has no size or count cap (accepted for fictional data)."
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN"

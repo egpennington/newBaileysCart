@@ -1,0 +1,35 @@
+# New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
+# Draft for GAI D4. Not committed.
+id: PL-PP-WP02-01
+name: "Process-death durability: every committed outbox transition is recovered byte-for-byte after SIGKILL at each crash point, and dispatch resumes without loss or double effect"
+feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
+suite: PS-STORAGE-LOCAL
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: "instrumented (D2)"
+slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
+slice_coverage: "PARTIAL. Module-level process death (real SIGKILL of a separate :victim process). No app-level restart until LP-2/LP-3."
+steps:
+  - "Run the coordinator scenario in VictimService and kill it at 7 crash points x 50 runs; recover with SpikeStores.recover and drain"
+  - "Interrupt a set-aside after 1..3 file moves; resume"
+expected:
+  - "The recovered disk state equals the model at every crash point (350/350); IN_FLIGHT recovers as RETRY_WAIT; the sibling family is intact; no Q-7 violation"
+  - "An interrupted set-aside resumes byte-identically"
+evidence:
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/CrashRecoveryTest.kt (processKillAtEveryCrashPointRecoversModelStateAndConverges, interruptedSetAsideResumesWithoutLoss)"
+  - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/DurabilityTest.kt (dur2CommitPrecedesSendAndRejectionWithBlockedDependentsPrecedesYoungerDispatch)"
+  - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): runs/LP1-4KB-full evidence-logcat DUR3 7 points x 50/50"
+negative_controls:
+  - "NC-76 CAUGHT (BLOCKED_DEPENDENCY not written)"
+  - "NC-78 CAUGHT (send without durable IN_FLIGHT commit)"
+preconditions:
+  - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
+  - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
+depths:
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
+  D4: "NOT_RUN: GAI independent review pending"
+notes: "DUR-4 physical power loss is NOT_VERIFIED (emulator); WAL + synchronous=FULL is relied on per SQLite documentation. Existing PL-PP-WP02-02/03/05 (PS-OFFLINE-SYNC) are not promoted by this evidence."
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN"
