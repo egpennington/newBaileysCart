@@ -77,6 +77,18 @@ bash scripts/check-no-real-firebase.sh
 
 `gitleaks dir` also scans untracked and ignored files, such as build outputs and local notes. CI scans only the checked-out tracked files.
 
+### npm audit gate (BC-SEC-FORGE-22)
+
+FORGE audits the full backend dependency tree, development dependencies included, and evaluates the report:
+
+```sh
+cd backend/functions
+npm audit --json > npm-audit.json || true
+node ../../scripts/check-npm-audit.mjs npm-audit.json package-lock.json
+```
+
+The gate fails on every HIGH or CRITICAL finding, with one exception. GHSA-fc5q-39xc-vjpf (picomatch) is allowed only in the `firebase-tools` development tree, until `2026-12-01T00:00:00Z`. From that time the gate fails until the exception is removed or a new PL decision replaces it. A missing or malformed report also fails. `scripts/check-osv-exceptions.mjs` pins these workflow steps and the matching OSV exception.
+
 ## CI (FORGE, GitHub Actions)
 
 `.github/workflows/forge-wp00.yml` runs on:

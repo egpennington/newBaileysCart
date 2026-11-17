@@ -1,0 +1,449 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@google-cloud/pubsub": {
+      "name": "@google-cloud/pubsub",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "google-gax"
+      ],
+      "effects": [],
+      "range": "2.11.1-pre || 5.2.1 - 6.0.0",
+      "nodes": [
+        "node_modules/@google-cloud/pubsub"
+      ],
+      "fixAvailable": true
+    },
+    "anymatch": {
+      "name": "anymatch",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "picomatch"
+      ],
+      "effects": [
+        "chokidar"
+      ],
+      "range": ">=3.0.0",
+      "nodes": [
+        "node_modules/anymatch"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "archiver": {
+      "name": "archiver",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "archiver-utils",
+        "zip-stream"
+      ],
+      "effects": [],
+      "range": "7.0.0 - 7.0.1",
+      "nodes": [
+        "node_modules/archiver"
+      ],
+      "fixAvailable": true
+    },
+    "archiver-utils": {
+      "name": "archiver-utils",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "archiver",
+        "zip-stream"
+      ],
+      "range": ">=5.0.1",
+      "nodes": [
+        "node_modules/archiver-utils"
+      ],
+      "fixAvailable": true
+    },
+    "chokidar": {
+      "name": "chokidar",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "anymatch",
+        "readdirp"
+      ],
+      "effects": [
+        "firebase-tools"
+      ],
+      "range": "3.0.0 - 3.6.0",
+      "nodes": [
+        "node_modules/chokidar"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "exegesis": {
+      "name": "exegesis",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [],
+      "range": ">=4.1.2",
+      "nodes": [
+        "node_modules/exegesis"
+      ],
+      "fixAvailable": true
+    },
+    "fdir": {
+      "name": "fdir",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "picomatch"
+      ],
+      "effects": [],
+      "range": ">=5.2.1",
+      "nodes": [
+        "node_modules/tinyglobby/node_modules/fdir"
+      ],
+      "fixAvailable": true
+    },
+    "firebase-tools": {
+      "name": "firebase-tools",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "archiver",
+        "chokidar",
+        "exegesis",
+        "glob",
+        "superstatic"
+      ],
+      "effects": [],
+      "range": ">=7.2.0",
+      "nodes": [
+        "node_modules/firebase-tools"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "gaxios": {
+      "name": "gaxios",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "rimraf"
+      ],
+      "effects": [
+        "gcp-metadata"
+      ],
+      "range": "7.1.3",
+      "nodes": [
+        "node_modules/@google-cloud/firestore-api/node_modules/gaxios",
+        "node_modules/@google-cloud/sql/node_modules/gaxios"
+      ],
+      "fixAvailable": true
+    },
+    "gcp-metadata": {
+      "name": "gcp-metadata",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "gaxios"
+      ],
+      "effects": [],
+      "range": "8.1.3 - 8.1.4",
+      "nodes": [
+        "node_modules/@google-cloud/firestore-api/node_modules/gcp-metadata",
+        "node_modules/@google-cloud/sql/node_modules/gcp-metadata"
+      ],
+      "fixAvailable": true
+    },
+    "glob": {
+      "name": "glob",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1244013,
+          "name": "glob",
+          "dependency": "glob",
+          "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+          "url": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=9.0.0 <=14.0.1"
+        },
+        "minimatch"
+      ],
+      "effects": [
+        "archiver-utils",
+        "exegesis",
+        "firebase-tools",
+        "rimraf"
+      ],
+      "range": "9.0.0 - 14.0.1",
+      "nodes": [
+        "node_modules/glob"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "google-gax": {
+      "name": "google-gax",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "rimraf"
+      ],
+      "effects": [
+        "@google-cloud/pubsub"
+      ],
+      "range": "5.0.5 - 5.0.8",
+      "nodes": [
+        "node_modules/@google-cloud/firestore-api/node_modules/google-gax",
+        "node_modules/@google-cloud/pubsub/node_modules/google-gax",
+        "node_modules/@google-cloud/sql/node_modules/google-gax"
+      ],
+      "fixAvailable": true
+    },
+    "minimatch": {
+      "name": "minimatch",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1244623,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "minimatch has potential denial of service via globparts amplification",
+          "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-405"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.0.0 <11.0.1"
+        }
+      ],
+      "effects": [
+        "glob"
+      ],
+      "range": "7.0.0 - 11.0.0",
+      "nodes": [
+        "node_modules/glob/node_modules/minimatch"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "node-gyp": {
+      "name": "node-gyp",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "tinyglobby"
+      ],
+      "effects": [
+        "re2"
+      ],
+      "range": ">=11.2.0",
+      "nodes": [
+        "node_modules/node-gyp"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "picomatch": {
+      "name": "picomatch",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1247710,
+          "name": "picomatch",
+          "dependency": "picomatch",
+          "title": "picomatch vulnerable to ReDoS through single-branch repeated extglobs",
+          "url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=4.0.7"
+        }
+      ],
+      "effects": [
+        "anymatch",
+        "fdir",
+        "readdirp",
+        "tinyglobby"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/picomatch",
+        "node_modules/tinyglobby/node_modules/picomatch"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "re2": {
+      "name": "re2",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "node-gyp"
+      ],
+      "effects": [
+        "superstatic"
+      ],
+      "range": ">=1.21.5",
+      "nodes": [
+        "node_modules/re2"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "readdirp": {
+      "name": "readdirp",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "picomatch"
+      ],
+      "effects": [],
+      "range": "3.0.0 - 3.6.0",
+      "nodes": [
+        "node_modules/readdirp"
+      ],
+      "fixAvailable": true
+    },
+    "rimraf": {
+      "name": "rimraf",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "gaxios",
+        "google-gax"
+      ],
+      "range": "4.2.0 - 6.1.3",
+      "nodes": [
+        "node_modules/rimraf"
+      ],
+      "fixAvailable": true
+    },
+    "superstatic": {
+      "name": "superstatic",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "re2"
+      ],
+      "effects": [
+        "firebase-tools"
+      ],
+      "range": ">=11.0.1-bk-test-release.0",
+      "nodes": [
+        "node_modules/superstatic"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "tinyglobby": {
+      "name": "tinyglobby",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "fdir",
+        "picomatch"
+      ],
+      "effects": [
+        "node-gyp"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/tinyglobby"
+      ],
+      "fixAvailable": {
+        "name": "firebase-tools",
+        "version": "13.11.2",
+        "isSemVerMajor": true
+      }
+    },
+    "zip-stream": {
+      "name": "zip-stream",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "archiver-utils"
+      ],
+      "effects": [],
+      "range": "6.0.0 - 6.0.1",
+      "nodes": [
+        "node_modules/zip-stream"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 11,
+      "high": 10,
+      "critical": 0,
+      "total": 21
+    },
+    "dependencies": {
+      "prod": 224,
+      "dev": 468,
+      "optional": 56,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 728
+    }
+  }
+}
