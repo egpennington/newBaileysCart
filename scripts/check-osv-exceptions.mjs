@@ -9,11 +9,18 @@
 //   2. If that file exists, it contains only [[IgnoredVulns]] entries with exactly the keys
 //      id, ignoreUntil, reason; ids are on the allowlist, unique; ignoreUntil is an unquoted
 //      RFC 3339 UTC date-time (Z, no offsets), a real calendar instant, in the future, and no later
-//      than the approved ceiling; reason is a meaningful plain string that cites WP03-S2.
+//      than the approved ceiling; reason is a meaningful plain string that cites the decision that
+//      approved that id (WP03-S2; BC-SEC-FORGE-22 for GHSA-fc5q-39xc-vjpf). A scoped id is valid
+//      only while its scope holds (BC-SEC-FORGE-22: every installed picomatch in
+//      backend/functions/package-lock.json is development-only).
 //   3. The FORGE workflow still runs this check, unconditionally, immediately before the unchanged
 //      scan command; no osv-scanner invocation in any workflow uses a configuration flag; the
 //      dependency-audit job is still required by the FORGE gate, and the gate's evaluation logic is
 //      unchanged (it must still fail on any non-success upstream result).
+//   4. (BC-SEC-FORGE-22) The backend job still runs the FULL npm audit (no --omit, --production,
+//      --only or --audit-level anywhere) and evaluates it with scripts/check-npm-audit.mjs
+//      immediately afterwards, with the pinned commands, unconditionally; the backend job keeps
+//      its condition and working directory and still feeds the FORGE gate through path-verdict.
 // Exit codes: 0 pass, 1 policy violation, 2 inspection could not complete (also fail closed).
 // The script takes no arguments and uses only Node.js built-ins.
 import fs from 'node:fs';
@@ -21,9 +28,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---- Approved policy (WP03-S2-SEC-DISP). Changing any value requires a new PL decision. ----
-const ALLOWED_IDS = new Set(['GHSA-3g3m-2fjr-6pw4', 'GHSA-g3hv-75wg-m249']);
+// Allowlist: id -> the decision its reason must cite, and an optional scope that must hold.
+const POLICY = new Map([
+  ['GHSA-3g3m-2fjr-6pw4', { token: 'WP03-S2' }],
+  ['GHSA-g3hv-75wg-m249', { token: 'WP03-S2' }],
+  // BC-SEC-FORGE-22 (GAI Option E, GAI-SEC-REV-PR22-DISP-001; PL-authorized): picomatch ReDoS with
+  // no fixed release, installed only in the firebase-tools development tree.
+  ['GHSA-fc5q-39xc-vjpf', { token: 'BC-SEC-FORGE-22', scope: { lockfile: 'backend/functions/package-lock.json', package: 'picomatch' } }],
+]);
 const MAX_UNTIL = '2026-12-01T00:00:00Z';
-const REASON_TOKEN = 'WP03-S2';
+// BC-SEC-FORGE-22: the backend npm audit gate (full tree, evaluated by scripts/check-npm-audit.mjs).
+const NPM_AUDIT_STEP = { name: 'npm audit (full tree, JSON evidence)', run: 'npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true' };
+const NPM_EVAL_STEP = { name: 'Evaluate npm audit (BC-SEC-FORGE-22 pinned exception)', run: 'node ../../scripts/check-npm-audit.mjs "$RUNNER_TEMP/npm-audit.json" package-lock.json' };
+const BACKEND_JOB_IF = "needs.classify.outputs.path == 'FULL'";
+const FORBIDDEN_AUDIT_FLAGS = /npm\s+audit\b.*(--omit\b|--production\b|--only\b|--audit-level\b|--dry-run\b|--registry\b)/;
 const REASON_MIN_LENGTH = 40;
 const APPROVED_CONFIG = 'backend/functions/osv-scanner.toml';
 const CONFIG_NAMES = new Set(['osv-scanner.toml', '.osv-scanner.toml']);
@@ -54,6 +72,7 @@ function main() {
   checkRogueConfigs(root);
   checkWorkflows(root);
   const active = checkExceptionFile(root);
+  checkScopes(root, active);
   if (violations.length) {
     console.error('FAIL security exception policy (PL-PP-WP00-04b)');
     for (const v of violations) console.error('  - ' + v);
@@ -128,7 +147,7 @@ function checkExceptionFile(root) {
     if (e.keys.id) {
       const m = /^"(GHSA(?:-[23456789cfghjmpqrvwx]{4}){3})"$/.exec(e.keys.id.value);
       if (!m) { violate(`${at}: id must be a quoted GHSA identifier (aliases not accepted): ${e.keys.id.value}`); ok = false; }
-      else if (!ALLOWED_IDS.has(m[1])) { violate(`${at}: id ${m[1]} is not on the approved allowlist`); ok = false; }
+      else if (!POLICY.has(m[1])) { violate(`${at}: id ${m[1]} is not on the approved allowlist`); ok = false; }
       else if (seen.has(m[1])) { violate(`${at}: duplicate id ${m[1]}`); ok = false; }
       else { seen.add(m[1]); id = m[1]; }
     }
@@ -148,7 +167,7 @@ function checkExceptionFile(root) {
       const m = /^"([^"\\]*)"$/.exec(e.keys.reason.value);
       if (!m) { violate(`${at}: reason must be a plain double-quoted string without escapes`); ok = false; }
       else if (m[1].trim().length < REASON_MIN_LENGTH) { violate(`${at}: reason must be at least ${REASON_MIN_LENGTH} characters`); ok = false; }
-      else if (!m[1].includes(REASON_TOKEN)) { violate(`${at}: reason must cite ${REASON_TOKEN}`); ok = false; }
+      else if (id && !m[1].includes(POLICY.get(id).token)) { violate(`${at}: reason for ${id} must cite ${POLICY.get(id).token}`); ok = false; }
     }
     if (ok && id && until) active.push({ id, until: until.v, daysLeft: Math.ceil((until.t - now) / 86400000) });
   }
@@ -166,8 +185,9 @@ function checkWorkflows(root) {
     text.split(/\r?\n/).forEach((l, i) => {
       if (/osv-scanner/.test(l) && FORBIDDEN_SCANNER_FLAGS.test(l)) violate(`${n}:${i + 1}: forbidden osv-scanner flag: ${l.trim()}`);
       if (/osv-scanner\.toml/i.test(l)) violate(`${n}:${i + 1}: workflows must not reference scanner configuration files: ${l.trim()}`);
+      if (FORBIDDEN_AUDIT_FLAGS.test(l)) violate(`${n}:${i + 1}: npm audit must audit the full tree without severity or scope filters: ${l.trim()}`);
     });
-    if (n === path.basename(WORKFLOW)) checkForge(text);
+    if (n === path.basename(WORKFLOW)) { checkForge(text); checkBackendAudit(text); }
   }
 }
 
@@ -201,6 +221,58 @@ function checkForge(text) {
   const body = gate ? gate.filter(l => !/^    needs:/.test(l)).map(l => l.trimEnd()).join('\n').trim() : '';
   if (body !== GATE_BODY) violate(`${WORKFLOW}: forge-gate job body changed; the gate must still fail on any non-success upstream result`);
 }
+// 4. The backend npm audit gate (BC-SEC-FORGE-22).
+function checkBackendAudit(text) {
+  const lines = text.split(/\r?\n/);
+  const job = sliceJob(lines, 'backend');
+  if (!job) { violate(`${WORKFLOW}: job backend not found`); return; }
+  if (job.some(l => /^    continue-on-error:/.test(l))) violate(`${WORKFLOW}: backend must not be continue-on-error`);
+  const jobIf = job.find(l => /^    if:/.test(l));
+  if (!jobIf || jobIf.replace(/^    if:\s*/, '').trim() !== BACKEND_JOB_IF) violate(`${WORKFLOW}: backend job condition changed (expected: if: ${BACKEND_JOB_IF})`);
+  const d = job.findIndex(l => /^    defaults:\s*$/.test(l));
+  if (d < 0 || !/^      run:\s*$/.test(job[d + 1] || '') || (job[d + 2] || '').trim() !== 'working-directory: backend/functions') {
+    violate(`${WORKFLOW}: backend must keep defaults.run.working-directory: backend/functions`);
+  }
+  const steps = parseSteps(job);
+  const a = steps.findIndex(s => s.name === NPM_AUDIT_STEP.name);
+  const e = steps.findIndex(s => s.name === NPM_EVAL_STEP.name);
+  if (a < 0) violate(`${WORKFLOW}: step "${NPM_AUDIT_STEP.name}" missing from backend`);
+  if (e < 0) violate(`${WORKFLOW}: step "${NPM_EVAL_STEP.name}" missing from backend`);
+  if (a >= 0 && e >= 0 && e !== a + 1) violate(`${WORKFLOW}: "${NPM_EVAL_STEP.name}" must run immediately after "${NPM_AUDIT_STEP.name}"`);
+  for (const [i, want] of [[a, NPM_AUDIT_STEP], [e, NPM_EVAL_STEP]]) {
+    if (i < 0) continue;
+    if (steps[i].run !== want.run) violate(`${WORKFLOW}: step "${want.name}" command changed:\n      expected: ${want.run}\n      found:    ${steps[i].run}`);
+    const extra = Object.keys(steps[i].keys).filter(k => !['name', 'run'].includes(k));
+    if (extra.length) violate(`${WORKFLOW}: step "${want.name}" has unexpected keys: ${extra.join(', ')}`);
+  }
+  const pv = sliceJob(lines, 'path-verdict');
+  const pvNeeds = pv && pv.find(l => /^    needs:/.test(l));
+  if (!needsList(pvNeeds).includes('backend')) violate(`${WORKFLOW}: path-verdict must still need backend`);
+  const gate = sliceJob(lines, 'forge-gate');
+  const gateNeeds = gate && gate.find(l => /^    needs:/.test(l));
+  if (!needsList(gateNeeds).includes('path-verdict')) violate(`${WORKFLOW}: forge-gate must still need path-verdict`);
+}
+
+// Exact job names from a one-line needs entry ("needs: a" or "needs: [a, b]"); a substring such
+// as backend-emulator never counts as backend.
+const needsList = l => (l ? l.replace(/^    needs:\s*/, '').replace(/[[\]]/g, '').split(',').map(x => x.trim()).filter(Boolean) : []);
+
+// Scoped exceptions are valid only while their scope holds in the scanned lockfile.
+function checkScopes(root, active) {
+  for (const e of active) {
+    const scope = POLICY.get(e.id).scope;
+    if (!scope) continue;
+    let lock;
+    try { lock = JSON.parse(fs.readFileSync(path.join(root, scope.lockfile), 'utf8')); }
+    catch (err) { throw new InspectionError(`cannot read ${scope.lockfile} for the ${e.id} scope: ${err.code || err.message}`); }
+    const pkgs = lock && lock.packages;
+    if (!pkgs || typeof pkgs !== 'object') throw new InspectionError(`${scope.lockfile} has no packages map`);
+    const hits = Object.keys(pkgs).filter(k => k === 'node_modules/' + scope.package || k.endsWith('/node_modules/' + scope.package));
+    if (hits.length === 0) violate(`${e.id}: no ${scope.package} remains in ${scope.lockfile}; remove the exception`);
+    for (const k of hits) if (pkgs[k].dev !== true) violate(`${e.id}: ${k} in ${scope.lockfile} is not development-only; the exception does not cover it`);
+  }
+}
+
 const GATE_BODY = [
   'name: FORGE gate',
   '    if: always()',
