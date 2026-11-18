@@ -1,6 +1,6 @@
 # BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
-# Draft for GAI D4. Not committed.
+# LP-2 closeout (decision register v1.18): GAI D4 PASS / GO recorded; NC-100..NC-104 allocated (were provisional).
 id: PL-PP-WP02-09
 name: "Key loss and fail-closed recovery: missing KEK alias or DEK, tampered or foreign DEK, damaged or missing database, downgrade and missing tag key all LOCK with every file preserved; set-aside only after explicit acknowledgement"
 feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
@@ -24,6 +24,7 @@ evidence:
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/RecoveryLockTest.kt (kekAliasDeleted, wrappedKeyFileMissing, wrappedKeyCiphertextTampered, wrappedKeyFromAnotherAccount, databaseHeaderSaltDamaged, databaseDataPageDamaged, databaseFileMissingAfterCreation, downgradeRefused, tagKeyMissingWhileFilesExist, defaultErrorHandlerDoesNotDeleteWithCodec, setAsideRequiresExplicitAcknowledgementAndPreservesEverything)"
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/EncryptionIsolationTest.kt (copiedForeignFilesDoNotUnlockAnotherAccount)"
   - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/persist/PersistentDemoListTest.kt (fail-closed and reset tests)"
+  - "LP-2 reset hardening (17db088, 5dad431; local, untracked C:/dev/bc-lp2-hardening-evidence and C:/dev/bc-lp2-ui-final-evidence): unknown set-aside outcomes are never reported as nothing changed; RESET_INCOMPLETE persists across Try again and a RECOVERY_PENDING restart; D3 interrupted reset (induced malformed recovery marker) shows the locked screen and keeps all account files byte-identical; reset-hardening mutation runs H1-H10 caught (CODI run labels, not allocated NC IDs); package BC-LP2-GAI-D4-002-EVIDENCE.zip"
   - "LP-2 evidence C:/dev/bc-lp2-evidence (local, untracked): d3/D3-06 (healthy reset: both cancels keep data; confirmed reset seeds once), d3/D3-07 (DEK tamper: UNWRAP_FAILED, files unchanged), d3/D3-08 (locked reset: 5 files preserved in quarantine/<tag>-1), d3/D3-09 (DB header damage: DB_UNREADABLE; repaired file recovers the saved list); crash buffer 0 app entries"
 negative_controls:
   - "NC-79 CAUGHT (AAD not bound)"
@@ -31,8 +32,8 @@ negative_controls:
   - "NC-81 CAUGHT (key not wiped on close)"
   - "NC-88 CAUGHT (acknowledgement bypass)"
   - "NC-84 NOT_APPLICABLE / DEFERRED (no KEK rotation); not counted as caught"
-  - "LP-2 NC-103 (provisional ID) CAUGHT (a lock shown as a fresh seeded list: 6 tests failed)"
-  - "LP-2 NC-104 (provisional ID) CAUGHT (a failed reset announced as done: 1 test failed)"
+  - "LP-2 NC-103 CAUGHT (a lock shown as a fresh seeded list: 6 tests failed)"
+  - "LP-2 NC-104 CAUGHT (a failed reset announced as done: 1 test failed)"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
@@ -40,6 +41,6 @@ depths:
   D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only) | LP-2: local PASS (app-level fail-closed and reset tests, fake store)"
   D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
   D3: "NOT_RUN: no locked-state or reset UI until LP-2/LP-3 | LP-2: local PASS (locked screen, retries, two-step reset and set-aside on 4 KiB API 37)"
-  D4: "NOT_RUN: GAI independent review pending | LP-2: NOT_RUN: GAI independent review of LP-2 pending"
-notes: "D-4 (PL-approved, demo scope): an unsynced demo outbox may be unrecoverable after key loss. Quarantine has no size or count cap (accepted for fictional data). | LP-2: the locked/reset wording is PROPOSED and needs PL approval; TAG_KEY_MISSING and open errors offer no in-app reset (clear app storage)"
-status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; D4 NOT_RUN for LP-2"
+  D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI"
+notes: "D-4 (PL-approved, demo scope): an unsynced demo outbox may be unrecoverable after key loss. Quarantine has no size or count cap (accepted for fictional data). | LP-2: the locked/reset wording is PL-approved (final at 5dad431: demo_locked_body and demo_notice_reset_incomplete); TAG_KEY_MISSING and open errors offer no in-app reset (clear app storage)"
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003); LP-3 obligations open (decision register BC-LP2-LP3)"

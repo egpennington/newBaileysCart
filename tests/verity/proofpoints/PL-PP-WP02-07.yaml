@@ -1,6 +1,6 @@
 # BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
-# Draft for GAI D4. Not committed.
+# LP-2 closeout (decision register v1.18): GAI D4 PASS / GO recorded; NC-100..NC-104 allocated (were provisional).
 id: PL-PP-WP02-07
 name: "Release isolation: :core:storage, Room, androidx.sqlite and SQLCipher classes and native libraries are absent from the release APK (and, in LP-1, from the debug APK)"
 feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
@@ -31,7 +31,7 @@ negative_controls:
   - "NC-98 CAUGHT (14 core/storage classes detected under mutation; restored byte-exact; APK hash restored)"
   - "LP-2 NC-98a CAUGHT (KeyManager.kt copied into app/src/main: 14 storage classes and 1 main-source reference)"
   - "LP-2 NC-98b CAUGHT twice: STRICT lockfile refused the release resolution; with locks rewritten, 101 storage, 428 Room, 72 androidx.sqlite, 69 SQLCipher classes and 4 libsqlcipher.so in release"
-  - "LP-2 NC-100 (provisional ID) CAUGHT (E-11a identity and alias prefix referenced from app/src/main: 4 string hits and 1 main-source reference)"
+  - "LP-2 NC-100 CAUGHT (E-11a identity and alias prefix referenced from app/src/main: 4 string hits and 1 main-source reference)"
   - "LP-2 first attempts of NC-98a/NC-98b/NC-100 superseded: caught, but the class inventory was empty under MSYS_NO_PATHCONV (dexdump path); the script now fails closed on an empty or unreadable dex inventory and all three were re-run"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
@@ -40,6 +40,6 @@ depths:
   D1: "NOT_APPLICABLE | LP-2: NOT_APPLICABLE (release unit tests are not enabled in AGP 9)"
   D2: "NOT_APPLICABLE"
   D3: "local PASS (build inspection of release and debug APKs; raw dexdump and aapt2 output retained) | LP-2: local PASS (release APK byte-identical to develop; automated check PASS; NC-98a/b and NC-100 caught)"
-  D4: "NOT_RUN: GAI independent review pending | LP-2: NOT_RUN: GAI independent review of LP-2 pending"
+  D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI"
 notes: "The release check is a local script, not a FORGE job (FORGE changes need Authorization B). Demo-identity isolation (E-11a, LP-2) is NOT tested here and is not claimed. | LP-2: The check runs locally and is not wired into FORGE (workflow change needs separate PL authorization). Debug builds now intentionally contain storage, SQLCipher and the fictional identity"
-status: "PARTIAL: local build-inspection PASS and NC-98 caught; not in CI; demo-identity isolation NOT_RUN (LP-2); D4 NOT_RUN | LP-2: PARTIAL: E-11a exclusion and release isolation local PASS with NC-98a/b and NC-100 caught; not in CI; D4 NOT_RUN for LP-2"
+status: "PARTIAL: local build-inspection PASS and NC-98 caught; not in CI; demo-identity isolation NOT_RUN (LP-2); D4 NOT_RUN | LP-2: PARTIAL: E-11a exclusion and release isolation local PASS with NC-98a/b and NC-100 caught; not in CI; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003)"

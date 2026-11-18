@@ -1,6 +1,6 @@
 # BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
-# Draft for GAI D4. Not committed.
+# LP-2 closeout (decision register v1.18): GAI D4 PASS / GO recorded; NC-100..NC-104 allocated (were provisional).
 id: PL-PP-WP02-01
 name: "Process-death durability: every committed outbox transition is recovered byte-for-byte after SIGKILL at each crash point, and dispatch resumes without loss or double effect"
 feature: "Encrypted local shopping-list storage (:core:storage, BC-S2-LOCAL-PERSIST LP-1) over the S2a domain ports"
@@ -30,8 +30,8 @@ evidence:
 negative_controls:
   - "NC-76 CAUGHT (BLOCKED_DEPENDENCY not written)"
   - "NC-78 CAUGHT (send without durable IN_FLIGHT commit)"
-  - "LP-2 NC-101 (provisional ID) CAUGHT (render before commit: 3 tests failed)"
-  - "LP-2 NC-102 (provisional ID) CAUGHT (re-seed over the recovered outbox on restart: 6 tests failed)"
+  - "LP-2 NC-101 CAUGHT (render before commit: 3 tests failed)"
+  - "LP-2 NC-102 CAUGHT (re-seed over the recovered outbox on restart: 6 tests failed)"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
@@ -39,6 +39,6 @@ depths:
   D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only) | LP-2: local PASS (app-level, fake store; 31 new tests)"
   D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
   D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-2: local PASS (debug app restart after SIGKILL and force-stop on 4 KiB API 37)"
-  D4: "NOT_RUN: GAI independent review pending | LP-2: NOT_RUN: GAI independent review of LP-2 pending"
+  D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI"
 notes: "DUR-4 physical power loss is NOT_VERIFIED (emulator); WAL + synchronous=FULL is relied on per SQLite documentation. Existing PL-PP-WP02-02/03/05 (PS-OFFLINE-SYNC) are not promoted by this evidence."
-status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; LP-1 D2 re-run PASS; D4 NOT_RUN for LP-2"
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; LP-1 D2 re-run PASS; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003); LP-3 obligations open (decision register BC-LP2-LP3)"

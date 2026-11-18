@@ -2,7 +2,7 @@
 <!-- BC-UI-S1 / BC-UI-S2-WIRE / BC-S2-LOCAL-PERSIST LP-2 LOCAL DEMO strings (debug source set only). -->
 <resources>
     <string name="demo_banner">LOCAL DEMO — not synced</string>
-    <!-- LP-2 wording (PROPOSED; PL approval pending). The list is stored encrypted in this app's
+    <!-- LP-2 wording. The list is stored encrypted in this app's
          no-backup storage on this device only, for one fictional demo identity. Nothing is sent.
          The Undo slot is in memory only and is not offered again after the app restarts. -->
     <string name="demo_banner_detail">Fictional demo data, saved encrypted on this device only. Nothing is shared or synced. Undo is not available again after the app closes.</string>
@@ -41,7 +41,7 @@
     <string name="demo_event_deleted">Deleted %1$s from %2$s.</string>
     <string name="demo_event_restored">Restored %1$s to %2$s.</string>
 
-    <!-- LP-2: storage states and the user-confirmed reset (PROPOSED wording; PL approval pending). -->
+    <!-- LP-2: storage states and the user-confirmed reset. -->
     <string name="demo_store_opening">Opening the saved demo list…</string>
     <string name="demo_store_resetting">Resetting the demo list…</string>
     <string name="demo_locked_title">The saved demo list can\'t be opened</string>
