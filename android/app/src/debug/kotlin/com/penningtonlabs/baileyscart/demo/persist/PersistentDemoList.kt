@@ -7,15 +7,24 @@ import com.penningtonlabs.baileyscart.demo.LocalDemoList
 import com.penningtonlabs.baileyscart.demo.RandomDemoIds
 import java.util.concurrent.Executor
 
-/** A one-shot outcome message shown with the next screen. */
+/**
+ * An outcome message shown with the next screen. After a confirmed reset, the message is decided
+ * by what reopening the store finds on disk, not by which step reported an error.
+ */
 enum class DemoNotice {
-    /** The confirmed reset completed and the starting sample list is saved. */
+    /** The confirmed reset completed: the previous list is gone and the starting sample list is saved. */
     RESET_DONE,
 
-    /** The reset failed before changing anything; the saved list is unchanged. */
+    /**
+     * The reset changed nothing: the set-aside certainly never started, or the store reopened and
+     * still holds the previous list. Never used when the outcome on disk is unknown.
+     */
     RESET_FAILED,
 
-    /** The reset removed the old demo data but could not start a new list. */
+    /**
+     * A reset started and the store cannot be opened: the previous list is no longer usable (it
+     * may have been removed, moved aside or still be unreadable) and no new list was started.
+     */
     RESET_INCOMPLETE,
 }
 
@@ -36,7 +45,7 @@ sealed interface DemoScreen {
      */
     data class SaveFailed(val list: DemoListState) : DemoScreen
 
-    /** The store cannot be used. Nothing was deleted, seeded or recreated. */
+    /** The store cannot be used. Nothing is deleted, seeded or recreated while it is locked. */
     data class Locked(val reason: StoreLock, val canReset: Boolean, val notice: DemoNotice? = null) : DemoScreen
 }
 
@@ -56,7 +65,9 @@ sealed interface DemoScreen {
  *    compare-and-set returned true. A failed write publishes [DemoScreen.SaveFailed] with the
  *    previous committed state.
  *  - Reset only on [reset], which the UI calls after a two-step confirmation. A failed reset is
- *    never reported as done.
+ *    never reported as done, and an unknown outcome is never reported as "nothing changed".
+ *  - Storage exceptions of any kind (I/O and Keystore exceptions included) fail closed on this
+ *    thread; none escapes a task.
  */
 class PersistentDemoList(
     private val store: DemoListStore,
@@ -68,13 +79,20 @@ class PersistentDemoList(
     private var committed: DemoListState? = null
     private var screen: DemoScreen = DemoScreen.Opening
 
-    fun start() = serial.execute { openAndRecover(onReady = null, onLocked = null) }
+    /**
+     * True from the moment a confirmed reset may have changed the stored demo data until a list is
+     * shown again. While true, a Locked screen says [DemoNotice.RESET_INCOMPLETE] (also after
+     * "Try again"), and a list that reopens says whether the reset completed or changed nothing.
+     */
+    private var resetUnresolved = false
+
+    fun start() = serial.execute { openAndRecover() }
 
     /** "Try again" on a lock, or "Reload" after a failed save: re-read everything from disk. */
     fun reload() = serial.execute {
         if (screen is DemoScreen.Locked || screen is DemoScreen.SaveFailed) {
             closeSession()
-            openAndRecover(onReady = null, onLocked = null)
+            openAndRecover()
         }
     }
 
@@ -99,42 +117,61 @@ class PersistentDemoList(
         runCatching { s.close() }
     }
 
-    private fun openAndRecover(onReady: DemoNotice?, onLocked: DemoNotice?) {
+    /**
+     * A pending LP-1 recovery marker means a confirmed set-aside started and did not finish, so it
+     * is reported as incomplete even after a process restart.
+     */
+    private fun lockedNotice(reason: StoreLock, otherwise: DemoNotice?): DemoNotice? =
+        if (resetUnresolved || reason == StoreLock.RECOVERY_PENDING) DemoNotice.RESET_INCOMPLETE else otherwise
+
+    private fun openAndRecover() {
         emit(DemoScreen.Opening)
         val opened = try {
             store.open()
-        } catch (_: RuntimeException) {
+        } catch (_: Exception) {
             DemoStoreOpen.Locked(StoreLock.OPEN_ERROR, canSetAside = false)
         }
         when (opened) {
-            is DemoStoreOpen.Locked -> emit(DemoScreen.Locked(opened.reason, opened.canSetAside, onLocked))
+            is DemoStoreOpen.Locked ->
+                emit(DemoScreen.Locked(opened.reason, opened.canSetAside, lockedNotice(opened.reason, null)))
             is DemoStoreOpen.Opened -> {
                 session = opened.session
-                val state = try {
+                val recovered = try {
                     recoverOrSeed(opened.session)
-                } catch (_: RuntimeException) {
+                } catch (_: Exception) {
                     null
                 }
-                if (state == null) {
+                if (recovered == null) {
                     closeSession()
-                    emit(DemoScreen.Locked(StoreLock.STATE_UNREADABLE, canReset = true, notice = onLocked))
+                    val reason = StoreLock.STATE_UNREADABLE
+                    emit(DemoScreen.Locked(reason, canReset = true, notice = lockedNotice(reason, null)))
                 } else {
-                    committed = state
-                    emit(DemoScreen.Ready(state, onReady))
+                    committed = recovered.state
+                    // After a reset, disk decides: a newly seeded list proves the previous one is
+                    // gone; a recovered list proves the reset changed nothing.
+                    val notice = when {
+                        !resetUnresolved -> null
+                        recovered.seeded -> DemoNotice.RESET_DONE
+                        else -> DemoNotice.RESET_FAILED
+                    }
+                    resetUnresolved = false
+                    emit(DemoScreen.Ready(recovered.state, notice))
                 }
             }
         }
     }
 
+    private class Recovered(val state: DemoListState, val seeded: Boolean)
+
     /** Null = fail closed (never treated as empty). */
-    private fun recoverOrSeed(s: DemoStoreSession): DemoListState? {
+    private fun recoverOrSeed(s: DemoStoreSession): Recovered? {
         val stored = s.recover()
-        if (stored != null) return LocalDemoList.fromOutbox(stored)
+        if (stored != null) return LocalDemoList.fromOutbox(stored)?.let { Recovered(it, seeded = false) }
         // Positively new: no scope for any family, and the seed CAS against "absent" must win.
         if (s.hasAnyScope()) return null
         val seeded = LocalDemoList.seededOutbox(s.key)
         if (!s.compareAndSet(null, seeded)) return null
-        return LocalDemoList.fromOutbox(seeded)
+        return LocalDemoList.fromOutbox(seeded)?.let { Recovered(it, seeded = true) }
     }
 
     private fun mutate(action: DemoAction) {
@@ -151,7 +188,7 @@ class PersistentDemoList(
         }
         val saved = try {
             s.compareAndSet(current.outbox, next.outbox)
-        } catch (_: RuntimeException) {
+        } catch (_: Exception) {
             false
         }
         if (saved) {
@@ -167,34 +204,29 @@ class PersistentDemoList(
             is DemoScreen.Ready, is DemoScreen.SaveFailed -> {
                 val s = session ?: return
                 emit(DemoScreen.Resetting)
-                val purged = try {
+                resetUnresolved = true
+                try {
                     s.purgeDemoFamily()
-                    true
-                } catch (_: RuntimeException) {
-                    false
+                } catch (_: Exception) {
+                    // One transaction: committed or rolled back. Reopening below shows which.
                 }
                 closeSession()
-                if (purged) {
-                    // The demo scope is now absent, so recovery seeds the starting list once.
-                    openAndRecover(onReady = DemoNotice.RESET_DONE, onLocked = DemoNotice.RESET_INCOMPLETE)
-                } else {
-                    // The purge transaction rolled back: show what is actually on disk.
-                    openAndRecover(onReady = DemoNotice.RESET_FAILED, onLocked = DemoNotice.RESET_FAILED)
-                }
+                openAndRecover()
             }
             is DemoScreen.Locked -> {
                 if (!current.canReset) return
                 emit(DemoScreen.Resetting)
                 closeSession()
-                val movedAside = try {
+                val outcome = try {
                     store.setAside()
-                } catch (_: RuntimeException) {
-                    false
+                } catch (_: Exception) {
+                    SetAsideOutcome.INTERRUPTED // unknown: never "nothing changed"
                 }
-                if (movedAside) {
-                    openAndRecover(onReady = DemoNotice.RESET_DONE, onLocked = DemoNotice.RESET_INCOMPLETE)
+                if (outcome == SetAsideOutcome.NOT_STARTED) {
+                    emit(current.copy(notice = lockedNotice(current.reason, DemoNotice.RESET_FAILED)))
                 } else {
-                    emit(current.copy(notice = DemoNotice.RESET_FAILED))
+                    resetUnresolved = true
+                    openAndRecover()
                 }
             }
             DemoScreen.Opening, DemoScreen.Resetting -> Unit

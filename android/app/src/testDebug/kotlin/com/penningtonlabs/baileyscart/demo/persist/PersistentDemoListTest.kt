@@ -7,6 +7,7 @@ import com.penningtonlabs.baileyscart.core.model.offline.ItemCommand
 import com.penningtonlabs.baileyscart.demo.DemoAction
 import com.penningtonlabs.baileyscart.demo.LocalDemoList
 import com.penningtonlabs.baileyscart.demo.SeqIds
+import com.penningtonlabs.baileyscart.demo.showsGenericLockedBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -326,15 +327,15 @@ class PersistentDemoListTest {
         assertEquals(seedNames, names(ready))
     }
 
-    @Test fun aFailedLockedResetStaysLockedAndSaysItFailed() {
+    /** Negative control: "Nothing was changed" is still said when the set-aside certainly never started. */
+    @Test fun aLockedResetThatCertainlyNeverStartedStaysLockedAndSaysItFailed() {
         store.lock = DemoStoreOpen.Locked(StoreLock.DB_UNREADABLE, canSetAside = true)
-        store.setAsideResult = false
+        store.setAsideOutcome = SetAsideOutcome.NOT_STARTED
         val c = launch()
+        val opensBefore = store.opens
         c.reset()
         assertEquals(DemoScreen.Locked(StoreLock.DB_UNREADABLE, canReset = true, notice = DemoNotice.RESET_FAILED), last)
-        store.setAsideThrows = true
-        c.reset()
-        assertEquals(DemoNotice.RESET_FAILED, (last as DemoScreen.Locked).notice)
+        assertEquals(opensBefore, store.opens) // nothing to re-read: nothing moved
         assertTrue(store.casCalls.isEmpty())
     }
 
@@ -361,5 +362,133 @@ class PersistentDemoListTest {
         c.close()
         assertEquals(0, store.openSessions)
         assertEquals(1, store.closes)
+    }
+
+    // ---- LP-2 reset hardening: unknown outcomes are never "nothing changed" -------------------
+
+    private val locked: DemoScreen.Locked get() = last as DemoScreen.Locked
+    private fun saidNothingChanged() = published.any {
+        (it as? DemoScreen.Locked)?.notice == DemoNotice.RESET_FAILED || (it as? DemoScreen.Ready)?.notice == DemoNotice.RESET_FAILED
+    }
+
+    @Test fun anInterruptedSetAsideIsIncompleteAndNeverReportedAsNothingChanged() {
+        store.lock = DemoStoreOpen.Locked(StoreLock.DB_UNREADABLE, canSetAside = true)
+        store.setAsideOutcome = SetAsideOutcome.INTERRUPTED
+        val c = launch()
+        c.reset()
+        assertEquals(DemoScreen.Locked(StoreLock.RECOVERY_PENDING, canReset = true, notice = DemoNotice.RESET_INCOMPLETE), last)
+        assertFalse(saidNothingChanged())
+        assertTrue(store.casCalls.isEmpty()) // nothing seeded over a half-moved store
+        assertFalse(showsGenericLockedBody(locked.notice))
+    }
+
+    @Test fun aThrowingSetAsideIsAnUnknownOutcomeNotNothingChanged() {
+        for (io in listOf(false, true)) {
+            published.clear()
+            val s = FakeDemoStore().apply {
+                lock = DemoStoreOpen.Locked(StoreLock.DB_UNREADABLE, canSetAside = true)
+                setAsideThrows = true
+                throwsIo = io
+            }
+            val c = PersistentDemoList(s, direct, { published += it }, SeqIds())
+            c.start()
+            c.reset() // an IOException must not escape the task
+            assertEquals("io=$io", DemoNotice.RESET_INCOMPLETE, locked.notice)
+            assertFalse("io=$io", saidNothingChanged())
+            assertTrue(s.casCalls.isEmpty())
+        }
+    }
+
+    @Test fun retryAfterAnIncompleteResetStaysIncompleteAndKeepsTheGenericBodyHidden() {
+        // Healthy path: the purge committed, then the new list could not be seeded.
+        val c = launch()
+        store.casResult = false
+        c.reset()
+        assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
+        repeat(2) {
+            c.reload()
+            assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
+            assertFalse(showsGenericLockedBody(locked.notice))
+        }
+        // Once the store works, the retry shows that the reset did complete.
+        store.casResult = null
+        c.reload()
+        assertEquals(DemoNotice.RESET_DONE, ready.notice)
+        assertEquals(seedNames, names(ready))
+        relaunch()
+        assertNull("the outcome is reported once", ready.notice)
+    }
+
+    @Test fun aPendingSetAsideFoundAfterARestartIsReportedIncomplete() {
+        store.lock = DemoStoreOpen.Locked(StoreLock.RECOVERY_PENDING, canSetAside = true)
+        launch()
+        assertEquals(DemoScreen.Locked(StoreLock.RECOVERY_PENDING, canReset = true, notice = DemoNotice.RESET_INCOMPLETE), last)
+        assertFalse(showsGenericLockedBody(locked.notice))
+    }
+
+    @Test fun aNotStartedRetryOfAnUnfinishedSetAsideStaysIncomplete() {
+        store.lock = DemoStoreOpen.Locked(StoreLock.DB_UNREADABLE, canSetAside = true)
+        store.setAsideOutcome = SetAsideOutcome.INTERRUPTED
+        val c = launch()
+        c.reset()
+        store.setAsideOutcome = SetAsideOutcome.NOT_STARTED // e.g. the Keystore is briefly unavailable
+        c.reset()
+        assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
+        assertFalse(saidNothingChanged())
+    }
+
+    @Test fun resettingAgainAfterAnInterruptionCompletesTheResetAndSeedsOnce() {
+        store.lock = DemoStoreOpen.Locked(StoreLock.DB_UNREADABLE, canSetAside = true)
+        store.setAsideOutcome = SetAsideOutcome.INTERRUPTED
+        val c = launch()
+        c.reset()
+        store.setAsideOutcome = SetAsideOutcome.DONE
+        c.reset()
+        assertEquals(DemoNotice.RESET_DONE, ready.notice)
+        assertEquals(seedNames, names(ready))
+        assertEquals(1, seedCasCount)
+    }
+
+    @Test fun aFailedPurgeFollowedByALockIsIncompleteNotNothingChanged() {
+        val c = launch()
+        store.purgeThrows = true
+        store.lock = DemoStoreOpen.Locked(StoreLock.KEY_TRANSIENT, canSetAside = true)
+        c.reset()
+        assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
+        assertFalse(saidNothingChanged())
+    }
+
+    /** Negative control: a purge I/O failure that left the list on disk says "Nothing was changed". */
+    @Test fun aPurgeIoFailureThatKeptTheListSaysNothingChanged() {
+        val c = launch()
+        c.dispatch(DemoAction.Add("Eggs", Category.DAIRY))
+        val saved = store.stored
+        store.throwsIo = true
+        store.purgeThrows = true
+        c.reset()
+        assertEquals(DemoNotice.RESET_FAILED, ready.notice)
+        assertEquals(saved, store.stored)
+        assertTrue("Eggs" in names(ready))
+    }
+
+    @Test fun ioFailuresOpeningReadingOrWritingFailClosedWithoutEscaping() {
+        store.throwsIo = true
+        store.openThrows = true
+        val c = launch()
+        assertEquals(DemoScreen.Locked(StoreLock.OPEN_ERROR, canReset = false), last)
+
+        store.openThrows = false
+        store.stored = LocalDemoList.seededOutbox(store.key)
+        store.recoverThrows = true
+        c.reload()
+        assertEquals(StoreLock.STATE_UNREADABLE, locked.reason)
+        assertTrue(store.casCalls.isEmpty())
+
+        store.recoverThrows = false
+        c.reload()
+        store.casThrows = true
+        c.dispatch(DemoAction.Add("Eggs", Category.DAIRY))
+        assertTrue(last is DemoScreen.SaveFailed)
+        assertEquals(LocalDemoList.seededOutbox(store.key), store.stored)
     }
 }

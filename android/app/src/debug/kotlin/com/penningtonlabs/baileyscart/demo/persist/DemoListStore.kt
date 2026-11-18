@@ -36,6 +36,27 @@ sealed interface DemoStoreOpen {
     data class Locked(val reason: StoreLock, val canSetAside: Boolean) : DemoStoreOpen
 }
 
+/** What a locked-store set-aside did to the account files. */
+enum class SetAsideOutcome {
+    /** Every file was moved into quarantine, or there was nothing to move. */
+    DONE,
+
+    /** It may have moved some files and did not finish. The LP-1 marker keeps the store locked. */
+    INTERRUPTED,
+
+    /** It certainly moved nothing: it stopped before the LP-1 marker existed. */
+    NOT_STARTED,
+}
+
+/**
+ * After a set-aside failed: the LP-1 recovery marker is written before the first move and removed
+ * after the last, so only a marker that is certainly absent proves nothing moved. When [pending]
+ * cannot be read, the outcome is unknown and is reported as [SetAsideOutcome.INTERRUPTED], never
+ * as "nothing changed".
+ */
+internal fun setAsideOutcomeAfterFailure(pending: () -> Boolean): SetAsideOutcome =
+    if (runCatching(pending).getOrDefault(true)) SetAsideOutcome.INTERRUPTED else SetAsideOutcome.NOT_STARTED
+
 interface DemoListStore {
     /** Open (or create, only when positively new) the demo account store. Never resets. */
     fun open(): DemoStoreOpen
@@ -43,9 +64,9 @@ interface DemoListStore {
     /**
      * Locked-store reset, called only after the user's two-step confirmation and with no session
      * open. Moves the demo account's files into quarantine (LP-1 RecoveryController); never
-     * deletes. True only when the set-aside completed.
+     * deletes. [SetAsideOutcome.NOT_STARTED] only when nothing can have moved.
      */
-    fun setAside(): Boolean
+    fun setAside(): SetAsideOutcome
 }
 
 /** One open demo account store. Confined to the single persistence thread. */

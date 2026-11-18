@@ -4,6 +4,7 @@ import com.penningtonlabs.baileyscart.core.model.offline.AccountKey
 import com.penningtonlabs.baileyscart.core.model.offline.FamilyKey
 import com.penningtonlabs.baileyscart.core.model.offline.FamilyOutbox
 import com.penningtonlabs.baileyscart.demo.LocalDemoList
+import java.io.IOException
 
 /**
  * In-memory stand-in for the encrypted store (JVM D1 tests only). [stored] plays the role of the
@@ -29,8 +30,19 @@ class FakeDemoStore : DemoListStore {
     var casResult: Boolean? = null
     var casThrows = false
     var purgeThrows = false
-    var setAsideResult = true
     var setAsideThrows = false
+
+    /**
+     * What the next set-aside does. INTERRUPTED models LP-1 after some moves: the files are not
+     * readable any more and the recovery marker keeps the store locked as RECOVERY_PENDING.
+     */
+    var setAsideOutcome = SetAsideOutcome.DONE
+
+    /** When true, every *Throws flag throws an IOException (checked in Java) instead of an IllegalStateException. */
+    var throwsIo = false
+
+    private fun fault(what: String): Exception =
+        if (throwsIo) IOException("$what (test)") else IllegalStateException("$what (test)")
 
     /** Called inside compareAndSet before it returns (commit-before-render probes). */
     var onCas: (expected: FamilyOutbox?, updated: FamilyOutbox) -> Unit = { _, _ -> }
@@ -46,23 +58,27 @@ class FakeDemoStore : DemoListStore {
 
     override fun open(): DemoStoreOpen {
         opens++
-        if (openThrows) throw IllegalStateException("keystore unavailable (test)")
+        if (openThrows) throw fault("keystore unavailable")
         lock?.let { return it }
         openSessions++
         return DemoStoreOpen.Opened(Session())
     }
 
-    override fun setAside(): Boolean {
+    override fun setAside(): SetAsideOutcome {
         setAsides++
         check(openSessions == 0) { "set-aside with an open session" }
-        if (setAsideThrows) throw IllegalStateException("move failed (test)")
-        if (setAsideResult) {
-            stored = null
-            otherScopes = 0
-            lock = null
-            recoverThrows = false
+        if (setAsideThrows) throw fault("move failed")
+        when (setAsideOutcome) {
+            SetAsideOutcome.DONE -> {
+                stored = null
+                otherScopes = 0
+                lock = null
+                recoverThrows = false
+            }
+            SetAsideOutcome.INTERRUPTED -> lock = DemoStoreOpen.Locked(StoreLock.RECOVERY_PENDING, canSetAside = true)
+            SetAsideOutcome.NOT_STARTED -> Unit
         }
-        return setAsideResult
+        return setAsideOutcome
     }
 
     private inner class Session : DemoStoreSession {
@@ -73,7 +89,7 @@ class FakeDemoStore : DemoListStore {
 
         override fun recover(): FamilyOutbox? {
             check(!closed)
-            if (recoverThrows) throw IllegalStateException("stored outbox violates S2a invariants (test)")
+            if (recoverThrows) throw fault("stored outbox violates S2a invariants")
             return stored
         }
 
@@ -82,7 +98,7 @@ class FakeDemoStore : DemoListStore {
             onCas(expected, updated)
             if (casThrows) {
                 casCalls += Cas(expected, updated, applied = false)
-                throw IllegalStateException("disk full (test)")
+                throw fault("disk full")
             }
             val applied = casResult ?: (stored == expected)
             if (applied) stored = updated
@@ -93,7 +109,7 @@ class FakeDemoStore : DemoListStore {
         override fun purgeDemoFamily() {
             check(!closed)
             purges++
-            if (purgeThrows) throw IllegalStateException("purge rolled back (test)")
+            if (purgeThrows) throw fault("purge rolled back")
             stored = null
         }
 

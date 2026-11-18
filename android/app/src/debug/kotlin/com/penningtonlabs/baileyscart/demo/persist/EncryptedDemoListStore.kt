@@ -35,12 +35,22 @@ class EncryptedDemoListStore(context: Context) : DemoListStore {
             is OpenResult.Locked -> DemoStoreOpen.Locked(r.reason.toStoreLock(), canSetAside = r.reason != LockReason.TAG_KEY_MISSING)
         }
 
-    override fun setAside(): Boolean {
-        // Without the tag key the account's files cannot be identified, so nothing is moved.
-        val tag = keys.accountTag(DemoIdentity.session()) ?: return false
-        return when (recovery.setAside(tag, RecoveryAcknowledgement(optedIn = true, confirmed = true))) {
-            is SetAsideResult.Done, SetAsideResult.NothingToSetAside -> true
-            SetAsideResult.NotAcknowledged -> false
+    override fun setAside(): SetAsideOutcome {
+        // Without the tag key the account's files cannot be identified, so nothing is moved. A
+        // Keystore failure here also happens before RecoveryController is called.
+        val tag = try {
+            keys.accountTag(DemoIdentity.session())
+        } catch (_: Exception) {
+            null
+        } ?: return SetAsideOutcome.NOT_STARTED
+        return try {
+            when (recovery.setAside(tag, RecoveryAcknowledgement(optedIn = true, confirmed = true))) {
+                is SetAsideResult.Done, SetAsideResult.NothingToSetAside -> SetAsideOutcome.DONE
+                SetAsideResult.NotAcknowledged -> SetAsideOutcome.NOT_STARTED
+            }
+        } catch (_: Exception) {
+            // I/O or a refused resume: files may already have moved. Decided by the LP-1 marker.
+            setAsideOutcomeAfterFailure { recovery.pending(tag) }
         }
     }
 

@@ -61,5 +61,5 @@
     <string name="demo_reset_confirm">Reset</string>
     <string name="demo_notice_reset_done">Demo data was reset.</string>
     <string name="demo_notice_reset_failed">Reset failed. Nothing was changed.</string>
-    <string name="demo_notice_reset_incomplete">Reset didn\'t finish. The old demo data was removed, but a new list couldn\'t be started.</string>
+    <string name="demo_notice_reset_incomplete">Reset didn\'t finish. The previous demo list is no longer active, and a new list couldn\'t be started.</string>
 </resources>
