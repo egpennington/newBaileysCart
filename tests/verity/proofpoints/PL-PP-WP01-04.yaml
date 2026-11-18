@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-UI-S1. Unallocated ID. Demo-scope honesty and release isolation.
 id: PL-PP-WP01-04
 name: "LOCAL DEMO scope is unmistakable and isolated: persistent \"LOCAL DEMO — not synced\" indicator, no persistence or network, and no demo code in release builds"
@@ -32,5 +33,5 @@ depths:
   D2: "NOT_RUN: release unit tests are not enabled in AGP 9 (onlyEnableUnitTestForTheTestedBuildType); enabling them changes build config and lockfiles and needs PL approval"
   D3: "local PASS (APK inspection and emulator restart check)"
   D4: "GAI CONDITIONAL PASS (GAI-D4-BC-UI-S2-WIRE-001 (BC-UI-S2-WIRE review of PR #20 at 78e889f, feature commit 02b9afe; local, untracked)). Conditional on the PL-accepted evidence exceptions GAI-S2W-M01 (NC-97 execution log not retained) and GAI-S2W-M02 (raw aapt2 output and APKs not retained), accepted 2026-11-16; see decision register v1.17"
-notes: "The PL report of items surviving app close or emulator power-off is explained by Home (backgrounded, process alive) and Android Studio Quick Boot (saveOnExit=true restores a RAM snapshot; guest uptime was 31,565 s after a fresh emulator start). No auth, entitlement or navigation gate exists in the app yet (WP-00 shell), so the demo bypasses none. The release placeholder behavior is unchanged."
+notes: "The PL report of items surviving app close or emulator power-off is explained by Home (backgrounded, process alive) and Android Studio Quick Boot (saveOnExit=true restores a RAM snapshot; guest uptime was 31,565 s after a fresh emulator start). No auth, entitlement or navigation gate exists in the app yet (WP-00 shell), so the demo bypasses none. The release placeholder behavior is unchanged. | LP-2: the debug LOCAL DEMO now persists its list (encrypted, this device only); the 'no persistence' expectation and the retention matrix above describe BC-UI-S1/S2-WIRE and are superseded for debug builds by PL-PP-WP02-01/-09. The intro wording changed (PROPOSED, PL approval pending). Release isolation re-run: PL-PP-WP02-07"
 status: "PARTIAL: local D1 and D3 PASS; release isolation is verified by local APK inspection, not in CI; D2 NOT_RUN; D4 GAI CONDITIONAL PASS with PL-accepted exceptions GAI-S2W-M01 and GAI-S2W-M02"

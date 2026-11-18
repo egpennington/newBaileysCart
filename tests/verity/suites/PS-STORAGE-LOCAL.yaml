@@ -5,7 +5,7 @@ owner: CODI
 independent_reviewer: GAI
 executed_by: "Local CODI runs only (instrumented on the 4 KiB API 37 emulator; build inspection). FORGE does not run instrumented tests or scan the :core:storage lockfile (Authorization B not granted)."
 created_in: "BC-S2-LOCAL-PERSIST LP-1 (PL-authorized; LP-0 decisions; GAI-REV-LP0-20261117-01 CONDITIONAL GO)"
-scope_note: "Module-level evidence for :core:storage, which is NOT a dependency of :app in LP-1. Fictional data and synthetic accounts only. No transport, sync, real accounts or UI. Existing PL-PP-WP02-02..06 and -11 remain in PS-OFFLINE-SYNC, unchanged."
+scope_note: "Module-level evidence for :core:storage, which is NOT a dependency of :app in LP-1. Fictional data and synthetic accounts only. No transport, sync, real accounts or UI. Existing PL-PP-WP02-02..06 and -11 remain in PS-OFFLINE-SYNC, unchanged. | LP-2: debugImplementation wires the module into the debug LOCAL DEMO for one fictional E-11a identity; release is unchanged. LP-2 adds app-level evidence to PL-PP-WP02-01, -07 and -09"
 proofpoints_in_lp1:
   - PL-PP-WP02-01 (partial)
   - PL-PP-WP02-07 (partial)

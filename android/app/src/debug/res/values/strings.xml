@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- BC-UI-S1 / BC-UI-S2-WIRE LOCAL DEMO strings (debug source set only). -->
+<!-- BC-UI-S1 / BC-UI-S2-WIRE / BC-S2-LOCAL-PERSIST LP-2 LOCAL DEMO strings (debug source set only). -->
 <resources>
     <string name="demo_banner">LOCAL DEMO — not synced</string>
-    <!-- Lifetime wording is backed by the BC-UI-S1 retention matrix: kept while the app stays in
-         memory (Home, emulator Quick Boot snapshot); cleared by Back, swiping the app away, being
-         stopped or a device restart. -->
-    <string name="demo_banner_detail">Nothing is saved or shared. Items exist only while the app stays in memory and can be lost at any time, for example when you leave with Back, swipe the app away, or restart the device.</string>
+    <!-- LP-2 wording (PROPOSED; PL approval pending). The list is stored encrypted in this app's
+         no-backup storage on this device only, for one fictional demo identity. Nothing is sent.
+         The Undo slot is in memory only and is not offered again after the app restarts. -->
+    <string name="demo_banner_detail">Fictional demo data, saved encrypted on this device only. Nothing is shared or synced. Undo is not available again after the app closes.</string>
     <string name="demo_title">Shopping list</string>
 
     <string name="demo_category_produce">Produce</string>
@@ -40,4 +40,26 @@
     <string name="demo_event_updated">Updated %1$s in %2$s.</string>
     <string name="demo_event_deleted">Deleted %1$s from %2$s.</string>
     <string name="demo_event_restored">Restored %1$s to %2$s.</string>
+
+    <!-- LP-2: storage states and the user-confirmed reset (PROPOSED wording; PL approval pending). -->
+    <string name="demo_store_opening">Opening the saved demo list…</string>
+    <string name="demo_store_resetting">Resetting the demo list…</string>
+    <string name="demo_locked_title">The saved demo list can\'t be opened</string>
+    <string name="demo_locked_body">The saved demo list is unavailable. You can try again. If the problem continues, you may be able to reset the demo list.</string>
+    <string name="demo_locked_code">Reason: %1$s</string>
+    <string name="demo_locked_no_reset">Reset isn\'t available for this problem in the app. To start over, clear this app\'s storage in system settings.</string>
+    <string name="demo_try_again">Try again</string>
+    <string name="demo_save_failed">Your last change wasn\'t saved. The list shows what is saved. Editing is paused until you reload.</string>
+    <string name="demo_reload">Reload saved list</string>
+    <string name="demo_reset_action">Reset demo data</string>
+    <string name="demo_reset_title">Reset demo data?</string>
+    <string name="demo_reset_body">This replaces the saved demo list on this device with the starting sample items. All changes you made to the demo list will be lost.</string>
+    <string name="demo_reset_body_locked">The unreadable demo files are moved aside on this device (not deleted), and a new demo list with the starting sample items is started. Changes in the old list will not be shown again.</string>
+    <string name="demo_reset_continue">Continue</string>
+    <string name="demo_reset_confirm_title">Are you sure?</string>
+    <string name="demo_reset_confirm_body">You can\'t undo a reset.</string>
+    <string name="demo_reset_confirm">Reset</string>
+    <string name="demo_notice_reset_done">Demo data was reset.</string>
+    <string name="demo_notice_reset_failed">Reset failed. Nothing was changed.</string>
+    <string name="demo_notice_reset_incomplete">Reset didn\'t finish. The previous demo list is no longer active, and a new list couldn\'t be started.</string>
 </resources>

@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-UI-S2-WIRE. Unallocated ID (no prior PL-PP-WP01-06 file or suite entry). Debug-only LOCAL DEMO.
 id: PL-PP-WP01-06
 name: "The LOCAL DEMO list is driven only by the S2a outbox and projection, in memory: Add, Edit, Delete and Undo enqueue domain commands, Undo references its delete and an unsent pair coalesces, refusals change nothing, and nothing is dispatched or persisted"
@@ -35,7 +36,7 @@ depths:
   D2: "BLOCKED: no Compose UI test or instrumentation dependencies; adding them needs PL approval"
   D3: "local PASS (manual, adb-driven emulator walkthrough, API 37): seed, add, edit, delete, Undo at about +1.2 s, expired Undo at about +7.5 s, blank and too-long errors. The not-allowed-characters message is D1 only"
   D4: "GAI CONDITIONAL GO (GAI-D4-BC-UI-S2-WIRE-001, GAI_BC_UI_S2_WIRE_D4_Verification_Report_v1.0.md; local, untracked; SHA-256 ab700ef7…8617). Review target PR #20 at HEAD 78e889f; feature commit 02b9afe. GAI rated this ProofPoint D4 CONDITIONAL PASS. The PL accepted exceptions GAI-S2W-M01 and GAI-S2W-M02 on 2026-11-16"
-notes: "The Undo window (5 s, accessibility-extended, monotonic, latest-only, generation-keyed) remains UI policy; the domain sees only items.delete and items.undoDelete. The in-memory outbox grows by one operation per action for the process lifetime and is never compacted, dispatched or persisted (PL condition 6). No S2b storage, transport, cloud or new dependency. Cross-reference: PL-PP-WP02-04 (coalescing of an unsent delete and Undo) is exercised through the UI path here; its own record is unchanged."
+notes: "The Undo window (5 s, accessibility-extended, monotonic, latest-only, generation-keyed) remains UI policy; the domain sees only items.delete and items.undoDelete. The in-memory outbox grows by one operation per action for the process lifetime and is never compacted, dispatched or persisted (PL condition 6). No S2b storage, transport, cloud or new dependency. Cross-reference: PL-PP-WP02-04 (coalescing of an unsent delete and Undo) is exercised through the UI path here; its own record is unchanged. | LP-2: the outbox is now persisted through :core:storage (debug only); still nothing is dispatched. See PL-PP-WP02-01"
 accepted_exceptions:
   - "GAI-S2W-M01 (MEDIUM): NC-97 execution log not retained. Accepted by the PL as a documented evidence exception, 2026-11-16. NC-97 is not recorded as PASS"
   - "GAI-S2W-M02 (MEDIUM): raw release-APK aapt2 resource and permission output, and the APKs, not retained. Accepted by the PL as a documented evidence exception, 2026-11-16. Class-level release isolation rests on the retained release class list"

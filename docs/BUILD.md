@@ -52,6 +52,23 @@ sha256sum app/build/outputs/apk/release/*.apk core/model/build/libs/*.jar
 
 Run this twice and compare hashes. Identical hashes show the procedure is deterministic on that machine. They don't guarantee identical binaries across machines.
 
+### Release isolation check (BC-S2-LOCAL-PERSIST LP-2, NC-98)
+
+The debug LOCAL DEMO stores its list with `:core:storage`, added to `:app` through `debugImplementation` only. The release APK must contain none of it. Check a built release APK with:
+
+```sh
+export ANDROID_HOME=...        # or BUILD_TOOLS=<sdk>/build-tools/<version>
+scripts/check-release-isolation.sh android/app/build/outputs/apk/release/app-release-unsigned.apk <evidence-dir> [expected-sha256]
+```
+
+The script keeps the raw `dexdump` class list and the `aapt2` badging, permission and resource dumps in `<evidence-dir>`. It fails if the APK contains any of the following:
+- `:core:storage`, Room, `androidx.sqlite`, SQLCipher or LOCAL DEMO classes;
+- a native library other than Compose's `libandroidx.graphics.path.so`;
+- the `INTERNET` permission;
+- the fictional E-11a demo identity, alias prefix or storage directory name.
+
+It also fails if `app/src/main` or `app/src/release` references storage or the demo identity, and, when given, if the APK hash differs. It runs locally; it is not a FORGE job.
+
 ## Backend (WP-03 Slice 1)
 
 ```sh
