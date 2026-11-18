@@ -45,7 +45,7 @@
     <string name="demo_store_opening">Opening the saved demo list…</string>
     <string name="demo_store_resetting">Resetting the demo list…</string>
     <string name="demo_locked_title">The saved demo list can\'t be opened</string>
-    <string name="demo_locked_body">Nothing has been deleted or replaced. You can try again. If the problem continues, you can reset the demo list.</string>
+    <string name="demo_locked_body">The saved demo list is unavailable. You can try again. If the problem continues, you may be able to reset the demo list.</string>
     <string name="demo_locked_code">Reason: %1$s</string>
     <string name="demo_locked_no_reset">Reset isn\'t available for this problem in the app. To start over, clear this app\'s storage in system settings.</string>
     <string name="demo_try_again">Try again</string>

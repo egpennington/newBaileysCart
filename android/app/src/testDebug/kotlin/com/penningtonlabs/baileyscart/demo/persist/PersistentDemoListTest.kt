@@ -7,7 +7,6 @@ import com.penningtonlabs.baileyscart.core.model.offline.ItemCommand
 import com.penningtonlabs.baileyscart.demo.DemoAction
 import com.penningtonlabs.baileyscart.demo.LocalDemoList
 import com.penningtonlabs.baileyscart.demo.SeqIds
-import com.penningtonlabs.baileyscart.demo.showsGenericLockedBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -379,7 +378,7 @@ class PersistentDemoListTest {
         assertEquals(DemoScreen.Locked(StoreLock.RECOVERY_PENDING, canReset = true, notice = DemoNotice.RESET_INCOMPLETE), last)
         assertFalse(saidNothingChanged())
         assertTrue(store.casCalls.isEmpty()) // nothing seeded over a half-moved store
-        assertFalse(showsGenericLockedBody(locked.notice))
+        assertTrue("reset can be retried to finish the set-aside", locked.canReset)
     }
 
     @Test fun aThrowingSetAsideIsAnUnknownOutcomeNotNothingChanged() {
@@ -399,7 +398,7 @@ class PersistentDemoListTest {
         }
     }
 
-    @Test fun retryAfterAnIncompleteResetStaysIncompleteAndKeepsTheGenericBodyHidden() {
+    @Test fun retryAfterAnIncompleteResetStaysIncomplete() {
         // Healthy path: the purge committed, then the new list could not be seeded.
         val c = launch()
         store.casResult = false
@@ -408,7 +407,7 @@ class PersistentDemoListTest {
         repeat(2) {
             c.reload()
             assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
-            assertFalse(showsGenericLockedBody(locked.notice))
+            assertTrue(locked.canReset)
         }
         // Once the store works, the retry shows that the reset did complete.
         store.casResult = null
@@ -423,7 +422,20 @@ class PersistentDemoListTest {
         store.lock = DemoStoreOpen.Locked(StoreLock.RECOVERY_PENDING, canSetAside = true)
         launch()
         assertEquals(DemoScreen.Locked(StoreLock.RECOVERY_PENDING, canReset = true, notice = DemoNotice.RESET_INCOMPLETE), last)
-        assertFalse(showsGenericLockedBody(locked.notice))
+    }
+
+    @Test fun anIncompleteResetOnALockThatCannotBeResetOffersNoReset() {
+        val c = launch()
+        store.casResult = false // the purge commits, the new list cannot be seeded
+        c.reset()
+        store.openThrows = true // the retry cannot even open the store
+        c.reload()
+        assertEquals(DemoScreen.Locked(StoreLock.OPEN_ERROR, canReset = false, notice = DemoNotice.RESET_INCOMPLETE), last)
+        val purges = store.purges
+        c.reset()
+        assertEquals(purges, store.purges)
+        assertEquals(0, store.setAsides)
+        assertEquals(DemoScreen.Locked(StoreLock.OPEN_ERROR, canReset = false, notice = DemoNotice.RESET_INCOMPLETE), last)
     }
 
     @Test fun aNotStartedRetryOfAnUnfinishedSetAsideStaysIncomplete() {

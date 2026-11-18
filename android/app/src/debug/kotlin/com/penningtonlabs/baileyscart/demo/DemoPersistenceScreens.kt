@@ -159,12 +159,6 @@ private fun StatusScreen(@StringRes textRes: Int) {
     }
 }
 
-/**
- * The generic locked body says nothing was deleted or replaced. That is not known after a reset
- * that may have removed or moved the previous list ([DemoNotice.RESET_INCOMPLETE]), so it is hidden.
- */
-internal fun showsGenericLockedBody(notice: DemoNotice?): Boolean = notice != DemoNotice.RESET_INCOMPLETE
-
 @Composable
 private fun LockedScreen(screen: DemoScreen.Locked, onRetry: () -> Unit, onResetRequest: () -> Unit) {
     Surface(Modifier.fillMaxSize()) {
@@ -181,9 +175,8 @@ private fun LockedScreen(screen: DemoScreen.Locked, onRetry: () -> Unit, onReset
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
             )
-            if (showsGenericLockedBody(screen.notice)) {
-                Text(text = stringResource(R.string.demo_locked_body), style = MaterialTheme.typography.bodyLarge)
-            }
+            // PL-approved wording that is true for every lock: first failure, unfinished reset, restart.
+            Text(text = stringResource(R.string.demo_locked_body), style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = stringResource(R.string.demo_locked_code, screen.reason.name),
                 style = MaterialTheme.typography.bodyMedium,
