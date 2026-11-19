@@ -290,7 +290,23 @@ CODI-reported. Local evidence is in `C:\dev\bc-sec-remediate-evidence` (untracke
 - **Emulator run 1 is invalid.** The host slept from 09:06:23 to 10:11:55 (Kernel-Power event 42, confirmed by the PL). Four subtests left promises pending across the suspend, and one ran for 4,149 s before it was cancelled. Run 1 was stopped, and its orphaned emulator processes were stopped by PID. The suite was re-run in full under a keep-awake wrapper (run 2, above). The run 1 log is kept as `emulator/run1-INVALID-host-sleep-0906-1011.log`.
 - **No local osv-scanner binary run.** Running the downloaded scanner was not permitted in the CODI session. OSV results come from the OSV API, the same database. The pinned Linux scanner in FORGE is the authoritative scan.
 - Some transitive packages from the `glob` override are less than 7 days old: `minimatch` 11.0.9 (2026-11-16) and `@isaacs/nonrecursive-glob-match` 1.1.0 (2026-11-05, a new package). See `docs/wp03/VERSION_DECISION_RECORD.md`.
-- FORGE CI results and GAI D4 are **pending**.
+- FORGE CI results and GAI D4 were **pending** when this section was written. They are recorded in the closeout below.
+
+### BC-SEC-REMEDIATE-01 closeout: CI, D4 and merge (register v1.20)
+
+CODI-verified from GitHub Actions job conclusions; the job logs need admin authentication and were not read. Reports are archived unchanged in [`bc-sec-remediate-01/`](bc-sec-remediate-01/README.md).
+
+| Run | ID | Event / revision | Path | Result |
+|---|---|---|---|---|
+| #98 | [`44604960563`](https://github.com/egpennington/newBaileysCart/actions/runs/44604960563) | push / `fix/bc-sec-remediate-01` @ `edb85e9` | FULL | **success, 12/12** |
+| #99 attempt 1 | [`44614595322`](https://github.com/egpennington/newBaileysCart/actions/runs/44614595322) | pull_request (PR #25) / merge ref `102cae1` (tree identical to `edb85e9`) | FULL | **failure:** Clean repeat build `135879958586` (42 s, Kotlin plugin not found, as reported by the PL); Path verification `135899797917` and FORGE gate `135899878280` failed as a consequence; 9 jobs succeeded |
+| #99 attempt 2 | [`44614595322`](https://github.com/egpennington/newBaileysCart/actions/runs/44614595322) | PL "Re-run failed jobs", no change | FULL | **success, 12/12.** Re-run: Clean repeat build `135912563735`, Path verification `135914456353`, FORGE gate `135914545966` |
+| #100 | [`44631595739`](https://github.com/egpennington/newBaileysCart/actions/runs/44631595739) | push / `develop` @ `96396f7` (PR #25 merge commit; tree identical to `edb85e9`) | FULL | **success, 12/12** (attempt 1; Path verification `135956339677`, FORGE gate `135956410998`) |
+
+- **Run #99 attempt 1:** probable transient plugin-resolution failure on the runner, not proven. The Android job in the same attempt resolved the same plugins block. See `bc-sec-remediate-01/BC-SEC-REMEDIATE-01-PR25-CI-FAILURE.md` and its addendum in the archive `README.md`.
+- **GAI D4:** APPROVE (GO), final review SHA-256 `6d61138e…df1fc`. CODI's corrections (exact `glob` pin 14.0.6; 14 changed files, not 9) are in archive Addendum B and register entry BC-SEC-REM-D4-CORR.
+- **Pre-merge (CODI, ~22:21Z):** fresh full-tree `npm audit` on `edb85e9` 0 findings; npm audit gate exit 0; `check-osv-exceptions.mjs` exit 0 with 0 exceptions; PR mergeable `clean`.
+- **Merge:** PR #25 merged into `develop` 2026-11-19T22:45:32Z, merge commit `96396f7`. No deployment.
 
 ## PL-PP-WP00-05: No real Firebase connectivity
 
