@@ -49,7 +49,7 @@ If the classifier itself fails, it writes no decision. Path verification and the
   - Change classification
   - Documentation and Verity validation: classifier self-tests, Markdown structure, Verity cross-references
   - Gradle wrapper integrity
-  - Dependency vulnerability scan and SBOM, including the `WP03-S2-SEC-DISP` exception policy and its 2026-12-01 expiry
+  - Dependency vulnerability scan and SBOM, including the security exception policy check (empty allowlist since BC-SEC-REMEDIATE-01)
   - Secret scan
   - No real Firebase configuration
   - Path verification

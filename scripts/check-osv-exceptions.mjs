@@ -10,14 +10,14 @@
 //      id, ignoreUntil, reason; ids are on the allowlist, unique; ignoreUntil is an unquoted
 //      RFC 3339 UTC date-time (Z, no offsets), a real calendar instant, in the future, and no later
 //      than the approved ceiling; reason is a meaningful plain string that cites the decision that
-//      approved that id (WP03-S2; BC-SEC-FORGE-22 for GHSA-fc5q-39xc-vjpf). A scoped id is valid
-//      only while its scope holds (BC-SEC-FORGE-22: every installed picomatch in
-//      backend/functions/package-lock.json is development-only).
+//      approved that id. A scoped id is valid only while its scope holds.
+//      BC-SEC-REMEDIATE-01: the allowlist is EMPTY. Every former exception was remediated or its
+//      advisory withdrawn, and the file was deleted, so any scanner configuration file now fails.
 //   3. The FORGE workflow still runs this check, unconditionally, immediately before the unchanged
 //      scan command; no osv-scanner invocation in any workflow uses a configuration flag; the
 //      dependency-audit job is still required by the FORGE gate, and the gate's evaluation logic is
 //      unchanged (it must still fail on any non-success upstream result).
-//   4. (BC-SEC-FORGE-22) The backend job still runs the FULL npm audit (no --omit, --production,
+//   4. The backend job still runs the FULL npm audit (no --omit, --production,
 //      --only or --audit-level anywhere) and evaluates it with scripts/check-npm-audit.mjs
 //      immediately afterwards, with the pinned commands, unconditionally; the backend job keeps
 //      its condition and working directory and still feeds the FORGE gate through path-verdict.
@@ -27,19 +27,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// ---- Approved policy (WP03-S2-SEC-DISP). Changing any value requires a new PL decision. ----
-// Allowlist: id -> the decision its reason must cite, and an optional scope that must hold.
-const POLICY = new Map([
-  ['GHSA-3g3m-2fjr-6pw4', { token: 'WP03-S2' }],
-  ['GHSA-g3hv-75wg-m249', { token: 'WP03-S2' }],
-  // BC-SEC-FORGE-22 (GAI Option E, GAI-SEC-REV-PR22-DISP-001; PL-authorized): picomatch ReDoS with
-  // no fixed release, installed only in the firebase-tools development tree.
-  ['GHSA-fc5q-39xc-vjpf', { token: 'BC-SEC-FORGE-22', scope: { lockfile: 'backend/functions/package-lock.json', package: 'picomatch' } }],
-]);
+// ---- Approved policy. Changing any value requires a new PL decision. ----
+// Allowlist: id -> { token: the decision its reason must cite, scope?: { lockfile, package } }.
+// EMPTY since BC-SEC-REMEDIATE-01. Retired entries, all remediated or withdrawn before expiry:
+//   GHSA-3g3m-2fjr-6pw4 (glob) and GHSA-g3hv-75wg-m249 (minimatch), WP03-S2-SEC-DISP: remediated by
+//     @google-cloud/firestore 9.4.1 (lockfile) and the PL-approved npm override glob 14.0.6.
+//   GHSA-fc5q-39xc-vjpf (picomatch), BC-SEC-FORGE-22: advisory withdrawn by GitHub 2026-11-18.
+const POLICY = new Map([]);
+// Ceiling of the retired exceptions; with an empty allowlist no entry can reach this check unflagged.
 const MAX_UNTIL = '2026-12-01T00:00:00Z';
-// BC-SEC-FORGE-22: the backend npm audit gate (full tree, evaluated by scripts/check-npm-audit.mjs).
+// The backend npm audit gate (full tree, evaluated by scripts/check-npm-audit.mjs; no exceptions).
 const NPM_AUDIT_STEP = { name: 'npm audit (full tree, JSON evidence)', run: 'npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true' };
-const NPM_EVAL_STEP = { name: 'Evaluate npm audit (BC-SEC-FORGE-22 pinned exception)', run: 'node ../../scripts/check-npm-audit.mjs "$RUNNER_TEMP/npm-audit.json" package-lock.json' };
+const NPM_EVAL_STEP = { name: 'Evaluate npm audit (HIGH/CRITICAL block, no exceptions)', run: 'node ../../scripts/check-npm-audit.mjs "$RUNNER_TEMP/npm-audit.json" package-lock.json' };
 const BACKEND_JOB_IF = "needs.classify.outputs.path == 'FULL'";
 const FORBIDDEN_AUDIT_FLAGS = /npm\s+audit\b.*(--omit\b|--production\b|--only\b|--audit-level\b|--dry-run\b|--registry\b)/;
 const REASON_MIN_LENGTH = 40;
@@ -221,7 +220,7 @@ function checkForge(text) {
   const body = gate ? gate.filter(l => !/^    needs:/.test(l)).map(l => l.trimEnd()).join('\n').trim() : '';
   if (body !== GATE_BODY) violate(`${WORKFLOW}: forge-gate job body changed; the gate must still fail on any non-success upstream result`);
 }
-// 4. The backend npm audit gate (BC-SEC-FORGE-22).
+// 4. The backend npm audit gate (full tree; no exceptions since BC-SEC-REMEDIATE-01).
 function checkBackendAudit(text) {
   const lines = text.split(/\r?\n/);
   const job = sliceJob(lines, 'backend');
