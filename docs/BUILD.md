@@ -94,7 +94,7 @@ bash scripts/check-no-real-firebase.sh
 
 `gitleaks dir` also scans untracked and ignored files, such as build outputs and local notes. CI scans only the checked-out tracked files.
 
-### npm audit gate (BC-SEC-FORGE-22)
+### npm audit gate
 
 FORGE audits the full backend dependency tree, development dependencies included, and evaluates the report:
 
@@ -104,7 +104,19 @@ npm audit --json > npm-audit.json || true
 node ../../scripts/check-npm-audit.mjs npm-audit.json package-lock.json
 ```
 
-The gate fails on every HIGH or CRITICAL finding, with one exception. GHSA-fc5q-39xc-vjpf (picomatch) is allowed only in the `firebase-tools` development tree, until `2026-12-01T00:00:00Z`. From that time the gate fails until the exception is removed or a new PL decision replaces it. A missing or malformed report also fails. `scripts/check-osv-exceptions.mjs` pins these workflow steps and the matching OSV exception.
+The gate fails on every HIGH or CRITICAL finding. No advisory is excepted. A missing or malformed report also fails. `scripts/check-osv-exceptions.mjs` pins these workflow steps.
+
+### Security exceptions: none
+
+There are no osv-scanner or npm audit exceptions. `backend/functions/osv-scanner.toml` does not exist, and `scripts/check-osv-exceptions.mjs` has an empty allowlist, so any scanner configuration file fails FORGE. Adding an exception needs a new PL decision.
+
+BC-SEC-REMEDIATE-01 retired the three exceptions that were due to expire at `2026-12-01T00:00:00Z`:
+
+| Advisory | Package | How it was retired |
+|---|---|---|
+| GHSA-3g3m-2fjr-6pw4 | `glob` 10.5.0 | `@google-cloud/firestore` 9.4.1 (lockfile only) removed the production path. The npm override `glob` 14.0.6 (PL-approved, glob only) replaced the development copy. |
+| GHSA-g3hv-75wg-m249 | `minimatch` 9.0.9 | Removed with `glob` 10. `glob` 14.0.6 uses `minimatch` 11.0.9. The other copies (3.1.5, 5.1.9, 6.2.3) are outside the advisory's current range. |
+| GHSA-fc5q-39xc-vjpf | `picomatch` | GitHub withdrew the advisory on 2026-11-18. No dependency change was needed. |
 
 ## CI (FORGE, GitHub Actions)
 

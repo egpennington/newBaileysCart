@@ -46,5 +46,18 @@ Adding `firebase-tools` introduced 1 high and 5 medium osv findings (npm audit: 
 
 **Maintenance:** remove each override once `firebase-tools` ships with patched versions. Re-check the overrides on every `firebase-tools` upgrade.
 
+## BC-SEC-REMEDIATE-01 (2026-11-19): `glob` override and `@google-cloud/firestore` refresh
+
+Recorded by CODI under the PL authorization "BC-SEC-REMEDIATE-01". The PL approved superseding the WP03-S2-HOLD "no forced dependency override" clause **for `glob` only**, conditional on demonstrated compatibility.
+
+| Change | From | To | Kind | Advisories cleared | Compatibility evidence |
+|---|---|---|---|---|---|
+| `@google-cloud/firestore` (optional dependency of `firebase-admin` 14.5.0, range `^9.1.0`) | 9.4.0 | **9.4.1** | Lockfile only (`npm update @google-cloud/firestore --package-lock-only`); `package.json` unchanged | Removes the production path `@google-cloud/firestore-api` 0.2.0 → `google-gax` 5.0.8 / `gaxios` 7.1.3 → `rimraf` 5 → `glob` 10.5.0 → `minimatch` 9.0.9 | `firestore-api` 0.2.0 → 0.7.1 now shares the existing root `google-gax` 6.13.0. No other production package version changed (the rest of the diff only moves packages from production to development). Unit and emulator suites pass. |
+| `glob` (npm override, every dependent) | 10.5.0 | **14.0.6** | `overrides` in `backend/functions/package.json`; `glob` 14 brings `minimatch` 11.0.9 and `path-scurry` 3.0.0 | GHSA-3g3m-2fjr-6pw4 (`glob`), GHSA-g3hv-75wg-m249 (`minimatch` 9.0.9) | The CommonJS and ESM exports are identical (`sync`, `glob`, `globSync`, `Glob`, `hasMagic`, `escape`, …). Engines: Node `18 \|\| 20 \|\| >=22`. Dependents and their call style: `rimraf` 5.0.10 (`globSync`), `archiver-utils` 5.0.2 (`glob.sync`), `exegesis` 4.3.0 (`glob.sync`), `firebase-tools` 15.34.1. A differential test running the same 20 cases on glob 10.5.0 (baseline install) and glob 14.0.6 gave identical output. The cases cover globstar, dot, braces, extglobs, escaped brackets, spaces, `archiver-utils` `file.expand` and `firebase-tools` `listFiles`. Unit tests pass 356/356; the emulator suite passes 356/356. |
+
+**Release age:** `glob` 14.0.6 was published 2026-11-12T12:02Z (7 days). Its transitive dependencies are newer: `minimatch` 11.0.9 (2026-11-16, 3 days), `brace-expansion` 5.0.13 (2026-11-11) and `@isaacs/nonrecursive-glob-match` 1.1.0 (2026-11-05, a new package). All come from the packages' established maintainers. This falls short of the Slice 1 "at least 7 days" rule for transitive packages, and is disclosed for PL and GAI review.
+
+**Not changed:** `firebase-tools` stays at 15.34.1. The latest release (15.37.0) still declares `glob ^10.5.0`, so upgrading it would not help. **Maintenance:** remove the `glob` override once `firebase-tools`, `exegesis`, `archiver-utils` and `rimraf` (through `google-gax` 5) accept a patched `glob`. Re-check it on every `firebase-tools` upgrade.
+
 ## Local-only toolchain note
 Locally, the Firestore emulator ran on Android Studio's bundled JBR (OpenJDK 25.0.3), because no standalone JDK is installed. CI uses Temurin 21.0.12+8.

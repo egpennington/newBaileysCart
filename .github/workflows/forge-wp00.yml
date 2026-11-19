@@ -235,13 +235,12 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
-      # BC-SEC-FORGE-22 (GAI Option E; PL-authorized): audit the FULL tree (dev included) and
-      # evaluate it. Blocks on every HIGH/CRITICAL finding except GHSA-fc5q-39xc-vjpf in the
-      # firebase-tools development tree, until 2026-12-01T00:00:00Z. A missing or malformed report
-      # fails. These two steps are pinned by scripts/check-osv-exceptions.mjs.
+      # Audit the FULL tree (dev included) and evaluate it. Blocks on every HIGH/CRITICAL finding;
+      # no advisory is excepted (BC-SEC-REMEDIATE-01 retired the BC-SEC-FORGE-22 exception). A
+      # missing or malformed report fails. These two steps are pinned by scripts/check-osv-exceptions.mjs.
       - name: npm audit (full tree, JSON evidence)
         run: npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
-      - name: Evaluate npm audit (BC-SEC-FORGE-22 pinned exception)
+      - name: Evaluate npm audit (HIGH/CRITICAL block, no exceptions)
         run: node ../../scripts/check-npm-audit.mjs "$RUNNER_TEMP/npm-audit.json" package-lock.json
       - name: Upload npm audit evidence
         if: always()

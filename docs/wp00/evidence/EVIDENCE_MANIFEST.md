@@ -265,6 +265,33 @@ Vulnerability findings. All of them sit **only** in the `androidLintTool` config
 
 No suppression or allowlist was applied. **Superseded:** this table is the v1.0 state. The findings were remediated by Fix B (`64c4d1c`): local osv-scanner reports no issues, and the FORGE run #2 scan job succeeded.
 
+## PL-PP-WP00-04b: BC-SEC-REMEDIATE-01, all security exceptions retired (2026-11-19)
+
+CODI-reported. Local evidence is in `C:\dev\bc-sec-remediate-evidence` (untracked; `SHA256SUMS.txt`). Environment: Windows 10, Node 22.23.5, npm 10.9.9, OpenJDK 21.0.13. Branch `fix/bc-sec-remediate-01` from `develop` `f3c68da`. Register v1.19 (BC-SEC-REM-*).
+
+| Check | Baseline `f3c68da` | Remediated |
+|---|---|---|
+| Advisory state (GitHub and OSV APIs) | GHSA-3g3m-2fjr-6pw4 `glob` ≥9.0.0 ≤14.0.1 (fixed 14.0.2); GHSA-g3hv-75wg-m249 `minimatch` ≥7.0.0 <11.0.1 (fixed 11.0.1); GHSA-fc5q-39xc-vjpf **withdrawn** 2026-11-18T15:38:56Z | n/a |
+| Full `npm audit` (dev included) | 12 moderate, 0 high, 0 critical | **0 findings** |
+| OSV API query of every lockfile `name@version` | 2 findings: `glob@10.5.0`, `minimatch@9.0.9`, both production | **0 findings** (629 packages) |
+| `scripts/check-osv-exceptions.mjs` | exit 0, 3 exceptions | **exit 0, "no exception file; no advisories are excepted"** |
+| `scripts/check-npm-audit.mjs` | exit 0 (picomatch exception, 12 days left) | **exit 0, exceptions=0**. Negative control: the 2026-11-17 picomatch report now exits 1 on 10 HIGH findings |
+| Production `glob` / `minimatch` | `glob` 10.5.0 and `minimatch` 9.0.9 in production (through `firestore-api` 0.2.0 → `google-gax` 5 / `gaxios` 7 → `rimraf` 5) | none; `glob` 14.0.6 and `minimatch` 11.0.9 are development-only |
+| `npm ci --ignore-scripts`, `npm run typecheck` | pass | pass |
+| `npm test` (unit) | 356/356 | **356/356** |
+| `npm run test:emulator` (Auth, Firestore, Functions; 50-iteration stress) | not re-run locally | **356/356, exit 0** (run 2, 10:15–11:01) |
+| glob consumer smoke test (13 checks) | 13/13 on glob 10.5.0 | **13/13** on glob 14.0.6 |
+| glob 10 vs 14 differential (20 cases) | n/a | **identical output** |
+| `MetadataLookupWarning` (GCP metadata probe, no network) | emitted (A/B probe) | emitted, identical (A/B probe); also 10× in the emulator log. Existing behavior, not new |
+| FORGE self-tests (`scripts/forge/tests`) | 83/83 | **83/83** (51 security boundary and negative-control tests) |
+| Verity check and Markdown check | pass | pass |
+
+**Disclosures:**
+- **Emulator run 1 is invalid.** The host slept from 09:06:23 to 10:11:55 (Kernel-Power event 42, confirmed by the PL). Four subtests left promises pending across the suspend, and one ran for 4,149 s before it was cancelled. Run 1 was stopped, and its orphaned emulator processes were stopped by PID. The suite was re-run in full under a keep-awake wrapper (run 2, above). The run 1 log is kept as `emulator/run1-INVALID-host-sleep-0906-1011.log`.
+- **No local osv-scanner binary run.** Running the downloaded scanner was not permitted in the CODI session. OSV results come from the OSV API, the same database. The pinned Linux scanner in FORGE is the authoritative scan.
+- Some transitive packages from the `glob` override are less than 7 days old: `minimatch` 11.0.9 (2026-11-16) and `@isaacs/nonrecursive-glob-match` 1.1.0 (2026-11-05, a new package). See `docs/wp03/VERSION_DECISION_RECORD.md`.
+- FORGE CI results and GAI D4 are **pending**.
+
 ## PL-PP-WP00-05: No real Firebase connectivity
 
 | Check | Result |
