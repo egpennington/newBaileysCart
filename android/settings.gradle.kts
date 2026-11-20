@@ -1,5 +1,14 @@
 pluginManagement {
     repositories {
+        // BC-GRADLE-VERIFY-01: Kotlin plugin markers resolve only from Maven Central, whose
+        // POMs match verification-metadata.xml. The Plugin Portal serves different marker POMs.
+        exclusiveContent {
+            forRepository { mavenCentral() }
+            filter {
+                includeGroup("org.jetbrains.kotlin.jvm")
+                includeGroup("org.jetbrains.kotlin.plugin.compose")
+            }
+        }
         google()
         mavenCentral()
         gradlePluginPortal()
