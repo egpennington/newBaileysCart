@@ -9,6 +9,7 @@ level: integration
 decision_basis:
   - DECISION_REGISTER v1.19 BC-SEC-REM-AUTH - PL authorization "BC-SEC-REMEDIATE-01" (2026-11-19) to retire all three exceptions before 2026-12-01T00:00:00Z without extending any waiver
   - DECISION_REGISTER v1.19 BC-SEC-REM-RETIRE - GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 remediated (firestore 9.4.1 lockfile refresh; PL-approved npm override glob 14.0.6); GHSA-fc5q-39xc-vjpf withdrawn by GitHub 2026-11-18
+  - DECISION_REGISTER v1.20 BC-SEC-REM-CI98-99, BC-SEC-REM-D4, BC-SEC-REM-D4-CORR, BC-SEC-REM-MERGE, BC-SEC-REM-POSTMERGE - closeout (PR #25 merged at 96396f7)
   - "History: DECISION_REGISTER v1.11 WP03-S2-SEC-ACCEPT (glob/minimatch, accepted 2026-11-03) and BC-SEC-FORGE-22 (picomatch, PR #23); both superseded by v1.19"
 preconditions:
   - Repository contains NO osv-scanner.toml / .osv-scanner.toml file anywhere (backend/functions/osv-scanner.toml deleted)
@@ -29,11 +30,16 @@ evidence:
     - Local osv-scanner binary run NOT performed for BC-SEC-REMEDIATE-01 (local execution of the downloaded scanner was not permitted in the CODI session); the pinned Linux scanner in FORGE is the authoritative scan
     - "History (exception period): CODI_WP03_S2_Gatekeeper_Local_Implementation_Report_v1.0.md; baileysCartApp_evidence/WP03_S2_GATEKEEPER_IMPLEMENTATION_EVIDENCE_v1.0; WP03_S2_GATEKEEPER_PILOT_EVIDENCE_v1.0; WP03_S2_ADMIN_CLOSEOUT_EVIDENCE_v1.0"
   ci:
-    - BC-SEC-REMEDIATE-01 FORGE runs - PENDING (to be recorded after push)
+    - "BC-SEC-REMEDIATE-01 run #98 (push, edb85e9, 44604960563): success 12/12 FULL"
+    - "BC-SEC-REMEDIATE-01 run #99 (pull_request PR #25, merge ref 102cae1, 44614595322): attempt 1 failure in Clean repeat build only (probable transient Kotlin plugin resolution; dependency-audit and backend jobs succeeded); attempt 2 success 12/12"
+    - "Post-merge run #100 (push, develop 96396f7, 44631595739): success 12/12 FULL, attempt 1"
+    - Job conclusions verified by CODI; job logs need admin authentication and were not read. See docs/wp00/evidence/EVIDENCE_MANIFEST.md (BC-SEC-REMEDIATE-01 closeout)
     - "History (exception period): FORGE runs 37, 38 and 39 (positive path with 5 filtered findings)"
+  review:
+    - "GAI D4 GAI-D4-BC-SEC-REMEDIATE-01: APPROVE (GO), final review archived unchanged in docs/wp00/evidence/bc-sec-remediate-01/ (supersedes the first review, APPROVE WITH CONDITIONS); CODI corrections recorded in DECISION_REGISTER v1.20 BC-SEC-REM-D4-CORR"
 depths:
   D1: local (CODI) - check-osv-exceptions and check-npm-audit boundary and negative-control tests (scripts/forge/tests/security-exceptions.test.mjs)
   D2: local (CODI) - npm audit and OSV database query on the remediated lockfile; unit and emulator suites with glob 14.0.6; glob 10 vs 14 differential parity
-  D3: CI (FORGE Linux runner, osv-scanner_linux_amd64, pinned SHA-256) - PENDING
-  D4: GAI review - PENDING (focused independent D4 requested for BC-SEC-REMEDIATE-01)
-status: PENDING FORGE and GAI D4 for BC-SEC-REMEDIATE-01 (zero exceptions). The previous time-boxed PASS lapses with the exceptions at 2026-12-01T00:00:00Z and is not renewed
+  D3: CI (FORGE Linux runner, osv-scanner_linux_amd64, pinned SHA-256) - PASS on the PR (runs #98 and #99 attempt 2); post-merge run #100 PASS (12/12)
+  D4: GAI review - APPROVE (GO) (GAI-D4-BC-SEC-REMEDIATE-01)
+status: "PASS for BC-SEC-REMEDIATE-01 (zero exceptions): local D1/D2 PASS; D3 CI PASS (runs #98, #99 attempt 2, post-merge #100); D4 GAI APPROVE (GO). Merged to develop at 96396f7. The previous time-boxed PASS is superseded; no exception remains or is renewed"

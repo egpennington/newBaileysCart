@@ -57,6 +57,8 @@ Recorded by CODI under the PL authorization "BC-SEC-REMEDIATE-01". The PL approv
 
 **Release age:** `glob` 14.0.6 was published 2026-11-12T12:02Z (7 days). Its transitive dependencies are newer: `minimatch` 11.0.9 (2026-11-16, 3 days), `brace-expansion` 5.0.13 (2026-11-11) and `@isaacs/nonrecursive-glob-match` 1.1.0 (2026-11-05, a new package). All come from the packages' established maintainers. This falls short of the Slice 1 "at least 7 days" rule for transitive packages, and is disclosed for PL and GAI review.
 
+**Merged:** PR #25 into `develop` at `96396f7` (2026-11-19). The override is the exact pin `"glob": "14.0.6"`. GAI's final D4 review describes it as `14.x`; register entry BC-SEC-REM-D4-CORR records the correction.
+
 **Not changed:** `firebase-tools` stays at 15.34.1. The latest release (15.37.0) still declares `glob ^10.5.0`, so upgrading it would not help. **Maintenance:** remove the `glob` override once `firebase-tools`, `exegesis`, `archiver-utils` and `rimraf` (through `google-gax` 5) accept a patched `glob`. Re-check it on every `firebase-tools` upgrade.
 
 ## Local-only toolchain note
