@@ -24,7 +24,7 @@ A run is FAST only if **every** changed file meets **all** of these conditions:
 | Path characters | Printable ASCII; no spaces, backslashes, `.` or `..` segments, or dot-files; at most 255 characters |
 | Change type | Added or modified only |
 | File mode | Regular, non-executable file (`100644`) |
-| Event | A pull request into `develop`, or a push to `develop`, `feature/**` or `fix/**` |
+| Event | A pull request into `develop`, or a push to `develop` |
 
 Everything else is **FULL**. That includes:
 - **Code and configuration:** source, tests, scripts, workflows, lockfiles, Firebase configuration and unknown file types.
@@ -40,7 +40,7 @@ If the classifier itself fails, it writes no decision. Path verification and the
 |---|---|
 | Pull request into `develop` | merge base of the base and head → head |
 | Push to `develop` | previous `develop` commit → new commit (covers merge commits) |
-| Push to `feature/**` or `fix/**` | merge base with `origin/develop` → pushed commit (the whole branch, same as its pull request) |
+| Push to `feature/**` or `fix/**` | Not triggered since BC-FORGE-R1 (the pull request run covers the branch). The classifier rule is kept and stays fail-closed. |
 
 ## Gate safeguards
 

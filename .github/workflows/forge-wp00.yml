@@ -4,7 +4,7 @@
 #
 # FORGE-FP-01 fast path. `classify` (scripts/forge/classify.mjs) decides FAST or FULL from git
 # objects only. FAST is limited to an exhaustive allowlist of documentation and Verity metadata on
-# pull requests into develop and pushes to develop/feature/fix; main, manual runs, other events and
+# pull requests into develop and pushes to develop; main, manual runs, other events and
 # anything uncertain are FULL. The FULL-only jobs (android, repeat-build, backend, backend-emulator)
 # run only when classify says FULL. `path-verdict` always runs and fails unless classify succeeded
 # and the FULL-only jobs all succeeded (FULL) or were all skipped (FAST). Security, secret,
@@ -14,7 +14,7 @@ name: FORGE WP-00
 
 on:
   push:
-    branches: ["feature/**", "fix/**", develop, main]
+    branches: [develop, main]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -23,7 +23,9 @@ permissions:
   contents: read
 
 # Integration-branch runs (main, develop) get a per-run group and are never cancelled or
-# superseded; feature/fix branches and pull requests keep cancel-superseded-runs behavior.
+# superseded; pull requests and manual runs on other refs keep cancel-superseded-runs behavior.
+# BC-FORGE-R1: feature/** and fix/** pushes no longer trigger FORGE; their pull request run
+# produces the required `FORGE gate` check, so the duplicate push run is removed.
 concurrency:
   group: forge-${{ github.ref }}${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
