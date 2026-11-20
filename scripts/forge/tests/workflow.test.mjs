@@ -26,8 +26,12 @@ describe('FORGE workflow wiring (FORGE-FP-01)', () => {
     assert.deepEqual(doc.warnings, []);
   });
 
-  test('triggers unchanged; no path filters anywhere', () => {
-    assert.deepEqual(wf.on.push.branches, ['feature/**', 'fix/**', 'develop', 'main']);
+  test('triggers: integration-branch pushes, PRs into main/develop, manual; no path filters anywhere', () => {
+    // BC-FORGE-R1: feature/** and fix/** pushes removed; PR runs supply the required check.
+    assert.deepEqual(wf.on.push.branches, ['develop', 'main']);
+    assert.deepEqual(Object.keys(wf.on).sort(), ['pull_request', 'push', 'workflow_dispatch']);
+    assert.equal(wf.on.push.tags, undefined);
+    assert.equal(wf.on.pull_request.types, undefined);
     assert.deepEqual(wf.on.pull_request.branches, ['main', 'develop']);
     assert.ok('workflow_dispatch' in wf.on);
     assert.doesNotMatch(text, /paths-ignore|^\s+paths:/m);

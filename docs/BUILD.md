@@ -122,11 +122,11 @@ BC-SEC-REMEDIATE-01 retired the three exceptions that were due to expire at `202
 
 `.github/workflows/forge-wp00.yml` runs on:
 
-- pushes to `feature/**`, `fix/**`, `develop` and `main`
+- pushes to `develop` and `main` (feature and fix branches are checked by their pull request run, not on push)
 - pull requests targeting `main` or `develop`
 - manual dispatch (`workflow_dispatch`)
 
-Runs on `main` and `develop` are never cancelled or superseded by later runs, because each gets its own concurrency group. Runs for `feature/**` and `fix/**` branches and for pull requests cancel an in-progress run for the same ref.
+Runs on `main` and `develop` are never cancelled or superseded by later runs, because each gets its own concurrency group. Pull request runs and manual runs on other refs cancel an in-progress run for the same ref.
 
 The jobs are:
 

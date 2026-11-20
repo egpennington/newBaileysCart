@@ -69,7 +69,7 @@ WP-00 provides the Android foundation (`android/`: `:app` and `:core:model`), a 
 - **New work** branches from `develop` as `feature/*` or `fix/*` and returns by a pull request into `develop`.
 - **Merging** requires a passing `FORGE gate` status check, a branch that is up to date with `develop`, and resolved conversations. Only the merge-commit method is allowed, and force pushes and branch deletion are blocked.
 - **Authority:** the Project Lead performs every merge. Agents do not approve or merge pull requests.
-- **FORGE** (`.github/workflows/forge-wp00.yml`) runs on pushes to `feature/**`, `fix/**`, `develop` and `main`, and on pull requests into `develop` and `main`.
+- **FORGE** (`.github/workflows/forge-wp00.yml`) runs on pushes to `develop` and `main`, on pull requests into `develop` and `main`, and on manual dispatch. `feature/**` and `fix/**` branches are checked by their pull request run.
 
 ## License
 
