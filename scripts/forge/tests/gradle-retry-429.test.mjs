@@ -44,7 +44,10 @@ function job() {
     '',
   ].join('\n'));
   const sleep = path.join(dir, 'sleep-stub.sh');
-  fs.writeFileSync(sleep, '#!/usr/bin/env bash\necho "$1" >> "$STUB_DIR/slept"\n');
+  // The wrapper executes FORGE_RETRY_SLEEP directly, so the stub needs the execute bit on POSIX
+  // runners (Windows/Git Bash runs it regardless). The fail-closed test rewrites this file in place,
+  // which keeps the mode.
+  fs.writeFileSync(sleep, '#!/usr/bin/env bash\necho "$1" >> "$STUB_DIR/slept"\n', { mode: 0o755 });
   let queued = 0;
   const j = {
     dir, diag,
