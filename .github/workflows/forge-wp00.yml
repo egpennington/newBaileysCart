@@ -124,10 +124,23 @@ jobs:
         run: |
           java -version
           ./gradlew --version
+      # BC-GRADLE-DIAG-01 (temporary): nonblocking probe; the script always exits 0.
+      - name: Probe Maven Central (Kotlin JVM marker, diagnostic)
+        run: PROBE_LABEL=android bash ../scripts/forge/diag/probe-kotlin-marker.sh "$RUNNER_TEMP/gradle-diag"
       # Dependency verification (gradle/verification-metadata.xml) and strict lockfiles are
       # enforced on every resolution; a checksum or lock mismatch fails this step.
+      # BC-GRADLE-DIAG-01 (temporary): the full --info log goes to the gradle-diagnostics artifact;
+      # the console shows resolution-related lines and the tail. Gradle's exit code is returned unchanged.
       - name: Build, lint, unit tests
-        run: ./gradlew assembleDebug assembleRelease test lint --no-daemon --stacktrace
+        run: |
+          diag="$RUNNER_TEMP/gradle-diag"; mkdir -p "$diag"; log="$diag/android-build.info.log"
+          rc=0
+          ./gradlew assembleDebug assembleRelease test lint --no-daemon --stacktrace --info > "$log" 2>&1 || rc=$?
+          echo "--- resolution-related lines (full log in the gradle-diagnostics-android artifact) ---"
+          grep -nE 'Could not (GET|HEAD|resolve|download)|Received status code|Caused by|timed out|refused|Connection reset|Read timed|SSL|UnknownHost|verification|MavenRepo|Gradle Central Plugin Repository' "$log" | head -n 150 || true
+          echo "--- last 200 lines ---"
+          tail -n 200 "$log"
+          exit "$rc"
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -138,6 +151,16 @@ jobs:
             android/core/model/build/reports/
             android/app/build/test-results/
             android/core/model/build/test-results/
+          retention-days: 14
+      - name: Upload Gradle diagnostics (BC-GRADLE-DIAG-01, temporary)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gradle-diagnostics-android
+          path: |
+            ${{ runner.temp }}/gradle-diag/
+            android/build/reports/
+          if-no-files-found: ignore
           retention-days: 14
 
   repeat-build:
@@ -161,20 +184,37 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-disabled: true
+      # BC-GRADLE-DIAG-01 (temporary): nonblocking probe; the script always exits 0.
+      - name: Probe Maven Central (Kotlin JVM marker, diagnostic)
+        run: PROBE_LABEL=repeat-build bash ../scripts/forge/diag/probe-kotlin-marker.sh "$RUNNER_TEMP/gradle-diag"
       # Two independent clean builds. The :core:model JAR must be byte-identical (hard gate,
       # PL-approved 2026-10-26, GAI-WP00-MAJ-01). The APK comparison is informational for WP-00.
+      # BC-GRADLE-DIAG-01 (temporary): each Gradle invocation runs with --info into its own log in the
+      # gradle-diagnostics-repeat-build artifact; gw returns Gradle's exit code, so set -e still stops the step.
       - name: Two independent clean builds
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/repeat-build-evidence"
+          diag="$RUNNER_TEMP/gradle-diag"; mkdir -p "$diag"
+          gw() {
+            local log="$diag/$1"; shift
+            local rc=0
+            ./gradlew "$@" --info > "$log" 2>&1 || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "--- resolution-related lines from $log ---"
+              grep -nE 'Could not (GET|HEAD|resolve|download)|Received status code|Caused by|timed out|refused|Connection reset|Read timed|SSL|UnknownHost|verification|MavenRepo|Gradle Central Plugin Repository' "$log" | head -n 150 || true
+            fi
+            tail -n 40 "$log"
+            return "$rc"
+          }
           for run in 1 2; do
-            ./gradlew clean --no-daemon
+            gw "run$run-clean.info.log" clean --no-daemon
             # Independence check: clean must remove every output of the previous run.
             if [ -e core/model/build/libs/model.jar ] || compgen -G "app/build/outputs/apk/release/*.apk" > /dev/null; then
               echo "::error title=Repeat build not independent::outputs survived clean before run $run"
               exit 1
             fi
-            ./gradlew :app:assembleRelease :core:model:jar --no-daemon --no-build-cache --rerun-tasks
+            gw "run$run-build.info.log" :app:assembleRelease :core:model:jar --no-daemon --no-build-cache --rerun-tasks
             mkdir -p "$evidence/run$run"
             cp core/model/build/libs/model.jar app/build/outputs/apk/release/app-release-unsigned.apk "$evidence/run$run/"
             stat -c "run$run %n mtime=%y size=%s" core/model/build/libs/model.jar >> "$evidence/build-provenance.txt"
@@ -216,6 +256,16 @@ jobs:
         with:
           name: repeat-build-evidence
           path: ${{ runner.temp }}/repeat-build-evidence
+          retention-days: 14
+      - name: Upload Gradle diagnostics (BC-GRADLE-DIAG-01, temporary)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gradle-diagnostics-repeat-build
+          path: |
+            ${{ runner.temp }}/gradle-diag/
+            android/build/reports/
+          if-no-files-found: ignore
           retention-days: 14
 
   backend:
