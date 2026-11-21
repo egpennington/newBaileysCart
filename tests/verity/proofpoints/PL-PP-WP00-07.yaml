@@ -1,0 +1,39 @@
+id: PL-PP-WP00-07
+name: Bounded single retry after a confirmed Maven Central HTTP 429
+feature: Build supply chain (Android and repeat-build Gradle invocations)
+suite: PS-BUILD-SUPPLY-CHAIN
+risk: medium
+owner: CODI
+independent_reviewer: GAI
+level: integration
+decision_basis:
+  - "penguinPrime authorization BC-GRADLE-429-R1 (2026-11-21): revised bounded-retry design with CipherMuse conditions (fixed 120 s, no Retry-After parsing, one retry per job, T1-T4 exactly)"
+  - "Cause: Maven Central returned HTTP 429 'Your ip has exceeded rate limits' for the Kotlin JVM marker POM (gradle-diagnostics-android, 2026-11-21T01:27:42Z, BC-GRADLE-DIAG-01)"
+  - "BC-GRADLE-CACHE-01 (dependency caching) rejected: GAI NO-GO, CipherMuse concurs; tampered cached artifacts were accepted (local evidence only). No caching is introduced"
+preconditions:
+  - Both Gradle jobs keep setup-gradle cache-disabled true
+  - verification-metadata.xml, STRICT lockfiles, repeat-build independence check and JAR hash gate unchanged
+  - BC-GRADLE-DIAG-01 probe, --info logs and diagnostics uploads unchanged
+steps:
+  - "scripts/forge/gradle-retry-429.sh wraps the one Gradle build invocation in the Android job and the gw helper (four invocations) in repeat-build"
+  - "Retry only if T1 exit code non-zero, T2 the log has '^Failed to get resource: (GET|HEAD)\\. \\[HTTP 429: https://repo\\.maven\\.apache\\.org/maven2/', T3 no '^> Task ' line, T4 no 'Dependency verification failed'"
+  - "Fixed 120 s delay; one retry per job via an atomic mkdir of $RUNNER_TEMP/gradle-diag/retry-429.used; if the delay fails there is no retry"
+  - "Behaviour tests (scripts/forge/tests/gradle-retry-429.test.mjs) with a Gradle stub and the real FORGE 429 log as fixture; structural tests (workflow.test.mjs); mutation controls; end-to-end run of the workflow run blocks with a stub gradlew"
+expected:
+  - The real 429 log is retried once after exactly 120 s; the second attempt's exit code is final; never a third attempt
+  - No retry for compilation failures, failed tests, dependency verification failures (with or without a 429), a 429 after tasks started, a 429 from Google Maven or the Plugin Portal, generic failures, or a successful build
+  - Across the four repeat-build invocations only the first qualifying 429 is retried; later ones fail with their own exit code
+  - First attempt kept as <log>.attempt1, decisions recorded in retry-429.txt, a ::warning annotation on every retry, retry result and spent budget; exit codes passed through unchanged
+evidence:
+  local:
+    - "CODI 2026-11-21, Windows, Git Bash, Node 22.23.5, baseline origin/develop 439203c: gradle-retry-429.test.mjs 21/21; FORGE self-tests 106/106 (all suites); docs-check, verity-check and check-osv-exceptions PASS"
+    - "Mutation controls: 14 script mutations (each of T1-T4 removed or loosened, budget removed, delay 60 s, exit code swallowed, retry exit code lost, .attempt1 dropped, warning removed, second retry added, record removed, T3 neutered, delay failure ignored) and 5 workflow mutations (wrapper removed, caching enabled, continue-on-error, sleep override, exit code discarded): every one fails the tests"
+    - "End-to-end (workflow run blocks extracted with the yaml parser, stub gradlew): Android 429 then success exit 0 after one 120 s sleep; compilation failure exit 1 with one call; two 429s exit 1 after two calls; repeat-build 429 on run 1 clean then success exit 0 (5 calls); 429 on run 1 clean and run 2 build exit 1 with budget spent (5 calls, one sleep); compilation failure exit 1 without retry"
+  ci: []
+  review: []
+depths:
+  D1: behaviour, structural and mutation tests (CODI, local)
+  D2: end-to-end run of the workflow run blocks with a stub gradlew (CODI, local)
+  D3: FORGE on the PR (FULL path; the retry path is exercised only if Maven Central returns 429)
+  D4: GAI focused review
+status: "IMPLEMENTED, MERGE HOLD: D1/D2 local PASS; D3 pending FORGE; D4 pending GAI"
