@@ -131,11 +131,12 @@ jobs:
       # enforced on every resolution; a checksum or lock mismatch fails this step.
       # BC-GRADLE-DIAG-01 (temporary): the full --info log goes to the gradle-diagnostics artifact;
       # the console shows resolution-related lines and the tail. Gradle's exit code is returned unchanged.
+      # BC-GRADLE-429-R1: one delayed retry (120 s) only for a Maven Central HTTP 429 before any task ran.
       - name: Build, lint, unit tests
         run: |
           diag="$RUNNER_TEMP/gradle-diag"; mkdir -p "$diag"; log="$diag/android-build.info.log"
           rc=0
-          ./gradlew assembleDebug assembleRelease test lint --no-daemon --stacktrace --info > "$log" 2>&1 || rc=$?
+          bash ../scripts/forge/gradle-retry-429.sh "$log" -- ./gradlew assembleDebug assembleRelease test lint --no-daemon --stacktrace --info || rc=$?
           echo "--- resolution-related lines (full log in the gradle-diagnostics-android artifact) ---"
           grep -nE 'Could not (GET|HEAD|resolve|download)|Received status code|Caused by|timed out|refused|Connection reset|Read timed|SSL|UnknownHost|verification|MavenRepo|Gradle Central Plugin Repository' "$log" | head -n 150 || true
           echo "--- last 200 lines ---"
@@ -191,6 +192,8 @@ jobs:
       # PL-approved 2026-10-26, GAI-WP00-MAJ-01). The APK comparison is informational for WP-00.
       # BC-GRADLE-DIAG-01 (temporary): each Gradle invocation runs with --info into its own log in the
       # gradle-diagnostics-repeat-build artifact; gw returns Gradle's exit code, so set -e still stops the step.
+      # BC-GRADLE-429-R1: one delayed retry (120 s) for the whole job, across all four invocations, only
+      # for a Maven Central HTTP 429 before any task ran.
       - name: Two independent clean builds
         run: |
           set -euo pipefail
@@ -199,7 +202,7 @@ jobs:
           gw() {
             local log="$diag/$1"; shift
             local rc=0
-            ./gradlew "$@" --info > "$log" 2>&1 || rc=$?
+            bash ../scripts/forge/gradle-retry-429.sh "$log" -- ./gradlew "$@" --info || rc=$?
             if [ "$rc" -ne 0 ]; then
               echo "--- resolution-related lines from $log ---"
               grep -nE 'Could not (GET|HEAD|resolve|download)|Received status code|Caused by|timed out|refused|Connection reset|Read timed|SSL|UnknownHost|verification|MavenRepo|Gradle Central Plugin Repository' "$log" | head -n 150 || true
