@@ -6,6 +6,7 @@ import com.penningtonlabs.baileyscart.demo.DemoListState
 import com.penningtonlabs.baileyscart.demo.LocalDemoList
 import com.penningtonlabs.baileyscart.demo.RandomDemoIds
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * An outcome message shown with the next screen. After a confirmed reset, the message is decided
@@ -68,13 +69,34 @@ sealed interface DemoScreen {
  *    never reported as done, and an unknown outcome is never reported as "nothing changed".
  *  - Storage exceptions of any kind (I/O and Keystore exceptions included) fail closed on this
  *    thread; none escapes a task.
+ *
+ * LP-3a lifecycle and concurrency:
+ *  - One session at a time: instances that share an [owner] (and its one [serial] executor) never
+ *    hold the store open together. [start] first retires the owner's previous instance on the
+ *    persistence thread, so the previous session is closed before the new one opens, whichever
+ *    order Android creates and clears ViewModels in.
+ *  - Closed is final: after [close] (or retirement by a newer instance) no queued or later task
+ *    runs, so nothing is written, purged, reset or set aside, and nothing is published. A task
+ *    already running when close is requested finishes (a transaction cannot be abandoned) but its
+ *    screens are not published. Actions queued but not yet committed are dropped; they were never
+ *    shown, so no confirmed change is lost.
+ *  - Screens are handed to [deliver] (the main thread in the app). Delivery is checked again when
+ *    it runs, so a screen queued before close is never shown after it.
  */
 class PersistentDemoList(
     private val store: DemoListStore,
     private val serial: Executor,
     private val publish: (DemoScreen) -> Unit,
     private val ids: DemoIds = RandomDemoIds,
+    private val owner: DemoSessionOwner = DemoSessionOwner(),
+    private val deliver: Executor = Executor { it.run() },
 ) {
+    /** Set once, from any thread. Read by every task and every delivery. */
+    private val closed = AtomicBoolean(false)
+
+    /** True once [close] was called or a newer instance took over. */
+    val isClosed: Boolean get() = closed.get()
+
     private var session: DemoStoreSession? = null
     private var committed: DemoListState? = null
     private var screen: DemoScreen = DemoScreen.Opening
@@ -86,28 +108,50 @@ class PersistentDemoList(
      */
     private var resetUnresolved = false
 
-    fun start() = serial.execute { openAndRecover() }
+    fun start() = submit {
+        owner.takeOver(this, serial)
+        openAndRecover()
+    }
 
     /** "Try again" on a lock, or "Reload" after a failed save: re-read everything from disk. */
-    fun reload() = serial.execute {
+    fun reload() = submit {
         if (screen is DemoScreen.Locked || screen is DemoScreen.SaveFailed) {
             closeSession()
             openAndRecover()
         }
     }
 
-    fun dispatch(action: DemoAction) = serial.execute { mutate(action) }
+    fun dispatch(action: DemoAction) = submit { mutate(action) }
 
     /** User-confirmed reset (the UI has already shown both confirmation steps). */
-    fun reset() = serial.execute { doReset() }
+    fun reset() = submit { doReset() }
 
-    fun close() = serial.execute { closeSession() }
+    /** Final. Later and still-queued tasks do nothing; the session is closed on the persistence thread. */
+    fun close() {
+        if (!closed.compareAndSet(false, true)) return
+        serial.execute {
+            owner.release(this)
+            closeSession()
+        }
+    }
+
+    private fun submit(task: () -> Unit) {
+        if (closed.get()) return
+        serial.execute { if (!closed.get()) task() }
+    }
 
     // ---- persistence thread only -------------------------------------------------------------
 
+    /** Called by [owner] on the persistence thread when a newer instance starts. */
+    internal fun retire() {
+        closed.set(true)
+        closeSession()
+    }
+
     private fun emit(next: DemoScreen) {
         screen = next
-        publish(next)
+        if (closed.get()) return
+        deliver.execute { if (!closed.get()) publish(next) }
     }
 
     private fun closeSession() {

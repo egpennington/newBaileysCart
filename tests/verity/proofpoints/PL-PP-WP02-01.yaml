@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-3a entries are appended and marked 'LP-3a'; LP-1 and LP-2 wording is unchanged.
 # BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
 # LP-2 closeout (decision register v1.18): GAI D4 PASS / GO recorded; NC-100..NC-104 allocated (were provisional).
@@ -10,16 +11,19 @@ owner: CODI
 independent_reviewer: GAI
 level: "instrumented (D2)"
 slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
-slice_coverage: "PARTIAL. Module-level process death (real SIGKILL of a separate :victim process). No app-level restart until LP-2/LP-3. | LP-2: app-level wiring of the debug LOCAL DEMO: seed once, startup recovery, ordered commit-before-render (D1) and app restart after SIGKILL (D3)"
+slice_coverage: "PARTIAL. Module-level process death (real SIGKILL of a separate :victim process). No app-level restart until LP-2/LP-3. | LP-2: app-level wiring of the debug LOCAL DEMO: seed once, startup recovery, ordered commit-before-render (D1) and app restart after SIGKILL (D3) | LP-3a: one process-wide persistence owner and serial executor; the previous ViewModel's session closes before the next opens, in either creation/clear order; confirmed (committed and shown) writes survive SIGKILL, force-stop and ViewModel handover"
 steps:
   - "Run the coordinator scenario in VictimService and kill it at 7 crash points x 50 runs; recover with SpikeStores.recover and drain"
   - "Interrupt a set-aside after 1..3 file moves; resume"
   - "LP-2 D1: PersistentDemoListTest over a fake store (seed once, restart recovery, Undo not restored, commit before render, refused/throwing commit, 25 rapid actions in order)"
   - "LP-2 D3: debug app on the emulator: Add, Edit, Delete+Undo, Delete; SIGKILL (kill -9) with and without an open Undo slot; force-stop; relaunch"
+  - "LP-3a D1: PersistentDemoListLifecycleTest: overlapping and sequential instances on one queued serial executor (both Android orders), 20 alternating handovers, 200 instances from 4 caller threads on real threads, a retired instance's queued work"
+  - "LP-3a D3 (debug app, emulator, debug-only BCLP3-TRACE logcat + trace_check.py): L1 confirmed add then SIGKILL and force-stop; L2 delete then SIGKILL; L5a 10 handovers by NEW_TASK|CLEAR_TASK after a confirmed add; L5b 5 handovers right after an unconfirmed add; L5c 5 handovers by am start -R; L5d 4 rotations while opening"
 expected:
   - "The recovered disk state equals the model at every crash point (350/350); IN_FLIGHT recovers as RETRY_WAIT; the sibling family is intact; no Q-7 violation"
   - "An interrupted set-aside resumes byte-identically"
   - "LP-2: the list after relaunch equals the list before the kill; the Undo slot is not restored and the delete stands; the seed is never written again; nothing renders before its commit succeeds; each write's expected value is the previous committed value"
+  - "LP-3a: at most one session open at any time (D1 maxOpenSessions 1; D3 trace T4); every storage call on the one persistence thread; a confirmed write is present after every handover and restart; the seed is written once"
 evidence:
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/CrashRecoveryTest.kt (processKillAtEveryCrashPointRecoversModelStateAndConverges, interruptedSetAsideResumesWithoutLoss)"
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/DurabilityTest.kt (dur2CommitPrecedesSendAndRejectionWithBlockedDependentsPrecedesYoungerDispatch)"
@@ -27,18 +31,24 @@ evidence:
   - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/persist/PersistentDemoListTest.kt (26 tests) and demo/LocalDemoListRecoveryTest.kt (5 tests)"
   - "LP-2 evidence C:/dev/bc-lp2-evidence (local, untracked): d3/D3-01..D3-05 (screenshots, UI text dumps, store listings): list identical across SIGKILL; Undo open before kill, absent after; seed not re-written after force-stop"
   - "LP-2 evidence C:/dev/bc-lp2-evidence (local, untracked): runs/LP2-LP1-regression-4KB-full: LP-1 instrumented suite re-run 37/37 PASS (DUR3 7 points x 50/50) on the unchanged :core:storage source"
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/persist/PersistentDemoListLifecycleTest.kt (14 tests)"
+  - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): d3/L0, L1, L2, L5a, L5b, L5c, L5d (.txt transcript, .trace.txt, .trace-check.txt/.json, screenshots, store SHA-256); trace checker scripts/trace_check.py --selftest 9/9; d3/superseded (runs replaced, with reasons)"
+  - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): on device Android created the new ViewModel before clearing the old one in 15 of 15 handovers (L5a 10, L5c 5; scripts/handover_order.py); each time the old session's CLOSE ended before the new OPEN began"
+  - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): d2/LP3a-D2-core-storage-regression: LP-1 instrumented suite re-run 37/37 PASS (dur3Runs 50, setAsideRuns 5, dur5Samples 200) on the unchanged :core:storage source"
 negative_controls:
   - "NC-76 CAUGHT (BLOCKED_DEPENDENCY not written)"
   - "NC-78 CAUGHT (send without durable IN_FLIGHT commit)"
   - "LP-2 NC-101 CAUGHT (render before commit: 3 tests failed)"
   - "LP-2 NC-102 CAUGHT (re-seed over the recovered outbox on restart: 6 tests failed)"
+  - "LP-3a NC-105 CAUGHT (D1: start() opens without retiring the previous instance: 7 lifecycle tests failed; restored byte-exact)"
+  - "LP-3a NC-105b CAUGHT (D3: LP-2 wiring, a private executor and owner per ViewModel: trace T4 overlap in 3 of 3 handovers; the list looked correct, so only the trace shows it)"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
 depths:
-  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only) | LP-2: local PASS (app-level, fake store; 31 new tests)"
-  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
-  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-2: local PASS (debug app restart after SIGKILL and force-stop on 4 KiB API 37)"
-  D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI"
+  D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only) | LP-2: local PASS (app-level, fake store; 31 new tests) | LP-3a: local PASS (14 lifecycle tests; LP-2 tests unchanged and passing)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37) | LP-3a: local re-run PASS 37/37 (LP3a-D2-core-storage-regression; :core:storage unchanged)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-2: local PASS (debug app restart after SIGKILL and force-stop on 4 KiB API 37) | LP-3a: local PASS (L0-L2, L5a-L5d on 4 KiB API 37; trace PASS for every process of the tested APK)"
+  D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI | LP-3a: NOT_RUN: GAI D4 pending for the LP-3a PR"
 notes: "DUR-4 physical power loss is NOT_VERIFIED (emulator); WAL + synchronous=FULL is relied on per SQLite documentation. Existing PL-PP-WP02-02/03/05 (PS-OFFLINE-SYNC) are not promoted by this evidence."
-status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; LP-1 D2 re-run PASS; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003); LP-3 obligations open (decision register BC-LP2-LP3)"
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; LP-1 D2 re-run PASS; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003); LP-3 obligations open (decision register BC-LP2-LP3) | LP-3a: PARTIAL: D1, D2 re-run and D3 local PASS; D4 pending; FORGE pending; carry-forward items in BC-LP2-LP3 stay open"

@@ -9,8 +9,8 @@
 #     (com.penningtonlabs.baileyscart.demo, which includes the E-11a identity provider);
 #   - any native library (lib/**.so) other than the allowlisted Compose library, e.g. libsqlcipher;
 #   - the android.permission.INTERNET permission;
-#   - the E-11a identity, its Keystore alias prefix or its storage directory name, as UTF-8 or
-#     UTF-16LE bytes in any APK entry (dex, resources.arsc, manifest, assets);
+#   - the E-11a identity, its Keystore alias prefix or its storage directory name, or the LP-3a
+#     trace tag, as UTF-8 or UTF-16LE bytes in any APK entry (dex, resources.arsc, manifest, assets);
 # or, when given, if the APK's SHA-256 differs from [expected-apk-sha256].
 # It also fails if app/src/main or app/src/release reference :core:storage or the demo identity.
 #
@@ -23,7 +23,8 @@ APK=${1:?apk}; OUT=${2:?evidence dir}; EXPECTED_SHA=${3:-}
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 
 # Fixed strings that must never reach a release build (E-11a, app/src/debug/.../DemoIdentity.kt).
-FORBIDDEN_STRINGS=("demo-local-list-e11a" "bcdemo_" "bc-local-demo-store")
+# LP-3a: the debug-only lifecycle trace tag (app/src/debug/.../demo/DemoPersistence.kt).
+FORBIDDEN_STRINGS=("demo-local-list-e11a" "bcdemo_" "bc-local-demo-store" "BCLP3-TRACE")
 # Native libraries already in the WP-00 release APK (androidx.compose.ui graphics path, per ABI).
 ALLOWED_NATIVE_LIBS='libandroidx\.graphics\.path\.so'
 
