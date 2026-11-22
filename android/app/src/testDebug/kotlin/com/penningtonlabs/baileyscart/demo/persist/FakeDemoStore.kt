@@ -56,15 +56,28 @@ class FakeDemoStore : DemoListStore {
     var closes = 0
     var openSessions = 0
 
+    /** LP-3a: the most sessions ever open at the same time (must stay 1 under a shared owner). */
+    var maxOpenSessions = 0
+
+    /** LP-3a: names of every thread that called into this store or one of its sessions. */
+    val callThreads = mutableSetOf<String>()
+
+    private fun called() {
+        callThreads += Thread.currentThread().name
+    }
+
     override fun open(): DemoStoreOpen {
+        called()
         opens++
         if (openThrows) throw fault("keystore unavailable")
         lock?.let { return it }
         openSessions++
+        maxOpenSessions = maxOf(maxOpenSessions, openSessions)
         return DemoStoreOpen.Opened(Session())
     }
 
     override fun setAside(): SetAsideOutcome {
+        called()
         setAsides++
         check(openSessions == 0) { "set-aside with an open session" }
         if (setAsideThrows) throw fault("move failed")
@@ -88,12 +101,14 @@ class FakeDemoStore : DemoListStore {
         override fun hasAnyScope(): Boolean = stored != null || otherScopes > 0
 
         override fun recover(): FamilyOutbox? {
+            called()
             check(!closed)
             if (recoverThrows) throw fault("stored outbox violates S2a invariants")
             return stored
         }
 
         override fun compareAndSet(expected: FamilyOutbox?, updated: FamilyOutbox): Boolean {
+            called()
             check(!closed)
             onCas(expected, updated)
             if (casThrows) {
@@ -107,6 +122,7 @@ class FakeDemoStore : DemoListStore {
         }
 
         override fun purgeDemoFamily() {
+            called()
             check(!closed)
             purges++
             if (purgeThrows) throw fault("purge rolled back")
@@ -114,6 +130,7 @@ class FakeDemoStore : DemoListStore {
         }
 
         override fun close() {
+            called()
             if (closed) return
             closed = true
             closes++
