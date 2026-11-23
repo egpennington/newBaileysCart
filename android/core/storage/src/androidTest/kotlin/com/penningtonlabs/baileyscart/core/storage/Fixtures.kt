@@ -41,10 +41,12 @@ object Fx {
         val keys = KeyManager(root, prefix)
         val recovery = RecoveryController(keys)
 
-        fun open(uid: String): OpenResult = AccountStore.open(context, keys, FakeVerifiedSession(uid), recovery)
+        /** [observer]: SR-1 per-open connection observer (null = production behavior: nothing observed or retained). */
+        internal fun open(uid: String, observer: ConnectionObserver? = null): OpenResult =
+            AccountStore.open(context, keys, FakeVerifiedSession(uid), recovery, observer)
 
-        fun opened(uid: String): AccountStore {
-            val r = open(uid)
+        internal fun opened(uid: String, observer: ConnectionObserver? = null): AccountStore {
+            val r = open(uid, observer)
             assertTrue("expected Opened but was $r", r is OpenResult.Opened)
             return (r as OpenResult.Opened).store
         }
