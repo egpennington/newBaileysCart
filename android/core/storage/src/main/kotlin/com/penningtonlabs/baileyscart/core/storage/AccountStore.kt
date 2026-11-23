@@ -43,6 +43,9 @@ class DurabilityViolationException(observed: Long) : IllegalStateException("sync
  */
 internal fun interface ConnectionObserver {
     fun onConfigured(connection: SQLiteConnection, synchronousAfterHook: Long, tempStore: String, secureDelete: String)
+
+    /** The key material this open obtained, before it is used (lets tests check it is wiped on every failure path). */
+    fun onKey(key: KeyMaterial) = Unit
 }
 
 /**
@@ -147,9 +150,18 @@ class AccountStore private constructor(
                     UnwrapResult.Transient -> return OpenResult.Locked(LockReason.KEY_TRANSIENT)
                 }
             }
+            observer?.onKey(key)
             var storedVersion = 0L
             if (dbFile.exists()) {
-                when (val p = preflight(dbFile, key.sqlcipherKey)) {
+                // SR-1: an exception from preflight (for example an I/O error copying the probe files) wipes the
+                // key and is then reported exactly as before; a Probe.Fail wipes it below, as it always has.
+                val probe = try {
+                    preflight(dbFile, key.sqlcipherKey)
+                } catch (e: Throwable) {
+                    key.wipe()
+                    throw e
+                }
+                when (val p = probe) {
                     is Probe.Fail -> {
                         key.wipe()
                         return OpenResult.Locked(p.reason)

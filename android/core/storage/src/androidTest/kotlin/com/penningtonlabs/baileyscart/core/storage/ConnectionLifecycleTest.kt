@@ -13,6 +13,8 @@ import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.IOException
+import java.security.MessageDigest
 import java.lang.ref.WeakReference
 
 /**
@@ -35,8 +37,13 @@ class ConnectionLifecycleTest {
 
     private class Recorder : ConnectionObserver {
         val seen = ArrayList<SQLiteConnection>()
+        var key: KeyMaterial? = null
         override fun onConfigured(connection: SQLiteConnection, synchronousAfterHook: Long, tempStore: String, secureDelete: String) {
             seen += connection
+        }
+
+        override fun onKey(key: KeyMaterial) {
+            this.key = key
         }
     }
 
@@ -133,6 +140,46 @@ class ConnectionLifecycleTest {
         assertEquals("observer A: its own open only", 1, a.seen.size)
         assertEquals("observer B: its own open only", 1, b.seen.size)
         assertTrue("different connections", a.seen.single() !== b.seen.single())
+    }
+
+    private fun accountFileHashes(e: Fx.Env): Map<String, String> =
+        e.keys.root.listFiles()!!.filter { it.isFile }.sortedBy { it.name }.associate { f ->
+            f.name to MessageDigest.getInstance("SHA-256").digest(f.readBytes()).joinToString("") { "%02x".format(it) }
+        }
+
+    /**
+     * SR-1 correction: an I/O exception from the pre-open probe copy wipes the unwrapped key, is reported exactly as
+     * before (the exception propagates; no lock is invented), opens no connection and changes no account file.
+     */
+    @Test
+    fun aPreflightIoFailureWipesTheKeyAndIsReportedAsBefore() {
+        val e = env("sr1-preflight")
+        val uid = "demo-sr1-preflight"
+        val first = e.opened(uid)
+        val fam = Fx.family(first)
+        val written = Fx.applied(Fx.add(FamilyOutbox.empty(fam, Fx.E1), 1, 1, "Preflight item"))
+        assertTrue(first.stores.outbox.compareAndSet(fam, null, written))
+        first.close()
+        val before = accountFileHashes(e)
+
+        // The probe directory path is made a plain file, so copying the database into it throws an I/O error.
+        val probeDir = File(e.keys.dbFile(e.tag(uid)).parentFile, ".probe")
+        probeDir.deleteRecursively()
+        assertTrue(probeDir.createNewFile())
+        val rec = Recorder()
+        val thrown = openFails(e, uid, rec)
+        Fx.evidence("SR1 preflight I/O failure threw ${thrown.javaClass.simpleName}")
+        assertTrue("reported as before: the I/O exception propagates (was ${thrown.javaClass.name})", thrown is IOException)
+        assertTrue("no connection opened", rec.seen.isEmpty())
+        val key = rec.key
+        assertTrue("the open obtained a key", key != null)
+        assertTrue("key wiped after the preflight I/O failure", key!!.isWiped())
+        assertEquals("account files unchanged", before, accountFileHashes(e).filterKeys { it != ".probe" })
+
+        assertTrue(probeDir.delete())
+        val again = e.opened(uid)
+        assertEquals("same data once the failure is removed", written, again.stores.outbox.read(fam))
+        again.close()
     }
 
     private fun openWriteCloseKeepingOnlyAWeakReference(e: Fx.Env, uid: String): WeakReference<SQLiteConnection> {
