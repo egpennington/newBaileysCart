@@ -43,6 +43,19 @@ class ResetOutcomeTest {
         for (claim in listOf("deleted", "replaced", "removed", "nothing")) assertFalse(claim, claim in body)
     }
 
+    /** LP-3c: KEY_TRANSIENT and OPEN_ERROR use the approved neutral wording: no reset or clear-storage advice, no claims. */
+    @Test fun theTemporaryLockCopyIsTheApprovedNeutralWording() {
+        val strings = debugStrings()
+        assertEquals(
+            "We couldn't open your saved demo list. Try again. If the problem continues, restart the app or device.",
+            strings["demo_locked_retry_body"],
+        )
+        val body = strings.getValue("demo_locked_retry_body").lowercase()
+        for (claim in listOf("reset", "clear", "storage", "delete", "nothing", "changed", "temporary")) {
+            assertFalse(claim, claim in body)
+        }
+    }
+
     private fun debugStrings(): Map<String, String> {
         val path = "src/debug/res/values/strings.xml"
         val file = listOf(File(path), File("app/$path")).first { it.isFile }

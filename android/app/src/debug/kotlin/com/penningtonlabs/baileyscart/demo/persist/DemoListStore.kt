@@ -29,6 +29,14 @@ enum class StoreLock {
     OPEN_ERROR,
 }
 
+/**
+ * LP-3c: an opening failure that may be temporary ([StoreLock.KEY_TRANSIENT]) or whose cause is
+ * unknown ([StoreLock.OPEN_ERROR]). The only recovery offered is Try again: never a reset (which
+ * would set the files aside) and never advice to clear the app's storage.
+ */
+internal val StoreLock.retryOnly: Boolean
+    get() = this == StoreLock.KEY_TRANSIENT || this == StoreLock.OPEN_ERROR
+
 sealed interface DemoStoreOpen {
     class Opened(val session: DemoStoreSession) : DemoStoreOpen
 

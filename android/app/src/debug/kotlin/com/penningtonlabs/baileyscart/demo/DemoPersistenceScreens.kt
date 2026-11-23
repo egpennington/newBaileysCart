@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.penningtonlabs.baileyscart.R
 import com.penningtonlabs.baileyscart.demo.persist.DemoNotice
 import com.penningtonlabs.baileyscart.demo.persist.DemoScreen
+import com.penningtonlabs.baileyscart.demo.persist.LockedRecovery
 
 /*
  * BC-S2-LOCAL-PERSIST LP-2 screens around the LOCAL DEMO list (debug source set only): opening,
@@ -176,7 +177,9 @@ private fun LockedScreen(screen: DemoScreen.Locked, onRetry: () -> Unit, onReset
                 modifier = Modifier.semantics { heading() },
             )
             // PL-approved wording that is true for every lock: first failure, unfinished reset, restart.
-            Text(text = stringResource(R.string.demo_locked_body), style = MaterialTheme.typography.bodyLarge)
+            // LP-3c: a lock that may be temporary or has an unknown cause never mentions reset.
+            val bodyRes = if (screen.recovery == LockedRecovery.RETRY_ONLY) R.string.demo_locked_retry_body else R.string.demo_locked_body
+            Text(text = stringResource(bodyRes), style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = stringResource(R.string.demo_locked_code, screen.reason.name),
                 style = MaterialTheme.typography.bodyMedium,
@@ -186,12 +189,14 @@ private fun LockedScreen(screen: DemoScreen.Locked, onRetry: () -> Unit, onReset
             Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget)) {
                 Text(stringResource(R.string.demo_try_again))
             }
-            if (screen.canReset) {
-                OutlinedButton(onClick = onResetRequest, modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget)) {
-                    Text(stringResource(R.string.demo_reset_action))
-                }
-            } else {
-                Text(text = stringResource(R.string.demo_locked_no_reset), style = MaterialTheme.typography.bodyMedium)
+            when (screen.recovery) {
+                LockedRecovery.RESET ->
+                    OutlinedButton(onClick = onResetRequest, modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget)) {
+                        Text(stringResource(R.string.demo_reset_action))
+                    }
+                LockedRecovery.CLEAR_STORAGE ->
+                    Text(text = stringResource(R.string.demo_locked_no_reset), style = MaterialTheme.typography.bodyMedium)
+                LockedRecovery.RETRY_ONLY -> Unit
             }
         }
     }

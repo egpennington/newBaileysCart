@@ -47,6 +47,8 @@
     <string name="demo_locked_title">The saved demo list can\'t be opened</string>
     <string name="demo_locked_body">The saved demo list is unavailable. You can try again. If the problem continues, you may be able to reset the demo list.</string>
     <string name="demo_locked_code">Reason: %1$s</string>
+    <!-- LP-3c (CipherMuse/PL-approved): KEY_TRANSIENT and OPEN_ERROR. No reset, no clear-storage advice. -->
+    <string name="demo_locked_retry_body">We couldn\'t open your saved demo list. Try again. If the problem continues, restart the app or device.</string>
     <string name="demo_locked_no_reset">Reset isn\'t available for this problem in the app. To start over, clear this app\'s storage in system settings.</string>
     <string name="demo_try_again">Try again</string>
     <string name="demo_save_failed">Your last change wasn\'t saved. The list shows what is saved. Editing is paused until you reload.</string>
