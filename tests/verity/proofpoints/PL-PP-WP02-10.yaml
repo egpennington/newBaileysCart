@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-3 closeout (decision register v1.21) entries are appended and marked 'LP-3 closeout'; earlier wording is unchanged.
 # BC-S2-LOCAL-PERSIST LP-3b entries are appended and marked 'LP-3b'; LP-1, LP-2 and LP-3a wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
 # Draft for GAI D4. Not committed.
@@ -45,6 +46,6 @@ depths:
   D1: "NOT_APPLICABLE (the KSP build control NC-89 is the compile-time check) | LP-3b: local PASS (StorageNamingTest 4 tests: names and schema identity)"
   D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37) | LP-3b: local re-run PASS 37/37 (LP3b-D2-core-storage-regression) (renamed classes; schema unchanged)"
   D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-3b: local PASS (U0-U4 on 4 KiB API 37: LP-3a data reopens under LP-3b, LP-3b data reopens under LP-3a after rollback; OPENED 5 of 5; trace PASS; d3/superseded/run1 with reason)"
-  D4: "NOT_RUN: GAI independent review pending | LP-3b: NOT_RUN: GAI D4 pending for the LP-3b PR"
+  D4: "NOT_RUN: GAI independent review pending | LP-3b: NOT_RUN: GAI D4 pending for the LP-3b PR | LP-3 closeout: GAI PASS / GO for LP-3b (GAI-D4-BC-S2-LP3B-001, GAI-D4-BC-S2-LP3B-ADDENDUM-01; PL-reported, reports not held in this repository)"
 notes: "DUR-5 enqueue-commit latency on 4 KiB: p95 9.09 ms (n=200); proposed target <= 100 ms, not an SLA. Schemas 2.json and 3.json are byte-identical to the spike exports. | LP-3b: LP-3b renamed SpikeAccountStore to AccountStore, SpikeStores to AccountStorePorts, SpikeDao to AccountDao and SpikeDatabase to AccountDatabase; the test-only SpikeCoordinator moved to androidTest as TestOutboxCoordinator (SpikeTransport to TestTransport). Earlier entries keep the old names. The rename changes no file name, key alias, AAD, table, column or schema version"
-status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN | LP-3b: PARTIAL: rename compatibility D1, D2 re-run and D3 local; D4 pending; FORGE pending"
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN | LP-3b: PARTIAL: rename compatibility D1, D2 re-run and D3 local; D4 pending; FORGE pending | LP-3 closeout: LP-3b complete: rename compatibility D1, D2 re-run and D3 local PASS; D4 PASS / GO (PL-reported); post-merge FORGE run #115 12/12 (44c75ad). ProofPoint stays PARTIAL: 16 KiB, ARM64 and API 26 are deferred to the release-readiness storage gate (BC-LP3-DEFER-REL)"
