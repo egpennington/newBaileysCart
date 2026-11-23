@@ -14,7 +14,6 @@ import net.zetetic.database.sqlcipher.SQLiteDatabaseHook
 import net.zetetic.database.sqlcipher.SQLiteGlobal
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
-import java.util.concurrent.CopyOnWriteArrayList
 
 enum class LockReason {
     TAG_KEY_MISSING,
@@ -36,11 +35,17 @@ sealed interface OpenResult {
 /** synchronous was not FULL on the connection that is about to commit. The transaction is rolled back. */
 class DurabilityViolationException(observed: Long) : IllegalStateException("synchronous=$observed, FULL(2) required")
 
-/** Observations recorded by the connection hook (test evidence). Holds connection references, test use only. Internal (LP-3b). */
-internal object ConnectionRegistry {
-    class Observed(val connection: SQLiteConnection, val synchronousAfterHook: Long, val tempStore: String, val secureDelete: String)
+/**
+ * SR-1: an optional observer for ONE open, called once for each SQLCipher connection of that open, right
+ * after its per-connection settings are applied (test evidence). Internal: only this module's tests pass
+ * one. Production opens pass none, so nothing outside an open store refers to its connections: there is no
+ * process-wide registry, and a closed store's connections (with their recent-operation logs) can be freed.
+ */
+internal fun interface ConnectionObserver {
+    fun onConfigured(connection: SQLiteConnection, synchronousAfterHook: Long, tempStore: String, secureDelete: String)
 
-    val connections = CopyOnWriteArrayList<Observed>()
+    /** The key material this open obtained, before it is used (lets tests check it is wiped on every failure path). */
+    fun onKey(key: KeyMaterial) = Unit
 }
 
 /**
@@ -116,7 +121,17 @@ class AccountStore private constructor(
         /** Loaded native SQLCipher; call before any direct SQLCipher use in tests. */
         internal fun ensureNativeLoaded() = Unit
 
-        fun open(context: Context, keys: KeyManager, session: FakeVerifiedSession, recovery: RecoveryController): OpenResult {
+        fun open(context: Context, keys: KeyManager, session: FakeVerifiedSession, recovery: RecoveryController): OpenResult =
+            open(context, keys, session, recovery, observer = null)
+
+        /** As [open], with a per-open [observer] of each connection (SR-1; module tests only). */
+        internal fun open(
+            context: Context,
+            keys: KeyManager,
+            session: FakeVerifiedSession,
+            recovery: RecoveryController,
+            observer: ConnectionObserver?,
+        ): OpenResult {
             val tag = keys.accountTag(session) ?: return OpenResult.Locked(LockReason.TAG_KEY_MISSING)
             if (recovery.pending(tag)) return OpenResult.Locked(LockReason.RECOVERY_PENDING)
             val dbFile = keys.dbFile(tag)
@@ -135,9 +150,18 @@ class AccountStore private constructor(
                     UnwrapResult.Transient -> return OpenResult.Locked(LockReason.KEY_TRANSIENT)
                 }
             }
+            observer?.onKey(key)
             var storedVersion = 0L
             if (dbFile.exists()) {
-                when (val p = preflight(dbFile, key.sqlcipherKey)) {
+                // SR-1: an exception from preflight (for example an I/O error copying the probe files) wipes the
+                // key and is then reported exactly as before; a Probe.Fail wipes it below, as it always has.
+                val probe = try {
+                    preflight(dbFile, key.sqlcipherKey)
+                } catch (e: Throwable) {
+                    key.wipe()
+                    throw e
+                }
+                when (val p = probe) {
                     is Probe.Fail -> {
                         key.wipe()
                         return OpenResult.Locked(p.reason)
@@ -147,7 +171,7 @@ class AccountStore private constructor(
             }
             val db = try {
                 Room.databaseBuilder(context, AccountDatabase::class.java, dbFile.absolutePath)
-                    .openHelperFactory(FullSyncOpenHelperFactory(SupportOpenHelperFactory(key.sqlcipherKey, Hook, true)))
+                    .openHelperFactory(FullSyncOpenHelperFactory(SupportOpenHelperFactory(key.sqlcipherKey, ConnectionHook(observer), true)))
                     .addMigrations(AccountDatabase.MIGRATION_1_2, AccountDatabase.MIGRATION_2_3)
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .build()
@@ -164,8 +188,17 @@ class AccountStore private constructor(
                     if (storedVersion in 1 until AccountDatabase.VERSION) LockReason.MIGRATION_FAILED else classifyOpenFailure(e),
                 )
             }
-            if (!created) KeyManager.writeAtomically(keys.createdMarker(tag), byteArrayOf(1))
-            return OpenResult.Opened(AccountStore(tag, db, key, AccountKey.of(tag.hex)!!))
+            // SR-1: nothing this open acquired may outlive a failure here (for example the .created marker
+            // write failing on first creation): close the database and its connection, wipe the key, then
+            // report the failure exactly as before.
+            return try {
+                if (!created) KeyManager.writeAtomically(keys.createdMarker(tag), byteArrayOf(1))
+                OpenResult.Opened(AccountStore(tag, db, key, AccountKey.of(tag.hex)!!))
+            } catch (e: Throwable) {
+                runCatching { db.close() }
+                key.wipe()
+                throw e
+            }
         }
 
         private fun classifyOpenFailure(e: Throwable): LockReason {
@@ -244,14 +277,15 @@ class AccountStore private constructor(
      * writer; [FullSyncOpenHelperFactory] re-applies it in onConfigure, and every write transaction
      * re-asserts it (fail closed).
      */
-    private object Hook : SQLiteDatabaseHook {
+    private class ConnectionHook(private val observer: ConnectionObserver?) : SQLiteDatabaseHook {
         override fun preKey(connection: SQLiteConnection) = Unit
 
         override fun postKey(connection: SQLiteConnection) {
             connection.execute("PRAGMA temp_store=MEMORY", null, null)
             val secureDelete = connection.executeForString("PRAGMA secure_delete=ON", null, null) ?: ""
             connection.execute("PRAGMA synchronous=FULL", null, null)
-            ConnectionRegistry.connections += ConnectionRegistry.Observed(
+            // SR-1: the hook keeps no reference to the connection; only a per-open observer sees it.
+            observer?.onConfigured(
                 connection,
                 connection.executeForLong("PRAGMA synchronous", null, null),
                 connection.executeForString("PRAGMA temp_store", null, null) ?: "",

@@ -8,11 +8,13 @@ import com.penningtonlabs.baileyscart.core.model.offline.FamilyOutbox
 import com.penningtonlabs.baileyscart.core.model.offline.OpId
 import com.penningtonlabs.baileyscart.core.model.offline.OpState
 import com.penningtonlabs.baileyscart.core.model.offline.RequestIdentity
+import net.zetetic.database.sqlcipher.SQLiteConnection
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -22,6 +24,12 @@ import java.util.concurrent.TimeUnit
 class DurabilityTest {
     private val envs = ArrayList<Fx.Env>()
     private fun env(name: String) = Fx.Env(name).also { envs += it }
+
+    /** SR-1: connections seen by this test's own per-open observer (replaces the former process-wide registry). */
+    private class Observed(val connection: SQLiteConnection, val synchronousAfterHook: Long, val tempStore: String, val secureDelete: String)
+
+    private val observed = CopyOnWriteArrayList<Observed>()
+    private val recorder = ConnectionObserver { c, sync, temp, secure -> observed += Observed(c, sync, temp, secure) }
 
     @After
     fun cleanup() = envs.forEach { it.cleanup() }
@@ -45,18 +53,18 @@ class DurabilityTest {
 
     private fun readbackAll(phase: String): List<String> {
         val out = ArrayList<String>()
-        ConnectionRegistry.connections.forEachIndexed { i, o ->
+        observed.forEachIndexed { i, o ->
             val sync = o.connection.executeForLong("PRAGMA synchronous", null, null)
             // A connection last used for read-only statements keeps its read-only-operations flag while idle, so
             // PRAGMA journal_mode may be refused here; journal_mode is asserted through Room on the primary below.
             val journal = runCatching { o.connection.executeForString("PRAGMA journal_mode", null, null) }
-            val role = if (ConnectionRegistry.connections.size == 1) "primary(only connection)" else "pooled#$i"
+            val role = if (observed.size == 1) "primary(only connection)" else "pooled#$i"
             val temp = runCatching { o.connection.executeForString("PRAGMA temp_store", null, null) }.getOrElse { "n/a" }
             out += "DUR1 $phase conn#$i role=$role synchronous=$sync journal_mode=${journal.getOrElse { "n/a(read-only)" }} " +
                 "temp_store=$temp secure_delete=${o.secureDelete} hookTimeSynchronous=${o.synchronousAfterHook} hookTimeTempStore=${o.tempStore}"
         }
         out.forEach(Fx::evidence)
-        ConnectionRegistry.connections.forEachIndexed { i, o ->
+        observed.forEachIndexed { i, o ->
             val sync = o.connection.executeForLong("PRAGMA synchronous", null, null)
             val journal = runCatching { o.connection.executeForString("PRAGMA journal_mode", null, null) }
             assertEquals("$phase conn#$i synchronous", 2L, sync)
@@ -64,7 +72,7 @@ class DurabilityTest {
             assertEquals("$phase conn#$i temp_store at hook (2=MEMORY)", "2", o.tempStore)
             assertEquals("$phase conn#$i secure_delete", "1", o.secureDelete)
         }
-        assertEquals("$phase: single-connection pool", 1, ConnectionRegistry.connections.size)
+        assertEquals("$phase: single-connection pool", 1, observed.size)
         return out
     }
 
@@ -73,12 +81,12 @@ class DurabilityTest {
         val e = env("dur1")
         val lines = ArrayList<String>()
         for (phase in listOf("initial-open", "reopen")) {
-            ConnectionRegistry.connections.clear()
-            val s = e.opened("demo-dur1")
+            observed.clear()
+            val s = e.opened("demo-dur1", recorder)
             // Writer readback BEFORE any spike write transaction: proves onConfigure, not per-txn enforcement.
             lines += readbackAll("$phase-writer-only")
             forceReaderConnections(s)
-            val n = ConnectionRegistry.connections.size
+            val n = observed.size
             assertEquals("single-connection WAL pool: concurrent reads must not open extra connections", 1, n)
             lines += readbackAll("$phase-after-4-concurrent-readers-$n-connection")
             assertEquals(2L, s.writerSynchronousInTransaction())
