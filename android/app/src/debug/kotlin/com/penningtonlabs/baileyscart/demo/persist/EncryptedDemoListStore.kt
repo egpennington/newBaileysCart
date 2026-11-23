@@ -32,7 +32,7 @@ class EncryptedDemoListStore(context: Context) : DemoListStore {
     override fun open(): DemoStoreOpen =
         when (val r = AccountStore.open(appContext, keys, DemoIdentity.session(), recovery)) {
             is OpenResult.Opened -> DemoStoreOpen.Opened(Session(r.store))
-            is OpenResult.Locked -> DemoStoreOpen.Locked(r.reason.toStoreLock(), canSetAside = r.reason != LockReason.TAG_KEY_MISSING)
+            is OpenResult.Locked -> DemoStoreOpen.Locked(r.reason.toStoreLock(), canSetAside = r.reason.canSetAside())
         }
 
     override fun setAside(): SetAsideOutcome {
@@ -68,18 +68,23 @@ class EncryptedDemoListStore(context: Context) : DemoListStore {
 
         override fun close() = store.close()
     }
+}
 
-    private companion object {
-        fun LockReason.toStoreLock(): StoreLock = when (this) {
-            LockReason.TAG_KEY_MISSING -> StoreLock.TAG_KEY_MISSING
-            LockReason.KEY_MISSING -> StoreLock.KEY_MISSING
-            LockReason.UNWRAP_FAILED -> StoreLock.UNWRAP_FAILED
-            LockReason.KEY_TRANSIENT -> StoreLock.KEY_TRANSIENT
-            LockReason.DB_MISSING -> StoreLock.DB_MISSING
-            LockReason.DB_UNREADABLE -> StoreLock.DB_UNREADABLE
-            LockReason.MIGRATION_FAILED -> StoreLock.MIGRATION_FAILED
-            LockReason.DOWNGRADE -> StoreLock.DOWNGRADE
-            LockReason.RECOVERY_PENDING -> StoreLock.RECOVERY_PENDING
-        }
-    }
+/**
+ * Whether a user-confirmed set-aside is offered for an LP-1 lock. Without the tag key the files
+ * cannot be identified; a transient Keystore failure (LP-3c) is retried, never set aside.
+ */
+internal fun LockReason.canSetAside(): Boolean =
+    this != LockReason.TAG_KEY_MISSING && !toStoreLock().retryOnly
+
+internal fun LockReason.toStoreLock(): StoreLock = when (this) {
+    LockReason.TAG_KEY_MISSING -> StoreLock.TAG_KEY_MISSING
+    LockReason.KEY_MISSING -> StoreLock.KEY_MISSING
+    LockReason.UNWRAP_FAILED -> StoreLock.UNWRAP_FAILED
+    LockReason.KEY_TRANSIENT -> StoreLock.KEY_TRANSIENT
+    LockReason.DB_MISSING -> StoreLock.DB_MISSING
+    LockReason.DB_UNREADABLE -> StoreLock.DB_UNREADABLE
+    LockReason.MIGRATION_FAILED -> StoreLock.MIGRATION_FAILED
+    LockReason.DOWNGRADE -> StoreLock.DOWNGRADE
+    LockReason.RECOVERY_PENDING -> StoreLock.RECOVERY_PENDING
 }

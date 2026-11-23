@@ -47,7 +47,27 @@ sealed interface DemoScreen {
     data class SaveFailed(val list: DemoListState) : DemoScreen
 
     /** The store cannot be used. Nothing is deleted, seeded or recreated while it is locked. */
-    data class Locked(val reason: StoreLock, val canReset: Boolean, val notice: DemoNotice? = null) : DemoScreen
+    data class Locked(val reason: StoreLock, val canReset: Boolean, val notice: DemoNotice? = null) : DemoScreen {
+        /** LP-3c: the one way forward the locked screen offers besides Try again. */
+        val recovery: LockedRecovery
+            get() = when {
+                reason.retryOnly -> LockedRecovery.RETRY_ONLY
+                canReset -> LockedRecovery.RESET
+                else -> LockedRecovery.CLEAR_STORAGE
+            }
+    }
+}
+
+/** LP-3c: what a locked screen suggests. */
+enum class LockedRecovery {
+    /** The user-confirmed reset (two steps; set-aside, never delete). */
+    RESET,
+
+    /** Try again, then restart the app or device. No reset and no clear-storage advice. */
+    RETRY_ONLY,
+
+    /** No in-app reset exists for this lock (TAG_KEY_MISSING): system settings is the only way. */
+    CLEAR_STORAGE,
 }
 
 /**
@@ -69,6 +89,8 @@ sealed interface DemoScreen {
  *    never reported as done, and an unknown outcome is never reported as "nothing changed".
  *  - Storage exceptions of any kind (I/O and Keystore exceptions included) fail closed on this
  *    thread; none escapes a task.
+ *  - LP-3c: a lock that may be temporary or has an unknown cause ([retryOnly]) is never
+ *    resettable, whatever the store reports, so a passing failure cannot lead to a set-aside.
  *
  * LP-3a lifecycle and concurrency:
  *  - One session at a time: instances that share an [owner] (and its one [serial] executor) never
@@ -176,8 +198,10 @@ class PersistentDemoList(
             DemoStoreOpen.Locked(StoreLock.OPEN_ERROR, canSetAside = false)
         }
         when (opened) {
-            is DemoStoreOpen.Locked ->
-                emit(DemoScreen.Locked(opened.reason, opened.canSetAside, lockedNotice(opened.reason, null)))
+            is DemoStoreOpen.Locked -> {
+                val canReset = opened.canSetAside && !opened.reason.retryOnly
+                emit(DemoScreen.Locked(opened.reason, canReset, lockedNotice(opened.reason, null)))
+            }
             is DemoStoreOpen.Opened -> {
                 session = opened.session
                 val recovered = try {

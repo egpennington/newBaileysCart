@@ -264,8 +264,9 @@ class PersistentDemoListTest {
 
     @Test fun tryAgainReopensAndRecoversOnceTheLockClears() {
         store.stored = LocalDemoList.seededOutbox(store.key)
-        store.lock = DemoStoreOpen.Locked(StoreLock.KEY_TRANSIENT, canSetAside = true)
+        store.lock = DemoStoreOpen.Locked(StoreLock.KEY_TRANSIENT, canSetAside = false)
         val c = launch()
+        assertEquals(LockedRecovery.RETRY_ONLY, (last as DemoScreen.Locked).recovery)
         store.lock = null
         c.reload()
         assertEquals(seedNames, names(ready))
@@ -351,8 +352,62 @@ class PersistentDemoListTest {
         store.lock = DemoStoreOpen.Locked(StoreLock.TAG_KEY_MISSING, canSetAside = false)
         val c = launch()
         assertFalse((last as DemoScreen.Locked).canReset)
+        assertEquals(LockedRecovery.CLEAR_STORAGE, (last as DemoScreen.Locked).recovery)
         c.reset()
         assertEquals(0, store.setAsides)
+    }
+
+    // ---- LP-3c: temporary or unknown opening failures ----------------------------------------
+
+    private val expectedRetryOnly = setOf(StoreLock.KEY_TRANSIENT, StoreLock.OPEN_ERROR)
+
+    /**
+     * Even when the store wrongly reports that a set-aside is possible, a lock that may be
+     * temporary (or has an unknown cause) offers no reset, and the confirmed reset call does
+     * nothing. Every other lock keeps exactly what the store reports (LP-2 behavior).
+     */
+    @Test fun aTemporaryOrUnknownLockIsNeverResettableWhateverTheStoreReports() {
+        for (reason in StoreLock.entries) for (storeSays in listOf(true, false)) {
+            val s = FakeDemoStore().apply {
+                stored = LocalDemoList.seededOutbox(key)
+                lock = DemoStoreOpen.Locked(reason, canSetAside = storeSays)
+            }
+            val out = mutableListOf<DemoScreen>()
+            val c = PersistentDemoList(s, direct, { out += it }, SeqIds())
+            c.start()
+            val locked = out.last() as DemoScreen.Locked
+            val label = "$reason storeSays=$storeSays"
+            val resettable = storeSays && reason !in expectedRetryOnly
+            assertEquals(label, resettable, locked.canReset)
+            val expectedRecovery = when {
+                reason in expectedRetryOnly -> LockedRecovery.RETRY_ONLY
+                storeSays -> LockedRecovery.RESET
+                else -> LockedRecovery.CLEAR_STORAGE
+            }
+            assertEquals(label, expectedRecovery, locked.recovery)
+            c.reset()
+            assertEquals(label, if (resettable) 1 else 0, s.setAsides)
+            assertEquals(label, 0, s.purges)
+            if (!resettable) {
+                assertEquals(label, LocalDemoList.seededOutbox(s.key), s.stored)
+                assertTrue(label, s.casCalls.isEmpty())
+            }
+        }
+    }
+
+    @Test fun aTemporaryLockKeepsTheListAndTryAgainRecoversItUnchanged() {
+        launch().dispatch(DemoAction.Add("Eggs", Category.DAIRY))
+        val saved = store.stored
+        store.lock = DemoStoreOpen.Locked(StoreLock.KEY_TRANSIENT, canSetAside = true)
+        val c = relaunch()
+        c.reset() // not offered: must do nothing
+        store.lock = null
+        c.reload()
+        assertEquals(saved, store.stored)
+        assertTrue("Eggs" in names(ready))
+        assertNull(ready.notice)
+        assertEquals(0, store.setAsides)
+        assertEquals(1, seedCasCount)
     }
 
     @Test fun closeReleasesTheSession() {
@@ -431,6 +486,7 @@ class PersistentDemoListTest {
         store.openThrows = true // the retry cannot even open the store
         c.reload()
         assertEquals(DemoScreen.Locked(StoreLock.OPEN_ERROR, canReset = false, notice = DemoNotice.RESET_INCOMPLETE), last)
+        assertEquals(LockedRecovery.RETRY_ONLY, (last as DemoScreen.Locked).recovery)
         val purges = store.purges
         c.reset()
         assertEquals(purges, store.purges)
@@ -466,6 +522,14 @@ class PersistentDemoListTest {
         store.purgeThrows = true
         store.lock = DemoStoreOpen.Locked(StoreLock.KEY_TRANSIENT, canSetAside = true)
         c.reset()
+        assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
+        assertFalse(saidNothingChanged())
+        // LP-3c: the incomplete notice stays, but a temporary lock offers Try again only.
+        assertFalse(locked.canReset)
+        assertEquals(LockedRecovery.RETRY_ONLY, locked.recovery)
+        c.reset()
+        assertEquals(0, store.setAsides)
+        c.reload()
         assertEquals(DemoNotice.RESET_INCOMPLETE, locked.notice)
         assertFalse(saidNothingChanged())
     }
