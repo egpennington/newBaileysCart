@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-3 closeout (decision register v1.21) entries are appended and marked 'LP-3 closeout'; earlier wording is unchanged.
 id: PS-STORAGE-LOCAL
 name: Encrypted local storage (durability, isolation, confidentiality, fail-closed recovery, migration, release isolation)
 work_package: WP-02 (BC-S2-LOCAL-PERSIST)
@@ -14,5 +15,5 @@ proofpoints_in_lp1:
   - PL-PP-WP02-10 (partial)
   - PL-PP-WP02-12 (partial)
   - PL-PP-WP02-13 (partial)
-suite_status: "PARTIAL. D3 (app level) and D4 (GAI) not run; 16 KiB, arm64, API 26 and hardware Keystore not run in LP-1."
-status_source: "CODI_BC_S2_LOCAL_PERSIST_LP1_Implementation_Report_v1.0.md and LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked)"
+suite_status: "PARTIAL. D3 (app level) and D4 (GAI) not run; 16 KiB, arm64, API 26 and hardware Keystore not run in LP-1. | LP-3 closeout (register v1.21): LP-3a, LP-3b and LP-3c complete; app-level D3 local PASS on the 4 KiB API 37 emulator; GAI D4 PASS / GO for each slice (PL-reported: GAI-D4-BC-S2-LP3A-001 and -ADDENDUM-01, GAI-D4-BC-S2-LP3B-001 and -ADDENDUM-01, GAI-D4-BC-S2-LP3C-FINAL-001); post-merge FORGE 12/12 at e47631d, 44c75ad and e8ba7ea. Suite stays PARTIAL: 16 KiB, ARM64, API 26, hardware Keystore, physical power loss and FORGE-run release isolation are deferred to the release-readiness storage gate (BC-LP3-DEFER-REL); outbox growth and multi-process coordination are B3 preconditions (BC-LP3-DEFER-B3)."
+status_source: "LP-3 closeout: docs/decisions/DECISION_REGISTER.md v1.21 (BC-LP3-*) | CODI_BC_S2_LOCAL_PERSIST_LP1_Implementation_Report_v1.0.md and LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked)"
