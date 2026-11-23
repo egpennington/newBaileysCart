@@ -60,7 +60,7 @@ object Scenario {
         return o2
     }
 
-    fun enqueueAll(c: SpikeCoordinator, crash: (String) -> Unit) {
+    fun enqueueAll(c: TestOutboxCoordinator, crash: (String) -> Unit) {
         var o = c.outbox
         o = c.apply(Fx.add(o, 1, 1, Fx.SENTINEL_ITEM), "enqueue 1").let { (it as com.penningtonlabs.baileyscart.core.model.offline.Transition.Applied).outbox }
         o = c.apply(Fx.edit(o, 2, 1, "Oat milk (barista)"), "enqueue 2").let { (it as com.penningtonlabs.baileyscart.core.model.offline.Transition.Applied).outbox }
@@ -98,7 +98,7 @@ object Scenario {
         val sent = ArrayList<String>()
         val pts = Points(point) { throw Killed() }
         mem.beforeCommit = { pts.hit("cas") }
-        val c = SpikeCoordinator(mem, key, null, Fx.E1, { op -> sent += op.opId.value; RESULTS.getValue(op.opId.value) }, { pts.hit(it) })
+        val c = TestOutboxCoordinator(mem, key, null, Fx.E1, { op -> sent += op.opId.value; RESULTS.getValue(op.opId.value) }, { pts.hit(it) })
         try {
             enqueueAll(c) { pts.hit(it) }
             c.drain()
@@ -113,7 +113,7 @@ object Scenario {
     /** No-crash final state from the model. */
     fun finalState(key: FamilyKey): FamilyOutbox {
         val mem = MemoryStore()
-        val c = SpikeCoordinator(mem, key, null, Fx.E1, { op -> RESULTS.getValue(op.opId.value) })
+        val c = TestOutboxCoordinator(mem, key, null, Fx.E1, { op -> RESULTS.getValue(op.opId.value) })
         enqueueAll(c) { }
         c.drain()
         return c.outbox
@@ -134,8 +134,8 @@ class DiskChecker(private val dbFile: File, private val key: ByteArray, private 
     data class Row(val opId: String, val seq: Long, val state: String, val dependsOn: String?)
 
     fun rows(): List<Row> {
-        SpikeAccountStore.ensureNativeLoaded()
-        val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, key, null, SQLiteDatabase.OPEN_READONLY, SpikeAccountStore.ThrowingErrorHandler, null)
+        AccountStore.ensureNativeLoaded()
+        val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, key, null, SQLiteDatabase.OPEN_READONLY, AccountStore.ThrowingErrorHandler, null)
         try {
             return db.rawQuery("SELECT opId, sequence, state, dependsOn FROM outbox WHERE familyId = ? ORDER BY sequence", arrayOf(familyId)).use { c ->
                 buildList { while (c.moveToNext()) add(Row(c.getString(0), c.getLong(1), c.getString(2), if (c.isNull(3)) null else c.getString(3))) }

@@ -41,9 +41,9 @@ object Fx {
         val keys = KeyManager(root, prefix)
         val recovery = RecoveryController(keys)
 
-        fun open(uid: String): OpenResult = SpikeAccountStore.open(context, keys, FakeVerifiedSession(uid), recovery)
+        fun open(uid: String): OpenResult = AccountStore.open(context, keys, FakeVerifiedSession(uid), recovery)
 
-        fun opened(uid: String): SpikeAccountStore {
+        fun opened(uid: String): AccountStore {
             val r = open(uid)
             assertTrue("expected Opened but was $r", r is OpenResult.Opened)
             return (r as OpenResult.Opened).store
@@ -57,7 +57,7 @@ object Fx {
         }
     }
 
-    fun family(store: SpikeAccountStore, fam: String = SENTINEL_FAMILY) = FamilyKey(store.account, FamilyId.of(fam)!!)
+    fun family(store: AccountStore, fam: String = SENTINEL_FAMILY) = FamilyKey(store.account, FamilyId.of(fam)!!)
 
     fun name(s: String): ItemName = (ItemName.validate(s) as NameValidation.Valid).name
 

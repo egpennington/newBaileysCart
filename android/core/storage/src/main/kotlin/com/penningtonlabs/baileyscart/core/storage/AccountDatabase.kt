@@ -13,7 +13,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /*
- * BC-UI-S2b-Spike ONLY. One encrypted database per synthetic account (the account dimension is the
+ * One encrypted database per synthetic account (the account dimension is the
  * file itself); every row carries familyId and every DAO statement filters by it.
  */
 
@@ -73,7 +73,7 @@ data class OutboxRow(
 )
 
 @Dao
-interface SpikeDao {
+interface AccountDao {
     @Query("SELECT * FROM family_scope WHERE familyId = :familyId")
     fun scope(familyId: String): FamilyScopeRow?
 
@@ -153,11 +153,11 @@ interface SpikeDao {
 
 @Database(
     entities = [FamilyScopeRow::class, SnapshotHeaderRow::class, SnapshotItemRow::class, OutboxRow::class],
-    version = SpikeDatabase.VERSION,
+    version = AccountDatabase.VERSION,
     exportSchema = true,
 )
-abstract class SpikeDatabase : RoomDatabase() {
-    abstract fun dao(): SpikeDao
+abstract class AccountDatabase : RoomDatabase() {
+    abstract fun dao(): AccountDao
 
     companion object {
         const val VERSION = 3

@@ -29,15 +29,15 @@ enum class LockReason {
 }
 
 sealed interface OpenResult {
-    class Opened(val store: SpikeAccountStore) : OpenResult
+    class Opened(val store: AccountStore) : OpenResult
     data class Locked(val reason: LockReason) : OpenResult
 }
 
 /** synchronous was not FULL on the connection that is about to commit. The transaction is rolled back. */
 class DurabilityViolationException(observed: Long) : IllegalStateException("synchronous=$observed, FULL(2) required")
 
-/** Observations recorded by the connection hook (test evidence). Holds connection references, test use only. */
-object ConnectionRegistry {
+/** Observations recorded by the connection hook (test evidence). Holds connection references, test use only. Internal (LP-3b). */
+internal object ConnectionRegistry {
     class Observed(val connection: SQLiteConnection, val synchronousAfterHook: Long, val tempStore: String, val secureDelete: String)
 
     val connections = CopyOnWriteArrayList<Observed>()
@@ -47,20 +47,20 @@ object ConnectionRegistry {
  * One synthetic account's encrypted store. Created only through [open]; never re-creates or replaces
  * an existing database or key after an error (preserve by default).
  */
-class SpikeAccountStore private constructor(
+class AccountStore private constructor(
     val tag: AccountTag,
-    private val db: SpikeDatabase,
+    private val db: AccountDatabase,
     private val key: KeyMaterial,
     val account: AccountKey,
 ) {
     @Volatile private var closed = false
 
-    val stores = SpikeStores(account, { _, block -> writeTxn(block) }, db.dao())
+    val stores = AccountStorePorts(account, { _, block -> writeTxn(block) }, db.dao())
 
     val keyAlias: String get() = key.alias
 
     /** Test evidence only. */
-    fun keyFingerprint(): String = key.fingerprint()
+    internal fun keyFingerprint(): String = key.fingerprint()
 
     internal fun supportDb(): SupportSQLiteDatabase = db.openHelper.writableDatabase
 
@@ -80,7 +80,7 @@ class SpikeAccountStore private constructor(
     }
 
     /** Synchronous mode observed on the writer connection inside a transaction (test evidence). */
-    fun writerSynchronousInTransaction(): Long {
+    internal fun writerSynchronousInTransaction(): Long {
         var v = -1L
         db.runInTransaction { v = pragmaLong(supportDb(), "PRAGMA synchronous") }
         return v
@@ -100,7 +100,7 @@ class SpikeAccountStore private constructor(
         key.wipe()
     }
 
-    override fun toString(): String = "SpikeAccountStore(<redacted>)"
+    override fun toString(): String = "AccountStore(<redacted>)"
 
     companion object {
         init {
@@ -114,7 +114,7 @@ class SpikeAccountStore private constructor(
         }
 
         /** Loaded native SQLCipher; call before any direct SQLCipher use in tests. */
-        fun ensureNativeLoaded() = Unit
+        internal fun ensureNativeLoaded() = Unit
 
         fun open(context: Context, keys: KeyManager, session: FakeVerifiedSession, recovery: RecoveryController): OpenResult {
             val tag = keys.accountTag(session) ?: return OpenResult.Locked(LockReason.TAG_KEY_MISSING)
@@ -146,9 +146,9 @@ class SpikeAccountStore private constructor(
                 }
             }
             val db = try {
-                Room.databaseBuilder(context, SpikeDatabase::class.java, dbFile.absolutePath)
+                Room.databaseBuilder(context, AccountDatabase::class.java, dbFile.absolutePath)
                     .openHelperFactory(FullSyncOpenHelperFactory(SupportOpenHelperFactory(key.sqlcipherKey, Hook, true)))
-                    .addMigrations(SpikeDatabase.MIGRATION_1_2, SpikeDatabase.MIGRATION_2_3)
+                    .addMigrations(AccountDatabase.MIGRATION_1_2, AccountDatabase.MIGRATION_2_3)
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .build()
             } catch (e: RuntimeException) {
@@ -161,11 +161,11 @@ class SpikeAccountStore private constructor(
                 db.close()
                 key.wipe()
                 return OpenResult.Locked(
-                    if (storedVersion in 1 until SpikeDatabase.VERSION) LockReason.MIGRATION_FAILED else classifyOpenFailure(e),
+                    if (storedVersion in 1 until AccountDatabase.VERSION) LockReason.MIGRATION_FAILED else classifyOpenFailure(e),
                 )
             }
             if (!created) KeyManager.writeAtomically(keys.createdMarker(tag), byteArrayOf(1))
-            return OpenResult.Opened(SpikeAccountStore(tag, db, key, AccountKey.of(tag.hex)!!))
+            return OpenResult.Opened(AccountStore(tag, db, key, AccountKey.of(tag.hex)!!))
         }
 
         private fun classifyOpenFailure(e: Throwable): LockReason {
@@ -209,7 +209,7 @@ class SpikeAccountStore private constructor(
                 val version = probe.rawQuery("PRAGMA user_version", null).use { c -> if (c.moveToFirst()) c.getLong(0) else -1L }
                 when {
                     cipherErrors != 0 || quick != "ok" -> Probe.Fail(LockReason.DB_UNREADABLE)
-                    version > SpikeDatabase.VERSION -> Probe.Fail(LockReason.DOWNGRADE)
+                    version > AccountDatabase.VERSION -> Probe.Fail(LockReason.DOWNGRADE)
                     else -> Probe.Ok(version)
                 }
             } catch (_: RuntimeException) {
@@ -228,7 +228,7 @@ class SpikeAccountStore private constructor(
     }
 
     /** Throws on corruption; never deletes, renames or recreates files. */
-    object ThrowingErrorHandler : DatabaseErrorHandler {
+    internal object ThrowingErrorHandler : DatabaseErrorHandler {
         @Volatile var invocations = 0
 
         override fun onCorruption(dbObj: SQLiteDatabase, exception: SQLiteException) {

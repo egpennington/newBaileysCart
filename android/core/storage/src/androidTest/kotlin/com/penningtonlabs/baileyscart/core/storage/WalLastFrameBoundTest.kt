@@ -31,7 +31,7 @@ class WalLastFrameBoundTest {
     @After
     fun cleanup() = envs.forEach { it.cleanup() }
 
-    private fun ops(store: SpikeAccountStore, key: FamilyKey): List<OpId> =
+    private fun ops(store: AccountStore, key: FamilyKey): List<OpId> =
         store.stores.outbox.read(key)?.operations?.map { it.opId } ?: emptyList()
 
     private fun be32(b: ByteArray, at: Int): Long =

@@ -32,8 +32,8 @@ class CasConflictException(message: String) : IllegalStateException(message)
 /** A request for another account's scope reached this account's store. */
 class ScopeViolationException : IllegalArgumentException("scope does not belong to this account store")
 
-/** Test-only crash/fault injection points inside a write transaction (no-op in normal use). */
-fun interface TxnHook {
+/** Test-only crash/fault injection points inside a write transaction (no-op in normal use). Internal: only this module's tests can set it (LP-3b). */
+internal fun interface TxnHook {
     fun beforeCommit(label: String)
 }
 
@@ -49,11 +49,11 @@ fun interface TxnHook {
  * FamilyOutbox.restore(), which maps a stored IN_FLIGHT operation to RETRY_WAIT. CAS comparisons are
  * therefore made on the stored row representation, never on a reconstructed value.
  */
-class SpikeStores internal constructor(
+class AccountStorePorts internal constructor(
     private val account: AccountKey,
     private val write: (label: String, block: () -> Unit) -> Unit,
-    private val dao: SpikeDao,
-    @Volatile var txnHook: TxnHook = TxnHook { },
+    private val dao: AccountDao,
+    @Volatile internal var txnHook: TxnHook = TxnHook { },
 ) {
     /** S2a OutboxStore port. */
     val outbox: OutboxStore = object : OutboxStore {
@@ -153,7 +153,7 @@ class SpikeStores internal constructor(
         }
     }
 
-    // ---- Spike-only maintenance prototypes (additive; PL approval pending) -------------
+    // ---- Maintenance prototypes from the S2b spike (additive; PL approval pending) -------
 
     /** Authoritative-revocation purge of one family scope, in one transaction. */
     fun purgeFamily(key: FamilyKey) {

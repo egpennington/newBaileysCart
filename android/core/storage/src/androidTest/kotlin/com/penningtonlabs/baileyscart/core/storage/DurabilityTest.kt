@@ -27,7 +27,7 @@ class DurabilityTest {
     fun cleanup() = envs.forEach { it.cleanup() }
 
     /** Forces the pool to open reader connections by running slow overlapping SELECTs from several threads. */
-    private fun forceReaderConnections(s: SpikeAccountStore, threads: Int = 4) {
+    private fun forceReaderConnections(s: AccountStore, threads: Int = 4) {
         val pool = Executors.newFixedThreadPool(threads)
         val ready = CountDownLatch(threads)
         val done = CountDownLatch(threads)
@@ -117,7 +117,7 @@ class DurabilityTest {
         val ids = HashMap<OpId, RequestIdentity>()
         val violations = ArrayList<String>()
         var op3Attempts = 0
-        val c = SpikeCoordinator(s.stores.outbox, key, null, Fx.E1, { op ->
+        val c = TestOutboxCoordinator(s.stores.outbox, key, null, Fx.E1, { op ->
             violations += checker.checkSend(op, ids)
             trace += "transport.send ${op.opId.value.takeLast(2)} attempt=${op.attempts}"
             when (op.opId.value) {

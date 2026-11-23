@@ -34,7 +34,7 @@ class EncryptionIsolationTest {
     @After
     fun cleanup() = envs.forEach { it.cleanup() }
 
-    private fun seed(store: SpikeAccountStore, fam: String = Fx.SENTINEL_FAMILY, item: String = Fx.SENTINEL_ITEM): FamilyKey {
+    private fun seed(store: AccountStore, fam: String = Fx.SENTINEL_FAMILY, item: String = Fx.SENTINEL_ITEM): FamilyKey {
         val key = Fx.family(store, fam)
         var o = FamilyOutbox.empty(key, Fx.E1)
         val o1 = Fx.applied(Fx.add(o, 1, 1, item))
@@ -63,7 +63,7 @@ class EncryptionIsolationTest {
         s2.close()
     }
 
-    private fun cipherInventory(s: SpikeAccountStore): String {
+    private fun cipherInventory(s: AccountStore): String {
         val db = s.supportDb()
         fun q(sql: String) = db.query(sql).use { if (it.moveToFirst()) it.getString(0) else "<none>" }
         return "cipher_version=${q("PRAGMA cipher_version")} cipher_provider=${q("PRAGMA cipher_provider")} " +
@@ -150,7 +150,7 @@ class EncryptionIsolationTest {
         }
         // B's key cannot open A's database (independent probe with B's key).
         val bKey = (e.keys.unwrap(b.tag) as UnwrapResult.Ok).key
-        assertEquals(SpikeAccountStore.Companion.Probe.Fail(LockReason.DB_UNREADABLE), SpikeAccountStore.preflight(e.keys.dbFile(a.tag), bKey.sqlcipherKey))
+        assertEquals(AccountStore.Companion.Probe.Fail(LockReason.DB_UNREADABLE), AccountStore.preflight(e.keys.dbFile(a.tag), bKey.sqlcipherKey))
         bKey.wipe()
         a.close()
         b.close()
