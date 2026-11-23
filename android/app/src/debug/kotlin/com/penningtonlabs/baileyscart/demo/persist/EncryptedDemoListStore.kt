@@ -9,7 +9,7 @@ import com.penningtonlabs.baileyscart.core.storage.OpenResult
 import com.penningtonlabs.baileyscart.core.storage.RecoveryAcknowledgement
 import com.penningtonlabs.baileyscart.core.storage.RecoveryController
 import com.penningtonlabs.baileyscart.core.storage.SetAsideResult
-import com.penningtonlabs.baileyscart.core.storage.SpikeAccountStore
+import com.penningtonlabs.baileyscart.core.storage.AccountStore
 import com.penningtonlabs.baileyscart.demo.LocalDemoList
 import java.io.File
 
@@ -30,7 +30,7 @@ class EncryptedDemoListStore(context: Context) : DemoListStore {
     private val recovery: RecoveryController by lazy { RecoveryController(keys) }
 
     override fun open(): DemoStoreOpen =
-        when (val r = SpikeAccountStore.open(appContext, keys, DemoIdentity.session(), recovery)) {
+        when (val r = AccountStore.open(appContext, keys, DemoIdentity.session(), recovery)) {
             is OpenResult.Opened -> DemoStoreOpen.Opened(Session(r.store))
             is OpenResult.Locked -> DemoStoreOpen.Locked(r.reason.toStoreLock(), canSetAside = r.reason != LockReason.TAG_KEY_MISSING)
         }
@@ -54,7 +54,7 @@ class EncryptedDemoListStore(context: Context) : DemoListStore {
         }
     }
 
-    private class Session(private val store: SpikeAccountStore) : DemoStoreSession {
+    private class Session(private val store: AccountStore) : DemoStoreSession {
         override val key: FamilyKey = FamilyKey(store.account, LocalDemoList.DEMO_FAMILY)
 
         override fun hasAnyScope(): Boolean = store.stores.scopes().isNotEmpty()

@@ -32,8 +32,8 @@ object MigrationFixture {
 
     /** v2 file with several NON-EMPTY families (opIds distinct, as the v2 global index required). */
     fun writeV2(dbFile: File, key: ByteArray, outboxes: List<FamilyOutbox>, omitSnapshotHeader: Boolean = false) {
-        SpikeAccountStore.ensureNativeLoaded()
-        val db = SQLiteDatabase.openOrCreateDatabase(dbFile, key, null, SpikeAccountStore.ThrowingErrorHandler, null)
+        AccountStore.ensureNativeLoaded()
+        val db = SQLiteDatabase.openOrCreateDatabase(dbFile, key, null, AccountStore.ThrowingErrorHandler, null)
         try {
             db.beginTransaction()
             V2_DDL.filter { !(omitSnapshotHeader && "snapshot_header" in it) }.forEach(db::execSQL)
@@ -76,8 +76,8 @@ object MigrationFixture {
 
     /** Every outbox row (all columns, all families) through a fresh read-only SQLCipher connection. */
     fun rawOutbox(dbFile: File, key: ByteArray, familyId: String? = null): List<List<String?>> {
-        SpikeAccountStore.ensureNativeLoaded()
-        val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, key, null, SQLiteDatabase.OPEN_READONLY, SpikeAccountStore.ThrowingErrorHandler, null)
+        AccountStore.ensureNativeLoaded()
+        val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, key, null, SQLiteDatabase.OPEN_READONLY, AccountStore.ThrowingErrorHandler, null)
         try {
             val sql = "SELECT * FROM outbox" + (if (familyId != null) " WHERE familyId = ?" else "") + " ORDER BY familyId, sequence"
             return db.rawQuery(sql, familyId?.let { arrayOf(it) }).use { c ->
@@ -89,8 +89,8 @@ object MigrationFixture {
     }
 
     fun writeV1(dbFile: File, key: ByteArray, outbox: FamilyOutbox?, omitSnapshotHeader: Boolean = false) {
-        SpikeAccountStore.ensureNativeLoaded()
-        val db = SQLiteDatabase.openOrCreateDatabase(dbFile, key, null, SpikeAccountStore.ThrowingErrorHandler, null)
+        AccountStore.ensureNativeLoaded()
+        val db = SQLiteDatabase.openOrCreateDatabase(dbFile, key, null, AccountStore.ThrowingErrorHandler, null)
         try {
             db.beginTransaction()
             V1_DDL.filter { !(omitSnapshotHeader && "snapshot_header" in it) }.forEach(db::execSQL)

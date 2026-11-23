@@ -77,7 +77,7 @@ interface DemoStoreSession {
     /** True if the store holds any family scope at all (used to prove a store is empty). */
     fun hasAnyScope(): Boolean
 
-    /** LP-1 startup recovery read (SpikeStores.recover). Null = no scope stored for [key]. Throws on corruption. */
+    /** LP-1 startup recovery read (AccountStorePorts.recover). Null = no scope stored for [key]. Throws on corruption. */
     fun recover(): FamilyOutbox?
 
     /** S2a OutboxStore.compareAndSet: one durable (synchronous=FULL) transaction, or nothing. */

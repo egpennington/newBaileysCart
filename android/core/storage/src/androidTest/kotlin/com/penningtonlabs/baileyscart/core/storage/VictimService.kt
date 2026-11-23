@@ -43,13 +43,13 @@ class VictimService : Service() {
 
     private fun runScenario(root: File, prefix: String, uid: String, point: String) {
         val keys = KeyManager(root, prefix)
-        val store = (SpikeAccountStore.open(applicationContext, keys, FakeVerifiedSession(uid), RecoveryController(keys)) as OpenResult.Opened).store
+        val store = (AccountStore.open(applicationContext, keys, FakeVerifiedSession(uid), RecoveryController(keys)) as OpenResult.Opened).store
         val key = Fx.family(store)
         val sentLog = File(root, "sent.log")
         Scenario.seedSibling(store.stores.outbox, store.account) // before crash hooks: does not shift CAS counts
         val pts = Scenario.Points(point) { die() }
         store.stores.txnHook = TxnHook { label -> pts.hit(label) }
-        val c = SpikeCoordinator(
+        val c = TestOutboxCoordinator(
             store.stores.outbox,
             key,
             null,

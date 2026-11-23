@@ -107,8 +107,8 @@ class RecoveryLockTest {
 
     @Test fun downgradeRefused() = assertLockedAndPreserved("downgrade", LockReason.DOWNGRADE) {
         val km = (it.e.keys.unwrap(it.tag) as UnwrapResult.Ok).key
-        val db = SQLiteDatabase.openDatabase(it.e.keys.dbFile(it.tag).path, km.sqlcipherKey, null, SQLiteDatabase.OPEN_READWRITE, SpikeAccountStore.ThrowingErrorHandler, null)
-        db.execSQL("PRAGMA user_version=${SpikeDatabase.VERSION + 1}")
+        val db = SQLiteDatabase.openDatabase(it.e.keys.dbFile(it.tag).path, km.sqlcipherKey, null, SQLiteDatabase.OPEN_READWRITE, AccountStore.ThrowingErrorHandler, null)
+        db.execSQL("PRAGMA user_version=${AccountDatabase.VERSION + 1}")
         db.close()
         km.wipe()
     }
@@ -135,7 +135,7 @@ class RecoveryLockTest {
         s.close()
         flip(File(dbCopy.path + "-wal"), walLen - 200, 8)
         val km = (e.keys.unwrap(s.tag) as UnwrapResult.Ok).key
-        val probe = SpikeAccountStore.preflight(dbCopy, km.sqlcipherKey)
+        val probe = AccountStore.preflight(dbCopy, km.sqlcipherKey)
         km.wipe()
         Fx.evidence("WAL-DAMAGE walBytes=$walLen tamperedLastFrame probe=$probe (SQLite discards WAL frames failing checksum: last commit may be silently lost; media-corruption limitation)")
     }
@@ -251,7 +251,7 @@ class RecoveryLockTest {
         assertEquals(OpState.RETRY_WAIT, migrated.operation(Fx.opId(3))!!.state)
         assertEquals("Mig snapshot", s.stores.list.read(key)!!.items.single().name)
         val version = s.supportDb().query("PRAGMA user_version").use { it.moveToFirst(); it.getInt(0) }
-        assertEquals(SpikeDatabase.VERSION, version)
+        assertEquals(AccountDatabase.VERSION, version)
         s.close()
         Fx.evidence("MIGRATION v1->v3 preserved ${migrated.operations.size} ops (states ${migrated.operations.map { it.state }}), epoch, snapshot; v1sha=${beforeV1.take(12)}")
     }

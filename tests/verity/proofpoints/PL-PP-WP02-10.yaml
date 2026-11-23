@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-3b entries are appended and marked 'LP-3b'; LP-1, LP-2 and LP-3a wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
 # Draft for GAI D4. Not committed.
 id: PL-PP-WP02-10
@@ -9,32 +10,41 @@ owner: CODI
 independent_reviewer: GAI
 level: "instrumented (D2) + build (KSP)"
 slice: "BC-S2-LOCAL-PERSIST LP-1 (module promoted from the BC-UI-S2b spike; not on :app; fictional data only)"
-slice_coverage: "PARTIAL. Room uses explicit Migration objects (MIGRATION_1_2, MIGRATION_2_3), not auto-migrations."
+slice_coverage: "PARTIAL. Room uses explicit Migration objects (MIGRATION_1_2, MIGRATION_2_3), not auto-migrations. | LP-3b: the storage classes are renamed with the schema unchanged: the same Room identity hash (v3 45d66134..., v2 ef02cea3...), so databases written before the rename open without migration, and the rename can be rolled back"
 steps:
   - "Create exact v1 and v2 stores (hand-built from the exported schemas) with multi-family rows in every state; open with the current code"
   - "Force a failing v2 to v3 migration; open a store with user_version VERSION+1"
   - "Read synchronous, journal_mode, temp_store and secure_delete at open, after readers, after a write and after reopen; downgrade synchronous externally and write"
+  - "LP-3b D1: StorageNamingTest: the renamed classes and Room's generated AccountDatabase_Impl/AccountDao_Impl load; no Spike class remains; the exported v3 identityHash and v2 hash equal the pre-rename values"
+  - "LP-3b build: compare the KSP-generated Room code of the LP-3a build (SpikeDatabase_Impl, SpikeDao_Impl) with the LP-3b build after mapping only the class names; Room re-exports schemas 2.json and 3.json on every build"
+  - "LP-3b D3 (debug app, emulator): U0 the LP-3a build seeds and stores a confirmed item; U1 in-place upgrade (install -r) to LP-3b; U2 LP-3b adds an item, then SIGKILL; U3 in-place rollback to LP-3a; U4 forward to LP-3b again"
 expected:
   - "Every row byte-identical after migration; colliding opIds then accepted per family"
   - "LOCKED(MIGRATION_FAILED) and LOCKED(DOWNGRADE) with db and dek byte-identical"
   - "synchronous=2, journal_mode=wal, temp_store=2, secure_delete=1 everywhere; FULL re-applied before every write transaction"
+  - "LP-3b: generated Room code identical after the name mapping, with identity hash 45d6613426ecb55fa9fe5b96c39ae013 in both; schema files unchanged by the build; every reopen in U1-U4 is OPENED (never locked), every item present, the seed written once, .dek and .created byte-identical to U0, store files untouched by each install"
 evidence:
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/F5RegressionTest.kt (v2MultiFamilyStoreMigratesToV3PreservingEveryRowThenAcceptsCollidingOpIds, failingV2ToV3MigrationLocksWithoutDataLoss, runtimeSchemaHasFamilyScopedUniqueOpIdIndexAndNoGlobalOne)"
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/RecoveryLockTest.kt (migrationPreservesOutboxScopeEpochAndSnapshot, failingMigrationLocksAndPreserves, downgradeRefused)"
   - "android/core/storage/src/androidTest/kotlin/com/penningtonlabs/baileyscart/core/storage/DurabilityTest.kt (dur1EveryConnectionIsWalAndFullBeforeAndAfterReopen, perTransactionEnforcementRestoresFullAfterExternalDowngrade, dur5EnqueueCommitLatency)"
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/persist/StorageNamingTest.kt (4 tests)"
+  - "LP-3b evidence C:/dev/bc-lp3b-evidence (local, untracked): compat/generated-room-code.txt (LP-3a vs LP-3b generated code, identical after the name mapping; identity hashes)"
+  - "LP-3b evidence C:/dev/bc-lp3b-evidence (local, untracked): d3/U0-U4 (transcripts, traces, trace checks, screenshots, store SHA-256 before and after each install)"
+  - "LP-3b evidence C:/dev/bc-lp3b-evidence (local, untracked): d2/LP3b-D2-core-storage-regression: the full :core:storage instrumented suite on the renamed classes, 37/37 PASS (dur3Runs 50, setAsideRuns 5, dur5Samples 200; 0 storage crash entries)"
 negative_controls:
   - "NC-77 CAUGHT (migration drops rows)"
   - "NC-85 CAUGHT (synchronous=NORMAL)"
   - "NC-86 CAUGHT (onConfigure FULL removed)"
   - "NC-87 CAUGHT (pre-BEGIN FULL removed)"
   - "NC-89 CAUGHT (invalid @Query fails KSP)"
+  - "LP-3b NC-108 CAUGHT (a nullable column added to FamilyScopeRow without a version bump: identity hash 472c9e80..., StorageNamingTest identity check failed; restored byte-exact)"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
 depths:
-  D1: "NOT_APPLICABLE (the KSP build control NC-89 is the compile-time check)"
-  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37)"
-  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3)"
-  D4: "NOT_RUN: GAI independent review pending"
-notes: "DUR-5 enqueue-commit latency on 4 KiB: p95 9.09 ms (n=200); proposed target <= 100 ms, not an SLA. Schemas 2.json and 3.json are byte-identical to the spike exports."
-status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN"
+  D1: "NOT_APPLICABLE (the KSP build control NC-89 is the compile-time check) | LP-3b: local PASS (StorageNamingTest 4 tests: names and schema identity)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37) | LP-3b: local re-run PASS 37/37 (LP3b-D2-core-storage-regression) (renamed classes; schema unchanged)"
+  D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-3b: local PASS (U0-U4 on 4 KiB API 37: LP-3a data reopens under LP-3b, LP-3b data reopens under LP-3a after rollback; OPENED 5 of 5; trace PASS; d3/superseded/run1 with reason)"
+  D4: "NOT_RUN: GAI independent review pending | LP-3b: NOT_RUN: GAI D4 pending for the LP-3b PR"
+notes: "DUR-5 enqueue-commit latency on 4 KiB: p95 9.09 ms (n=200); proposed target <= 100 ms, not an SLA. Schemas 2.json and 3.json are byte-identical to the spike exports. | LP-3b: LP-3b renamed SpikeAccountStore to AccountStore, SpikeStores to AccountStorePorts, SpikeDao to AccountDao and SpikeDatabase to AccountDatabase; the test-only SpikeCoordinator moved to androidTest as TestOutboxCoordinator (SpikeTransport to TestTransport). Earlier entries keep the old names. The rename changes no file name, key alias, AAD, table, column or schema version"
+status: "PARTIAL: local D2 PASS (4 KiB API 37); D3 NOT_RUN; D4 NOT_RUN | LP-3b: PARTIAL: rename compatibility D1, D2 re-run and D3 local; D4 pending; FORGE pending"

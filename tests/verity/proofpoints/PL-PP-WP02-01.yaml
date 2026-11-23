@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-3b entries are appended and marked 'LP-3b'; LP-1, LP-2 and LP-3a wording is unchanged.
 # BC-S2-LOCAL-PERSIST LP-3a entries are appended and marked 'LP-3a'; LP-1 and LP-2 wording is unchanged.
 # BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
@@ -35,6 +36,7 @@ evidence:
   - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): d3/L0, L1, L2, L5a, L5b, L5c, L5d (.txt transcript, .trace.txt, .trace-check.txt/.json, screenshots, store SHA-256); trace checker scripts/trace_check.py --selftest 9/9; d3/superseded (runs replaced, with reasons)"
   - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): on device Android created the new ViewModel before clearing the old one in 15 of 15 handovers (L5a 10, L5c 5; scripts/handover_order.py); each time the old session's CLOSE ended before the new OPEN began"
   - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): d2/LP3a-D2-core-storage-regression: LP-1 instrumented suite re-run 37/37 PASS (dur3Runs 50, setAsideRuns 5, dur5Samples 200) on the unchanged :core:storage source"
+  - "LP-3b evidence C:/dev/bc-lp3b-evidence (local, untracked): d2/LP3b-D2-core-storage-regression: the full :core:storage instrumented suite on the renamed classes, 37/37 PASS (dur3Runs 50, setAsideRuns 5, dur5Samples 200; 0 storage crash entries)"
 negative_controls:
   - "NC-76 CAUGHT (BLOCKED_DEPENDENCY not written)"
   - "NC-78 CAUGHT (send without durable IN_FLIGHT commit)"
@@ -47,8 +49,8 @@ preconditions:
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
 depths:
   D1: "NOT_APPLICABLE: behavior requires SQLCipher, the Android Keystore and real files (instrumented only) | LP-2: local PASS (app-level, fake store; 31 new tests) | LP-3a: local PASS (14 lifecycle tests; LP-2 tests unchanged and passing)"
-  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37) | LP-3a: local re-run PASS 37/37 (LP3a-D2-core-storage-regression; :core:storage unchanged)"
+  D2: "local PASS on 4 KiB API 37 (runs LP1-4KB-full 37/37 and LP1-4KB-POST-NC-full 37/37) | LP-3a: local re-run PASS 37/37 (LP3a-D2-core-storage-regression; :core:storage unchanged) | LP-3b: local re-run PASS 37/37 (LP3b-D2-core-storage-regression) (renamed classes; crash-point scenarios via the relocated TestOutboxCoordinator)"
   D3: "NOT_RUN: :core:storage is not wired to :app in LP-1 (app-level restart behavior is LP-3) | LP-2: local PASS (debug app restart after SIGKILL and force-stop on 4 KiB API 37) | LP-3a: local PASS (L0-L2, L5a-L5d on 4 KiB API 37; trace PASS for every process of the tested APK)"
   D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI | LP-3a: NOT_RUN: GAI D4 pending for the LP-3a PR"
-notes: "DUR-4 physical power loss is NOT_VERIFIED (emulator); WAL + synchronous=FULL is relied on per SQLite documentation. Existing PL-PP-WP02-02/03/05 (PS-OFFLINE-SYNC) are not promoted by this evidence."
+notes: "DUR-4 physical power loss is NOT_VERIFIED (emulator); WAL + synchronous=FULL is relied on per SQLite documentation. Existing PL-PP-WP02-02/03/05 (PS-OFFLINE-SYNC) are not promoted by this evidence. | LP-3b: LP-3b renamed SpikeAccountStore to AccountStore, SpikeStores to AccountStorePorts, SpikeDao to AccountDao and SpikeDatabase to AccountDatabase; the test-only SpikeCoordinator moved to androidTest as TestOutboxCoordinator (SpikeTransport to TestTransport). Earlier entries keep the old names"
 status: "PARTIAL: local D2 PASS (4 KiB API 37); D1 not applicable; D3 NOT_RUN (no app wiring); D4 NOT_RUN | LP-2: PARTIAL: app-level D1 and D3 local PASS; LP-1 D2 re-run PASS; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003); LP-3 obligations open (decision register BC-LP2-LP3) | LP-3a: PARTIAL: D1, D2 re-run and D3 local PASS; D4 pending; FORGE pending; carry-forward items in BC-LP2-LP3 stay open"

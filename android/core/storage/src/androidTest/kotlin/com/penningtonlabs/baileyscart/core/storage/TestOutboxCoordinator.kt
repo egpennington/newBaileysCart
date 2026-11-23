@@ -17,7 +17,7 @@ sealed interface TransportResult {
     data object Ambiguous : TransportResult
 }
 
-fun interface SpikeTransport {
+fun interface TestTransport {
     fun send(operation: OutboxOperation): TransportResult
 }
 
@@ -33,13 +33,13 @@ fun interface CrashPoints {
  *     before the next dispatchNext(), so younger operations pass a blocked one only once durable;
  *  3. an Idle result that changed the outbox is committed before anything else.
  */
-class SpikeCoordinator(
+class TestOutboxCoordinator(
     private val store: OutboxStore,
     private val key: FamilyKey,
-    /** The currently persisted outbox (null = nothing stored yet), e.g. from SpikeStores.recover(). */
+    /** The currently persisted outbox (null = nothing stored yet), e.g. from AccountStorePorts.recover(). */
     initialStored: FamilyOutbox?,
     epochIfEmpty: FamilyEpoch,
-    private val transport: SpikeTransport,
+    private val transport: TestTransport,
     private val crash: CrashPoints = CrashPoints { },
     private val trace: (String) -> Unit = { },
 ) {

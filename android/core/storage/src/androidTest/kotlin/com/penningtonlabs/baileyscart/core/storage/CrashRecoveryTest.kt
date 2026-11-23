@@ -84,7 +84,7 @@ class CrashRecoveryTest {
                     recovered?.operations?.forEach { ids[it.opId] = it.requestIdentity }
                     val violations = ArrayList<String>()
                     val start = store.stores.recover(key)
-                    val c = SpikeCoordinator(store.stores.outbox, key, start, Fx.E1, { op: OutboxOperation ->
+                    val c = TestOutboxCoordinator(store.stores.outbox, key, start, Fx.E1, { op: OutboxOperation ->
                         violations += checker.checkSend(op, ids)
                         Scenario.RESULTS.getValue(op.opId.value)
                     })

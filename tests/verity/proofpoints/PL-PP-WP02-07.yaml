@@ -1,3 +1,4 @@
+# BC-S2-LOCAL-PERSIST LP-3b entries are appended and marked 'LP-3b'; LP-1, LP-2 and LP-3a wording is unchanged.
 # BC-S2-LOCAL-PERSIST LP-3a entries are appended and marked 'LP-3a'; LP-1 and LP-2 wording is unchanged.
 # BC-S2-LOCAL-PERSIST LP-2 entries are appended and marked 'LP-2'; LP-1 wording is unchanged.
 # New in BC-S2-LOCAL-PERSIST LP-1 (PL-authorized collision-free mapping; existing PL-PP-WP02-11 untouched).
@@ -19,31 +20,36 @@ steps:
   - "LP-2: check the app lockfile release* configurations before and after the dependency change"
   - "LP-2: re-execute NC-98 (a: LP-1 method; b: widen debugImplementation to implementation) and run NC-100 (E-11a identity referenced from app/src/main)"
   - "LP-3a: add the debug-only trace tag BCLP3-TRACE to the forbidden strings of scripts/check-release-isolation.sh; run it on the release APK and, as a control, on the debug APK; build the release APK from the untouched baseline 45863b1 and compare hashes"
+  - "LP-3b: TxnHook, txnHook, ConnectionRegistry, ThrowingErrorHandler and the test-evidence members (keyFingerprint, writerSynchronousInTransaction, ensureNativeLoaded) made internal; the test-only coordinator and its CrashPoints moved to androidTest; run the release check on the release APK and, as a control, on the debug APK"
 expected:
   - "0 classes under core/storage, androidx/room, androidx/sqlite and net/zetetic; 0 libsqlcipher entries; release APK hash unchanged from develop (2c976a70...2dc9)"
   - "Under NC-98 the check fails; after restoration it passes and the hash returns to 2c976a70...2dc9"
   - "LP-2: release APK byte-identical to develop (2c976a70...2dc9) with debugImplementation in place; 0 storage/Room/androidx.sqlite/SQLCipher/demo classes; no native library except libandroidx.graphics.path.so; no INTERNET; 0 E-11a strings; 272 release lockfile pairs unchanged"
   - "LP-2: NC-98a, NC-98b and NC-100 each fail the check; restoration returns PASS and the baseline hash"
   - "LP-3a: release APK byte-identical to the baseline build (2c976a70...2dc9); 0 BCLP3-TRACE hits and 0 demo classes; the debug APK fails the check and contains the tag"
+  - "LP-3b: release APK byte-identical to the baseline (2c976a70...2dc9) and VERDICT=PASS; the debug APK holds no Spike class and no coordinator, transport or CrashPoints class; :app code cannot compile against any internal hook"
 evidence:
   - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): isolation/release and isolation/debug (classes.txt, aapt2-badging/permissions/resources, apk-entries, verdict.txt); scripts/release_isolation_check.sh"
   - "LP-1 evidence C:/dev/bc-lp1-evidence (local, untracked): pf/PF-7-run1 and PF-7-run2 hashes (APKs and model.jar identical to the PF-3 baseline)"
   - "scripts/check-release-isolation.sh (LP-2; local, not a FORGE job)"
   - "LP-2 evidence C:/dev/bc-lp2-evidence (local, untracked): isolation/LP2-run1-release and isolation/LP2-POST-NC-release (VERDICT=PASS, sha256 2c976a70...2dc9); isolation/LP2-selftest-final (8/8 expected outcomes, including UTF-16LE identity, libsqlcipher, unlisted .so and unreadable-dex probes); pf/LOCK-release-config-diff.txt (release_pairs 272 -> 272, 0 added, 0 removed); pf/LP2-run1 and LP2-run2 hashes (identical)"
   - "LP-3a evidence C:/dev/bc-lp3-evidence (local, untracked): isolation/release (VERDICT=PASS), isolation/debug-control (VERDICT=FAIL as intended; BCLP3-TRACE utf8_files=1), isolation/release-vs-baseline.sha256 (both 2c976a70...2dc9)"
+  - "LP-3b evidence C:/dev/bc-lp3b-evidence (local, untracked): isolation/release (VERDICT=PASS, sha256 2c976a70...2dc9 = baseline), isolation/debug-control (VERDICT=FAIL as intended; lp3b-names.txt spike_classes_in_debug=0)"
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/demo/persist/StorageNamingTest.kt (4 tests) (the coordinator, transport and CrashPoints classes are absent from the module)"
 negative_controls:
   - "NC-98 CAUGHT (14 core/storage classes detected under mutation; restored byte-exact; APK hash restored)"
   - "LP-2 NC-98a CAUGHT (KeyManager.kt copied into app/src/main: 14 storage classes and 1 main-source reference)"
   - "LP-2 NC-98b CAUGHT twice: STRICT lockfile refused the release resolution; with locks rewritten, 101 storage, 428 Room, 72 androidx.sqlite, 69 SQLCipher classes and 4 libsqlcipher.so in release"
   - "LP-2 NC-100 CAUGHT (E-11a identity and alias prefix referenced from app/src/main: 4 string hits and 1 main-source reference)"
   - "LP-2 first attempts of NC-98a/NC-98b/NC-100 superseded: caught, but the class inventory was empty under MSYS_NO_PATHCONV (dexdump path); the script now fails closed on an empty or unreadable dex inventory and all three were re-run"
+  - "LP-3b NC-107 CAUGHT (a debug :app source file uses each hook: :app does not compile, and all 8 probe lines are rejected as internal; probe removed). A first run is recorded INVALID_CHECKER_RULE (rule v1 was too strict); superseded"
 preconditions:
   - "Fictional synthetic accounts (FakeVerifiedSession uids prefixed demo-) and fictional families only; androidTest only"
   - "Emulator BC_S2b_4KB_API37 (API 37, x86_64, PAGE_SIZE 4096, Keystore SOFTWARE); offline STRICT build"
 depths:
   D1: "NOT_APPLICABLE | LP-2: NOT_APPLICABLE (release unit tests are not enabled in AGP 9)"
   D2: "NOT_APPLICABLE"
-  D3: "local PASS (build inspection of release and debug APKs; raw dexdump and aapt2 output retained) | LP-2: local PASS (release APK byte-identical to develop; automated check PASS; NC-98a/b and NC-100 caught) | LP-3a: local PASS (release byte-identical to baseline; no trace tag; debug control fails as intended)"
+  D3: "local PASS (build inspection of release and debug APKs; raw dexdump and aapt2 output retained) | LP-2: local PASS (release APK byte-identical to develop; automated check PASS; NC-98a/b and NC-100 caught) | LP-3a: local PASS (release byte-identical to baseline; no trace tag; debug control fails as intended) | LP-3b: local PASS (release byte-identical to baseline; debug control fails as intended; no Spike or test-coordinator class in the debug APK)"
   D4: "NOT_RUN: GAI independent review pending | LP-2: GAI PASS / GO (GAI-D4-BC-S2-LP2-003; PR #22 at 5dad431, merged at 4d91200), after GAI-D4-BC-S2-LP2-002 CONDITIONAL GO at 5dad431. Overall verdict as reported by the PL; GAI per-ProofPoint ratings were not provided to CODI"
-notes: "The release check is a local script, not a FORGE job (FORGE changes need Authorization B). Demo-identity isolation (E-11a, LP-2) is NOT tested here and is not claimed. | LP-2: The check runs locally and is not wired into FORGE (workflow change needs separate PL authorization). Debug builds now intentionally contain storage, SQLCipher and the fictional identity | LP-3a: in the debug control the NUL-stripped search of the new tag counted as a search error, not a hit (set -o pipefail with grep -q closing the pipe early); this only ever fails the check, never passes it. Not changed in LP-3a"
-status: "PARTIAL: local build-inspection PASS and NC-98 caught; not in CI; demo-identity isolation NOT_RUN (LP-2); D4 NOT_RUN | LP-2: PARTIAL: E-11a exclusion and release isolation local PASS with NC-98a/b and NC-100 caught; not in CI; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003) | LP-3a: PARTIAL: trace-tag exclusion local PASS; not in CI; D4 pending"
+notes: "The release check is a local script, not a FORGE job (FORGE changes need Authorization B). Demo-identity isolation (E-11a, LP-2) is NOT tested here and is not claimed. | LP-2: The check runs locally and is not wired into FORGE (workflow change needs separate PL authorization). Debug builds now intentionally contain storage, SQLCipher and the fictional identity | LP-3a: in the debug control the NUL-stripped search of the new tag counted as a search error, not a hit (set -o pipefail with grep -q closing the pipe early); this only ever fails the check, never passes it. Not changed in LP-3a | LP-3b: the hooks are still compiled into :core:storage (internal is a compile-time boundary, and the debug APK carries TxnHook and ConnectionRegistry); moving TxnHook out of the write transactions needs an architecture change and is not done. ConnectionRegistry keeps a reference to every opened connection for the process lifetime (test evidence), unchanged"
+status: "PARTIAL: local build-inspection PASS and NC-98 caught; not in CI; demo-identity isolation NOT_RUN (LP-2); D4 NOT_RUN | LP-2: PARTIAL: E-11a exclusion and release isolation local PASS with NC-98a/b and NC-100 caught; not in CI; D4 GAI PASS / GO (GAI-D4-BC-S2-LP2-003) | LP-3a: PARTIAL: trace-tag exclusion local PASS; not in CI; D4 pending | LP-3b: PARTIAL: hook isolation and release check local PASS; not in CI; D4 pending"

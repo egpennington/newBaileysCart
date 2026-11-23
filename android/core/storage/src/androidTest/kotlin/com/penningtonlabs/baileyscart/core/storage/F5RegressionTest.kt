@@ -32,10 +32,10 @@ class F5RegressionTest {
     @After
     fun cleanup() = envs.forEach { it.cleanup() }
 
-    private fun keyOf(e: Fx.Env, s: SpikeAccountStore) = (e.keys.unwrap(s.tag) as UnwrapResult.Ok).key
+    private fun keyOf(e: Fx.Env, s: AccountStore) = (e.keys.unwrap(s.tag) as UnwrapResult.Ok).key
 
     /** Two ops (opIds 1 and 2) with family-specific names. */
-    private fun seedTwo(s: SpikeAccountStore, key: FamilyKey, label: String): FamilyOutbox {
+    private fun seedTwo(s: AccountStore, key: FamilyKey, label: String): FamilyOutbox {
         val o1 = Fx.applied(Fx.add(FamilyOutbox.empty(key, Fx.E1), 1, 1, "$label item one"))
         assertTrue(s.stores.outbox.compareAndSet(key, null, o1))
         val o2 = Fx.applied(Fx.add(o1, 2, 2, "$label item two", Category.PRODUCE))
@@ -43,7 +43,7 @@ class F5RegressionTest {
         return o2
     }
 
-    private fun scopeRev(s: SpikeAccountStore, fam: String): Long =
+    private fun scopeRev(s: AccountStore, fam: String): Long =
         s.supportDb().query("SELECT rev FROM family_scope WHERE familyId = ?", arrayOf(fam)).use { if (it.moveToFirst()) it.getLong(0) else -1L }
 
     @Test
@@ -96,7 +96,7 @@ class F5RegressionTest {
         val aBefore = MigrationFixture.rawOutbox(dbFile, km.sqlcipherKey, "demo-fam-a")
         assertEquals(4, aBefore.size)
         var checks = 0
-        val c = SpikeCoordinator(s.stores.outbox, kb, null, Fx.E1, { op ->
+        val c = TestOutboxCoordinator(s.stores.outbox, kb, null, Fx.E1, { op ->
             assertEquals("A unchanged at send ${op.opId.value}", aBefore, MigrationFixture.rawOutbox(dbFile, km.sqlcipherKey, "demo-fam-a"))
             checks++
             Scenario.RESULTS.getValue(op.opId.value)
@@ -216,7 +216,7 @@ class F5RegressionTest {
         assertTrue("unique (familyId, opId) index present", indexes.any { it.second == 1 && cols[it.first] == listOf("familyId", "opId") })
         assertFalse("no account-wide unique opId index", indexes.any { it.second == 1 && cols[it.first] == listOf("opId") })
         val version = db.query("PRAGMA user_version").use { it.moveToFirst(); it.getInt(0) }
-        assertEquals(SpikeDatabase.VERSION, version)
+        assertEquals(AccountDatabase.VERSION, version)
         s.close()
     }
 
