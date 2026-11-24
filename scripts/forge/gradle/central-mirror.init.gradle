@@ -1,0 +1,38 @@
+// BC-CI-429-REL-01 (PL-PP-WP00-08), CI only: resolve Maven Central from Google's Maven Central mirror.
+// FORGE installs this file into $GRADLE_USER_HOME/init.d in the Android and repeat-build jobs, so it
+// applies to every Gradle invocation there. Local builds do not use it.
+//
+// Only the URL of each Maven Central repository changes. Repository order, exclusiveContent and content
+// filters, dependency verification (gradle/verification-metadata.xml) and STRICT lockfiles are exactly as
+// declared in settings.gradle.kts. No other repository is changed, none is added, and nothing is cached.
+// Artifacts from the mirror must match the trusted checksums, exactly as artifacts from Maven Central.
+final String CENTRAL = 'https://repo.maven.apache.org/maven2/'
+final String MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2/'
+
+static String norm(URI u) { def s = u.toString(); s.endsWith('/') ? s : s + '/' }
+
+int routed = 0
+
+gradle.beforeSettings { settings ->
+    [settings.pluginManagement.repositories, settings.dependencyResolutionManagement.repositories].each { repos ->
+        repos.withType(MavenArtifactRepository).configureEach { repo ->
+            if (norm(repo.url) == CENTRAL) {
+                repo.url = MIRROR
+                routed++
+            }
+        }
+    }
+}
+
+// Fail closed: after settings evaluation, no repository may still point at Maven Central.
+// The marker line lets the FORGE routing summary confirm that this script ran.
+gradle.settingsEvaluated { settings ->
+    [settings.pluginManagement.repositories, settings.dependencyResolutionManagement.repositories].each { repos ->
+        repos.withType(MavenArtifactRepository).each { repo ->
+            if (norm(repo.url) == CENTRAL) {
+                throw new GradleException("BC-CI-429-REL-01: repository '${repo.name}' still points at Maven Central")
+            }
+        }
+    }
+    println "BC-CI-429-REL-01: Maven Central routed to ${MIRROR} (${routed} repositories)"
+}

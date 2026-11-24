@@ -120,6 +120,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-disabled: true
+      # BC-CI-429-REL-01 (PL-PP-WP00-08): every Gradle invocation in this job resolves Maven Central from
+      # Google's Maven Central mirror. Only the repository URL changes; filters, order, verification and
+      # lockfiles do not. The init script stops the build if any repository still points at Maven Central.
+      - name: Route Maven Central to Google's mirror (BC-CI-429-REL-01)
+        run: |
+          set -euo pipefail
+          initd="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$initd"
+          install -m 0644 ../scripts/forge/gradle/central-mirror.init.gradle "$initd/bc-central-mirror.init.gradle"
+          sha256sum "$initd/bc-central-mirror.init.gradle"
       - name: Toolchain inventory
         run: |
           java -version
@@ -142,6 +152,10 @@ jobs:
           echo "--- last 200 lines ---"
           tail -n 200 "$log"
           exit "$rc"
+      # BC-CI-429-REL-01 (report only, always exits 0): hosts Gradle contacted, from the --info logs.
+      - name: Gradle repository routing summary (BC-CI-429-REL-01)
+        if: always()
+        run: bash ../scripts/forge/gradle/routing-summary.sh "$RUNNER_TEMP/gradle-diag" android
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -185,6 +199,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-disabled: true
+      # BC-CI-429-REL-01 (PL-PP-WP00-08): as in the Android job; applies to all four Gradle invocations.
+      - name: Route Maven Central to Google's mirror (BC-CI-429-REL-01)
+        run: |
+          set -euo pipefail
+          initd="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$initd"
+          install -m 0644 ../scripts/forge/gradle/central-mirror.init.gradle "$initd/bc-central-mirror.init.gradle"
+          sha256sum "$initd/bc-central-mirror.init.gradle"
       # BC-GRADLE-DIAG-01 (temporary): nonblocking probe; the script always exits 0.
       - name: Probe Maven Central (Kotlin JVM marker, diagnostic)
         run: PROBE_LABEL=repeat-build bash ../scripts/forge/diag/probe-kotlin-marker.sh "$RUNNER_TEMP/gradle-diag"
@@ -222,6 +244,10 @@ jobs:
             cp core/model/build/libs/model.jar app/build/outputs/apk/release/app-release-unsigned.apk "$evidence/run$run/"
             stat -c "run$run %n mtime=%y size=%s" core/model/build/libs/model.jar >> "$evidence/build-provenance.txt"
           done
+      # BC-CI-429-REL-01 (report only, always exits 0): hosts Gradle contacted, from the --info logs.
+      - name: Gradle repository routing summary (BC-CI-429-REL-01)
+        if: always()
+        run: bash ../scripts/forge/gradle/routing-summary.sh "$RUNNER_TEMP/gradle-diag" repeat-build
       - name: Compare hashes (JAR hard gate, APK informational)
         run: |
           set -euo pipefail

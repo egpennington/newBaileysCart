@@ -1,0 +1,47 @@
+id: PL-PP-WP00-08
+name: CI-only Google Maven Central mirror for Gradle resolution, fail closed
+feature: Build supply chain (Android and repeat-build Gradle invocations)
+suite: PS-BUILD-SUPPLY-CHAIN
+risk: medium
+owner: CODI
+independent_reviewer: GAI
+level: integration
+decision_basis:
+  - "CipherMuse: Option B DESIGN GO; penguinPrime implementation authorization BC-CI-429-REL-01 (2026-11-24)"
+  - "Cause: the runner's IP was already rate limited by Maven Central before Gradle ran (BC-GRADLE-DIAG-01 probe, run #120: HTTP 429 at 2026-11-23T22:14:55Z); the BC-GRADLE-429-R1 120 s retry also received 429 (runs #120 and #121; register BC-CI-429-SR1)"
+  - "Feasibility (CODI, 2026-11-24): all 390 Maven Central-hosted artifacts pinned in verification-metadata.xml are on the mirror with matching trusted checksums, including the Kotlin JVM marker POM 202ec7f5; the other 311 entries are Google Maven artifacts and are unaffected"
+  - "BC-GRADLE-CACHE-01 (dependency caching) remains rejected. No caching is introduced"
+preconditions:
+  - Both Gradle jobs keep setup-gradle cache-disabled true
+  - verification-metadata.xml (verify-metadata true), STRICT lockfiles, settings.gradle.kts (exclusiveContent, FAIL_ON_PROJECT_REPOS, repository order) unchanged
+  - Repeat-build independence check and JAR hash gate unchanged
+  - BC-GRADLE-429-R1 retry and BC-GRADLE-DIAG-01 probe unchanged; the probe still requests repo.maven.apache.org with curl and is separate from Gradle traffic
+steps:
+  - "scripts/forge/gradle/central-mirror.init.gradle: in beforeSettings, any plugin or dependency repository whose URL is https://repo.maven.apache.org/maven2/ gets https://maven-central.storage-download.googleapis.com/maven2/; nothing is added, removed or reordered"
+  - "In settingsEvaluated it throws if any repository still points at Maven Central (fail closed), then prints 'BC-CI-429-REL-01: Maven Central routed to <mirror> (<n> repositories)'"
+  - "Both Gradle jobs install the script into $GRADLE_USER_HOME/init.d immediately after setup-gradle, before any Gradle invocation, so it applies to all five invocations"
+  - "scripts/forge/gradle/routing-summary.sh (report only, always exits 0) counts the hosts Gradle contacted in the --info logs, flags any Gradle request to repo.maven.apache.org or a log without the routing line, and does not count the probe file"
+  - "Content and behaviour tests (gradle-mirror.test.mjs), structural tests (workflow.test.mjs), mutation controls, and local Gradle controls in a disposable copy"
+expected:
+  - Gradle resolves every Maven Central artifact from the mirror over HTTPS; dependency verification and lockfiles accept exactly what they accepted before
+  - A tampered JAR or POM from the mirror fails dependency verification
+  - A plugin missing from the mirror fails resolution; no fallback to the Plugin Portal or another repository is introduced
+  - A Maven Central repository left unredirected stops the build
+  - No Gradle request to repo.maven.apache.org; the probe's single curl request is reported separately
+evidence:
+  local:
+    - "CODI 2026-11-24, Windows, Git Bash, Node 22.23.5, baseline origin/develop c60ba27: FORGE self-tests 115/115 (all suites, --test-concurrency=1; classify.test.mjs fails intermittently on this desktop only when suites run in parallel, with a git 'failed to insert into database' error in its temporary repositories; it passes 17/17 alone and is unchanged)"
+    - "Mutation controls (14), each fails the tests: install step removed from repeat-build; install moved after a Gradle invocation; routing summary not always(); install failure swallowed; extra -I init script; guard removed; mirror URL changed; mavenLocal added; every repository redirected; mirror URL from an environment variable; routing line removed; probe file counted as Gradle traffic; Maven Central count disabled; summary exits non-zero"
+    - "Mirror content check: all 390 Maven Central-hosted artifacts in verification-metadata.xml downloaded from the mirror over HTTPS (curl) match the trusted SHA-256, including the Kotlin JVM marker POM 202ec7f5"
+    - "Gradle 9.8.2, Temurin 21.0.13, disposable copy of the c60ba27 android tree, a fresh Gradle user home per run, --offline. The desktop JVM cannot reach HTTPS repositories (Norton TLS interception), so the mirror and Google Maven were served from local file copies downloaded from them; the init script (SHA-256 4d919a26...55bc) differed from the committed one only in its MIRROR line (a file URI)"
+    - "Routing and checksums: assembleDebug assembleRelease test lint BUILD SUCCESSFUL (180 tasks), verification and STRICT lockfiles on; 'Maven Central routed to ... (3 repositories)': the exclusiveContent plugin repository, the plain plugin repository and the dependency repository; Google Maven, the Plugin Portal and repository order unchanged; routing-summary on the log: 0 Gradle requests to repo.maven.apache.org"
+    - "Tampered POM (Kotlin JVM marker, one byte appended): dependency verification failed, from repository MavenRepo. Tampered JAR (kotlin-stdlib-2.4.10.jar): dependency verification failed, from repository MavenRepo2"
+    - "Missing plugin (marker removed from the mirror copy): 'Plugin org.jetbrains.kotlin.jvm 2.4.10 was not found'; no fallback to another repository. Missing redirection (MIRROR set to the Maven Central URL): build stopped with 'BC-CI-429-REL-01: repository MavenRepo still points at Maven Central'"
+  ci: []
+  review: []
+depths:
+  D1: content, behaviour, structural and mutation tests (CODI, local)
+  D2: local Gradle routing, checksum and fail-closed controls (CODI, local)
+  D3: FORGE on the PR (FULL path); routing summary shows HTTPS downloads from the mirror and zero Gradle requests to repo.maven.apache.org
+  D4: GAI focused review
+status: "IMPLEMENTED, MERGE HOLD: D1/D2 local PASS; D3 pending FORGE; D4 pending GAI"
