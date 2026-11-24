@@ -143,4 +143,40 @@ describe('FORGE workflow wiring (FORGE-FP-01)', () => {
     assert.doesNotMatch(text, /FORGE_RETRY_SLEEP/, 'the workflow never overrides the retry sleep');
     assert.doesNotMatch(text, /gradle-retry-429\.sh[^\n]*\|\| true/, 'the wrapper exit code is never discarded');
   });
+
+  // BC-CI-429-REL-01 (PL-PP-WP00-08): both Gradle jobs install the Maven Central mirror init script
+  // after setup-gradle and before any Gradle invocation, and summarize routing after the build.
+  test('Gradle jobs route Maven Central to the mirror before any Gradle invocation (BC-CI-429-REL-01)', () => {
+    const INSTALL = "Route Maven Central to Google's mirror (BC-CI-429-REL-01)";
+    const SUMMARY = 'Gradle repository routing summary (BC-CI-429-REL-01)';
+    const INSTALL_RUN = [
+      'set -euo pipefail',
+      'initd="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"',
+      'mkdir -p "$initd"',
+      'install -m 0644 ../scripts/forge/gradle/central-mirror.init.gradle "$initd/bc-central-mirror.init.gradle"',
+      'sha256sum "$initd/bc-central-mirror.init.gradle"',
+      '',
+    ].join('\n');
+    const builds = { android: 'Build, lint, unit tests', 'repeat-build': 'Two independent clean builds' };
+    for (const [k, build] of Object.entries(builds)) {
+      const steps = jobs[k].steps;
+      const sg = steps.findIndex((s) => typeof s.uses === 'string' && s.uses.startsWith('gradle/actions/setup-gradle@'));
+      const ins = steps.findIndex((s) => s.name === INSTALL);
+      assert.equal(steps.filter((s) => s.name === INSTALL).length, 1, `${k}: one install step`);
+      assert.equal(ins, sg + 1, `${k}: install runs immediately after setup-gradle`);
+      assert.deepEqual(Object.keys(steps[ins]).sort(), ['name', 'run'], `${k}: install is unconditional`);
+      assert.equal(steps[ins].run, INSTALL_RUN, `${k}: install command`);
+      const firstGradle = steps.findIndex((s) => /\.\/gradlew\b/.test(s.run ?? ''));
+      assert.ok(firstGradle > ins, `${k}: no Gradle invocation before the install step`);
+      const b = steps.findIndex((s) => s.name === build);
+      const sum = steps.findIndex((s) => s.name === SUMMARY);
+      assert.equal(sum, b + 1, `${k}: routing summary runs right after "${build}"`);
+      assert.equal(steps[sum].if, 'always()');
+      assert.equal(steps[sum].run, `bash ../scripts/forge/gradle/routing-summary.sh "$RUNNER_TEMP/gradle-diag" ${k}`);
+    }
+    // Only the two Gradle jobs install it; nothing passes another init script or names a repository URL.
+    assert.equal(text.split('../scripts/forge/gradle/central-mirror.init.gradle').length - 1, 2, 'installed exactly twice');
+    assert.doesNotMatch(text, /(^|\s)(-I|--init-script)\s/m, 'no init script on the command line');
+    assert.doesNotMatch(text, /repo\.maven\.apache\.org|storage-download\.googleapis\.com/, 'repository URLs live only in the init script');
+  });
 });
