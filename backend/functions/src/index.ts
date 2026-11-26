@@ -29,6 +29,14 @@ import { familiesGetClosureStatusHandler } from "./commands/familiesGetClosureSt
 import { familiesPrepareLifecycleConfirmationHandler } from "./commands/familiesPrepareLifecycleConfirmation.js";
 import { familiesRestoreHandler } from "./commands/familiesRestore.js";
 import { familiesWaiveRecoveryHandler } from "./commands/familiesWaiveRecovery.js";
+import {
+  invitesAcceptHandler,
+  invitesCreateHandler,
+  itemsAddHandler,
+  itemsDeleteHandler,
+  itemsEditHandler,
+  itemsUndoDeleteHandler,
+} from "./commands/familySync.js";
 import { systemClock } from "./domain/clock.js";
 
 initializeApp();
@@ -70,4 +78,23 @@ export const familiesWaiveRecovery = onCall({ enforceAppCheck: false }, (request
 
 export const familiesPrepareLifecycleConfirmation = onCall({ enforceAppCheck: false }, (request) =>
   runCallable("families.prepareLifecycleConfirmation", request, prepareConfirmation),
+);
+
+// BC-FAMILY-SYNC-01 (Sync Contract Rev 2): emulator-only milestone under the PL's Gate C exception.
+// Not deployed. Clients read the shared list through the listItems/listMeta rules in firestore.rules.
+const syncDeps = { db, clock: systemClock };
+const createInvite = invitesCreateHandler(syncDeps);
+const acceptInvite = invitesAcceptHandler(syncDeps);
+const addItem = itemsAddHandler(syncDeps);
+const editItem = itemsEditHandler(syncDeps);
+const deleteItem = itemsDeleteHandler(syncDeps);
+const undoDeleteItem = itemsUndoDeleteHandler(syncDeps);
+
+export const invitesCreate = onCall({ enforceAppCheck: false }, (request) => runCallable("invites.create", request, createInvite));
+export const invitesAccept = onCall({ enforceAppCheck: false }, (request) => runCallable("invites.accept", request, acceptInvite));
+export const itemsAdd = onCall({ enforceAppCheck: false }, (request) => runCallable("items.add", request, addItem));
+export const itemsEdit = onCall({ enforceAppCheck: false }, (request) => runCallable("items.edit", request, editItem));
+export const itemsDelete = onCall({ enforceAppCheck: false }, (request) => runCallable("items.delete", request, deleteItem));
+export const itemsUndoDelete = onCall({ enforceAppCheck: false }, (request) =>
+  runCallable("items.undoDelete", request, undoDeleteItem),
 );

@@ -24,4 +24,11 @@ export const paths = {
   // id is SHA-256(Pub/Sub messageId). Neither path ever contains a raw token.
   purchaseBinding: (purchaseRef: string) => `purchaseBindings/${purchaseRef}`,
   rtdnDelivery: (deliveryRef: string) => `rtdnDeliveries/${deliveryRef}`,
+  // BC-FAMILY-SYNC-01 (Sync Contract Rev 2). `items` and `invites` are server-only. `listItems` and
+  // `listMeta/current` are the only documents firestore.rules lets clients read (ACTIVE members).
+  familyItem: (familyId: string, itemId: string) => `families/${familyId}/items/${itemId}`,
+  familyListItem: (familyId: string, itemId: string) => `families/${familyId}/listItems/${itemId}`,
+  familyListItems: (familyId: string) => `families/${familyId}/listItems`,
+  familyListMeta: (familyId: string) => `families/${familyId}/listMeta/current`,
+  invite: (codeHash: string) => `invites/${codeHash}`,
 } as const;

@@ -18,3 +18,7 @@ proofpoints_in_slice_3:
   - PL-PP-WP03-32 (partial)
 # PL-PP-WP03-30 stays listed under slice 1 and is extended in place for Slice 3 (GAI-S3-MED-02).
 status_source: docs/wp03/evidence/EVIDENCE_MANIFEST.md
+proofpoints_in_bc_family_sync_01:
+  # BC-FAMILY-SYNC-01 Step 1: listItems/listMeta read rules (ACTIVE membership, ACTIVE family) and invites.
+  - PL-PP-WP03-38 (partial)
+  - PL-PP-WP03-40 (partial)

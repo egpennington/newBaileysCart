@@ -1,0 +1,31 @@
+# New in BC-FAMILY-SYNC-01 Step 1 (API v0.4 invites.create / invites.accept; Rev 2 §8). Unallocated ID.
+id: PL-PP-WP03-40
+name: "Invites are owner-created, hashed, single-use, short-lived and bound to the family epoch"
+feature: "invites.create and invites.accept (BC-FAMILY-SYNC-01; invites.revoke, members.remove and members.leave are not in scope)"
+suite: PS-ACCESS-ISOLATION
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "BC-FAMILY-SYNC-01 Step 1 (backend only)"
+slice_coverage: "PARTIAL. create and accept only, as approved. Revocation of an invite, member removal and leaving are not implemented."
+preconditions:
+  - "Firestore emulator; handlers with a FakeClock; callable wire for the e2e accept"
+steps:
+  - "Owner creates an invite; a member and a non-member try; replay the owner's create"
+  - "Accept by a new user; accept the used code again; an unknown code; the owner and an existing member accept a fresh code; accept after the 24-hour TTL; an unverified email accepts"
+  - "Fill a family to six ACTIVE members, then accept once more"
+expected:
+  - "Only the owner creates (OWNER_REQUIRED for a member, NOT_FOUND for a non-member); only a SHA-256 of the code is stored; a replay returns the original result with code null"
+  - "Accept creates an ACTIVE MEMBER membership on both edges and consumes the invite atomically; used, unknown, expired or stale codes are INVITE_INVALID; ALREADY_MEMBER and EMAIL_VERIFICATION_REQUIRED consume nothing"
+  - "The seventh ACTIVE member is FAMILY_FULL"
+evidence:
+  - "backend/functions/test/emulator/familySync.test.ts, describe 'invites'"
+  - "backend/functions/test/e2e/familySync.test.ts (accept over the wire; used code INVITE_INVALID for household C)"
+  - "Negative control NC-115 (consumed invite accepted again) CAUGHT"
+depths:
+  D2: "local PASS (2026-11-25)"
+  D3: "local PASS over the callable wire"
+  D4: "NOT_RUN (GAI)"
+notes: "CODI interpretation for GAI D4: the code is returned only in the first invites.create response; the idempotency record stores the response with code null, so the plaintext code is never persisted. Code format: 16 Crockford base32 characters (80 random bits). TTL 24 hours and capacity 6 are CODI choices within API v0.4 wording ('short-lived', 'max six subject to billing')."
+status: "PARTIAL: Step 1 backend local D2/D3 PASS; GAI D4 NOT_RUN"

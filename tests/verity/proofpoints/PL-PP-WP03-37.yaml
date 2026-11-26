@@ -1,0 +1,36 @@
+# New in BC-FAMILY-SYNC-01 Step 1 (Sync Contract Rev 2, GAI GO; PL emulator-only Gate C exception
+# 2026-11-25). Unallocated ID (next after PL-PP-WP03-36).
+id: PL-PP-WP03-37
+name: "A family member's item change reaches every ACTIVE member of that family through the read model"
+feature: "Family shared shopping list (BC-FAMILY-SYNC-01): items.add, items.edit (explicit checked), items.delete, items.undoDelete and the listItems read model"
+suite: PS-CORE-LIST
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "BC-FAMILY-SYNC-01 Step 1 (backend only; Emulator Suite, demo-newbaileyscart)"
+slice_coverage: "PARTIAL. Server side only: authoritative item records, the listItems read model and listMeta written in one transaction, verified by handler tests and over the callable wire with REST reads. Android listeners, the encrypted cache and the two-emulator demonstration are Step 2-3 and NOT_RUN."
+preconditions:
+  - "Auth, Firestore and Functions emulators (demo-newbaileyscart only); backend/firestore.rules as changed in Step 1; injectable FakeClock for D2"
+steps:
+  - "A (owner) creates family F1 and an invite; B (verified) accepts it"
+  - "A adds Milk; B reads families/F1/listItems with B's own token"
+  - "B sends items.edit with patch {checked: true}; A and B read the list"
+  - "Field-level edits: rename only; concurrent category and checked edits by A and B"
+  - "Delete, redundant delete, edit of a deleted item, undo with the matching and a different deleteOpId"
+expected:
+  - "B sees Milk; after B's edit both A and B see checked=true"
+  - "listItems documents hold display fields only (name, category, checked, rev, updatedAt); the authoritative items record keeps createdBy and the tombstone, server-only"
+  - "A patch changes only its own fields; concurrent edits of different fields both apply (last server-accepted write wins per field)"
+  - "Delete removes the listItems document and keeps a server tombstone; a redundant delete is satisfied; an edit of a deleted item is ITEM_DELETED and never resurrects it; a conflicting undo is UNDO_CONFLICT"
+evidence:
+  - "backend/functions/test/emulator/familySync.test.ts, describes 'A adds milk, B sees it and checks it off, both see the update' and 'delete, undo and no resurrection'"
+  - "backend/functions/test/e2e/familySync.test.ts, describe 'the defining experience over the callable wire'"
+  - "Negative control NC-113 (non-field-level edit) CAUGHT"
+depths:
+  D1: "Not separate: request validation runs inside the D2 handler tests (describe 'validation')"
+  D2: "local PASS (Emulator Suite, 2026-11-25)"
+  D3: "local PASS over the callable wire with Auth-emulator users; Android client NOT_RUN (Step 2)"
+  D4: "NOT_RUN (GAI)"
+notes: "Name canonical keys, case or accent folding and duplicate-name detection are NOT implemented (W-03 OPEN, as on Android). Server tombstone retention (37 days) is specified but no purge job exists yet. The suggested 500-item cap is NOT an approved product limit and is not enforced."
+status: "PARTIAL: Step 1 backend local D2/D3 PASS; Android integration and GAI D4 NOT_RUN"
