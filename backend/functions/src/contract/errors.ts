@@ -32,7 +32,17 @@ export type DomainErrorCode =
   | "CLOSURE_RECOVERY_EXPIRED"
   | "RECOVERY_ALREADY_WAIVED"
   | "CLOSURE_NOT_ELIGIBLE_FOR_WAIVER"
-  | "RESERVATION_EXPIRED";
+  | "RESERVATION_EXPIRED"
+  // BC-FAMILY-SYNC-01 (Sync Contract Rev 2; emulator-only milestone).
+  | "MEMBERSHIP_REVOKED"
+  | "READ_ONLY"
+  | "ITEM_NOT_FOUND"
+  | "ITEM_DELETED"
+  | "ITEM_ID_CONFLICT"
+  | "UNDO_CONFLICT"
+  | "INVITE_INVALID"
+  | "ALREADY_MEMBER"
+  | "FAMILY_FULL";
 
 interface ErrorSpec {
   readonly canonical: FunctionsErrorCode;
@@ -103,6 +113,24 @@ export const ERROR_SPECS: Readonly<Record<DomainErrorCode, ErrorSpec>> = {
   // D46 / A2 §A2.6: no new checkout after the 24-hour TTL. Not raised by a callable in 3A
   // (no checkout endpoint exists); domain rule only (domain/reservation.ts).
   RESERVATION_EXPIRED: { canonical: "failed-precondition", retryable: false, message: "Reservation expired." },
+
+  // --- BC-FAMILY-SYNC-01 (Sync Contract Rev 2). Transport mappings are CODI proposals for GAI D4. ---
+  // The caller's membership edge exists but is no longer ACTIVE (removed, or revoked by a restore).
+  MEMBERSHIP_REVOKED: { canonical: "permission-denied", retryable: false, message: "Membership revoked." },
+  // Invariant 4: an expired entitlement leaves members read-only.
+  READ_ONLY: { canonical: "failed-precondition", retryable: false, message: "Family is read-only." },
+  ITEM_NOT_FOUND: { canonical: "not-found", retryable: false, message: "Item not found." },
+  // API v0.4 items.edit: a deleted item is never resurrected by an edit.
+  ITEM_DELETED: { canonical: "failed-precondition", retryable: false, message: "Item was deleted." },
+  // items.add with a client itemId that already names a different item.
+  ITEM_ID_CONFLICT: { canonical: "already-exists", retryable: false, message: "Item ID already in use." },
+  // API v0.4 items.undoDelete: "conflicting undo rejected".
+  UNDO_CONFLICT: { canonical: "failed-precondition", retryable: false, message: "Undo no longer applies." },
+  // One code for unknown, expired, consumed or stale invites, so the code cannot be probed.
+  INVITE_INVALID: { canonical: "not-found", retryable: false, message: "Invite is not valid." },
+  ALREADY_MEMBER: { canonical: "failed-precondition", retryable: false, message: "Already a family member." },
+  // API v0.4 invites.accept: capacity max six (subject to billing).
+  FAMILY_FULL: { canonical: "failed-precondition", retryable: false, message: "Family is full." },
 };
 
 export class DomainError extends Error {

@@ -16,3 +16,6 @@ proofpoints_in_bc_ui_s2_wire:
   - PL-PP-WP01-06 (partial)
 status_source: "CODI_BC_UI_S1_Implementation_Report_v1.0.md (local, untracked) and the PR description. For BC-UI-S2-WIRE: CODI_BC_UI_S2_WIRE_Implementation_Report_v1.0.md and GAI-D4-BC-UI-S2-WIRE-001 (both local, untracked); decision register v1.17"
 suite_status: "PARTIAL. D2 is BLOCKED for every ProofPoint in this suite (no Compose UI or instrumentation test dependencies)"
+proofpoints_in_bc_family_sync_01:
+  # BC-FAMILY-SYNC-01 Step 1 (emulator-only Gate C exception, PL 2026-11-25): server side of the shared family list.
+  - PL-PP-WP03-37 (partial)

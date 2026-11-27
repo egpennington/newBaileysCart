@@ -83,6 +83,9 @@ export function familiesRestoreHandler(deps: LifecycleDeps) {
           restoredAt: now,
           lifecycleRevision: family.lifecycleRevision + 1,
         });
+        // BC-FAMILY-SYNC-01: the client read model carries the new epoch, so queued work under the old
+        // epoch is dropped (Sync Contract Rev 2 §1). Written in the same transaction as the increment.
+        tx.set(db.doc(paths.familyListMeta(family.familyId)), { familyEpoch: newEpoch });
         writeCase(db, tx, { ...restorable, restoredAtMillis: nowMillis, nextAttemptAtMillis: null, revision: restorable.revision + 1 });
         others.forEach((m, i) => {
           tx.update(m.ref, { state: "REVOKED", revokedAt: now });

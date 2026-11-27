@@ -17,3 +17,6 @@ proofpoints_in_bc_ui_s2a:
   - PL-PP-WP02-05 (partial)
   - PL-PP-WP02-06 (partial)
   - PL-PP-WP02-11 (partial)
+scope_note_bc_family_sync_01: "BC-FAMILY-SYNC-01 Step 1 adds the server item commands with idempotency, epoch and membership checks. The Android outbox dispatch, offline queue and purge on revocation are Step 2 and not yet claimed."
+proofpoints_in_bc_family_sync_01:
+  - PL-PP-WP03-39 (partial)

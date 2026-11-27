@@ -219,3 +219,168 @@ export function parsePrepareConfirmationRequest(data: unknown): Parsed<PrepareCo
   if (action !== "CLOSE" && action !== "WAIVE_RECOVERY") throw invalid("action", "NOT_ALLOWED");
   return { request: { apiVersion: API_VERSION, opId, familyId, action }, raw: obj };
 }
+
+// --- BC-FAMILY-SYNC-01 (Sync Contract Rev 2): invites and items. Strict like every other request:
+// unknown keys are rejected, so no body field can stand in for a server-derived value. ---
+
+/** Categories of the S2a domain core (android/core/model offline/Identifiers.kt `Category`). */
+export const ITEM_CATEGORIES = ["PRODUCE", "DAIRY", "DRY", "FROZEN", "MISC", "MEAT"] as const;
+export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
+
+export const ITEM_NAME_MAX_CODE_POINTS = 100;
+
+/**
+ * The ratified item-name rules, mirrored from android/core/model offline/ItemName.kt: reject unpaired
+ * surrogates, blank names, line breaks, other control characters (Cc) and bidi embedding, override and
+ * isolate controls; at most 100 code points after trimming the ends; the user's spelling is kept.
+ * NOT implemented (W-03 OPEN, as on Android): canonical name keys, case or accent folding and
+ * duplicate-name detection.
+ */
+export function validateItemName(value: unknown, field: string): string {
+  if (typeof value !== "string") throw invalid(field, "NOT_A_STRING");
+  if (/\p{Cs}/u.test(value)) throw invalid(field, "UNPAIRED_SURROGATE");
+  const trimmed = value.trim();
+  if (trimmed === "") throw invalid(field, "BLANK");
+  if (/[\n\r\u0085\u2028\u2029]/u.test(trimmed)) throw invalid(field, "LINE_BREAK");
+  if (/\p{Cc}/u.test(trimmed)) throw invalid(field, "CONTROL_CHARACTER");
+  if (/[\u202A-\u202E\u2066-\u2069]/u.test(trimmed)) throw invalid(field, "BIDI_CONTROL");
+  if ([...trimmed].length > ITEM_NAME_MAX_CODE_POINTS) throw invalid(field, "TOO_LONG");
+  return trimmed;
+}
+
+function checkCategory(value: unknown, field: string): ItemCategory {
+  if (typeof value !== "string" || !(ITEM_CATEGORIES as readonly string[]).includes(value)) throw invalid(field, "NOT_ALLOWED");
+  return value as ItemCategory;
+}
+
+function checkUuidField(obj: Record<string, unknown>, key: string): string {
+  const v = obj[key];
+  if (!isUuidV4(v)) throw invalid(key, v === undefined ? "MISSING" : "NOT_A_UUID_V4");
+  return v;
+}
+
+/** invites.create: `{apiVersion, opId, familyId, familyEpoch}`, the same shape as families.restore. */
+export const parseInviteCreateRequest = parseFamilyMutation;
+
+/** Invite codes: 16 characters of Crockford base32 (80 random bits), typed by people. */
+export const INVITE_CODE = /^[0-9A-HJKMNP-TV-Z]{16}$/;
+
+export interface InviteAcceptRequest {
+  readonly apiVersion: typeof API_VERSION;
+  readonly opId: string;
+  readonly code: string;
+}
+
+/** invites.accept: `{apiVersion, opId, code}`. The family and its epoch are resolved by the server. */
+export function parseInviteAcceptRequest(data: unknown): Parsed<InviteAcceptRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "code"], "");
+  const opId = checkOpId(obj);
+  const code = obj["code"];
+  if (code === undefined) throw invalid("code", "MISSING");
+  if (typeof code !== "string" || !INVITE_CODE.test(code)) throw invalid("code", "MALFORMED");
+  return { request: { apiVersion: API_VERSION, opId, code }, raw: obj };
+}
+
+export interface ItemRequest extends FamilyMutationRequest {
+  readonly itemId: string;
+}
+
+export interface ItemAddRequest extends ItemRequest {
+  readonly name: string;
+  readonly category: ItemCategory;
+}
+
+/** items.add: `{apiVersion, opId, familyId, familyEpoch, itemId, name, category}`. */
+export function parseItemAddRequest(data: unknown): Parsed<ItemAddRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "familyEpoch", "itemId", "name", "category"], "");
+  return {
+    request: {
+      apiVersion: API_VERSION,
+      opId: checkOpId(obj),
+      familyId: checkFamilyId(obj),
+      familyEpoch: checkFamilyEpoch(obj),
+      itemId: checkUuidField(obj, "itemId"),
+      name: validateItemName(obj["name"], "name"),
+      category: checkCategory(obj["category"], "category"),
+    },
+    raw: obj,
+  };
+}
+
+export interface ItemPatch {
+  readonly name?: string;
+  readonly category?: ItemCategory;
+  readonly checked?: boolean;
+}
+
+export interface ItemEditRequest extends ItemRequest {
+  readonly patch: ItemPatch;
+}
+
+/**
+ * items.edit: `{apiVersion, opId, familyId, familyEpoch, itemId, patch}`. The patch carries only the
+ * fields being changed (at least one). `checked` is an explicit value, never a toggle (Rev 2 §4).
+ */
+export function parseItemEditRequest(data: unknown): Parsed<ItemEditRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "familyEpoch", "itemId", "patch"], "");
+  const opId = checkOpId(obj);
+  const familyId = checkFamilyId(obj);
+  const familyEpoch = checkFamilyEpoch(obj);
+  const itemId = checkUuidField(obj, "itemId");
+  const raw = asPlainObject(obj["patch"], "patch");
+  rejectUnknownKeys(raw, ["name", "category", "checked"], "patch");
+  const patch: { name?: string; category?: ItemCategory; checked?: boolean } = {};
+  if ("name" in raw) patch.name = validateItemName(raw["name"], "patch.name");
+  if ("category" in raw) patch.category = checkCategory(raw["category"], "patch.category");
+  if ("checked" in raw) {
+    if (typeof raw["checked"] !== "boolean") throw invalid("patch.checked", "NOT_A_BOOLEAN");
+    patch.checked = raw["checked"];
+  }
+  if (Object.keys(patch).length === 0) throw invalid("patch", "EMPTY");
+  return { request: { apiVersion: API_VERSION, opId, familyId, familyEpoch, itemId, patch }, raw: obj };
+}
+
+/** items.delete: `{apiVersion, opId, familyId, familyEpoch, itemId}`. */
+export function parseItemDeleteRequest(data: unknown): Parsed<ItemRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "familyEpoch", "itemId"], "");
+  return {
+    request: {
+      apiVersion: API_VERSION,
+      opId: checkOpId(obj),
+      familyId: checkFamilyId(obj),
+      familyEpoch: checkFamilyEpoch(obj),
+      itemId: checkUuidField(obj, "itemId"),
+    },
+    raw: obj,
+  };
+}
+
+export interface ItemUndoDeleteRequest extends ItemRequest {
+  readonly deleteOpId: string;
+}
+
+/** items.undoDelete: `{apiVersion, opId, familyId, familyEpoch, itemId, deleteOpId}`. */
+export function parseItemUndoDeleteRequest(data: unknown): Parsed<ItemUndoDeleteRequest> {
+  const obj = asPlainObject(data, "request");
+  checkApiVersion(obj);
+  rejectUnknownKeys(obj, ["apiVersion", "opId", "familyId", "familyEpoch", "itemId", "deleteOpId"], "");
+  return {
+    request: {
+      apiVersion: API_VERSION,
+      opId: checkOpId(obj),
+      familyId: checkFamilyId(obj),
+      familyEpoch: checkFamilyEpoch(obj),
+      itemId: checkUuidField(obj, "itemId"),
+      deleteOpId: checkUuidField(obj, "deleteOpId"),
+    },
+    raw: obj,
+  };
+}

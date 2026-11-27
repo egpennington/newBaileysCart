@@ -1,0 +1,33 @@
+# New in BC-FAMILY-SYNC-01 Step 1 (Sync Contract Rev 2 §1). Unallocated ID.
+id: PL-PP-WP03-38
+name: "Only a verified, ACTIVE member of an ACTIVE family can read that family's list; no client can write"
+feature: "Firestore read rules for families/{fid}/listItems and families/{fid}/listMeta/current (BC-FAMILY-SYNC-01)"
+suite: PS-ACCESS-ISOLATION
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "BC-FAMILY-SYNC-01 Step 1 (backend only; Emulator Suite)"
+slice_coverage: "PARTIAL. Rule evaluation in the Firestore emulator through the REST API with unsigned test tokens (W-01 D-5) and with real Auth-emulator ID tokens; production token verification and Android snapshot listeners NOT_RUN."
+preconditions:
+  - "Firestore emulator with backend/firestore.rules; seeded ACTIVE family F (owner, ACTIVE member, REVOKED member, member document without state), CLOSING family G with an ACTIVE member, separate household H"
+steps:
+  - "get listItems/{id}, list listItems and get listMeta/current as each caller"
+  - "get listMeta/other, list listMeta, get the authoritative items, members, the family document and invites; collection-group query on listItems"
+  - "create, update and delete listItems; update listMeta and a member's state, as the owner and as a member"
+expected:
+  - "Allowed (200) only for the owner and the ACTIVE member of ACTIVE family F, and for H's owner on H"
+  - "Denied (403): unauthenticated, unverified email, REVOKED member, member document without ACTIVE state, another household, a user with no membership, an ACTIVE member of a non-ACTIVE family"
+  - "Every other path, list and collection-group query denied; every client write denied; seeded data unchanged; the existing deny-all suite still passes"
+evidence:
+  - "backend/firestore.rules"
+  - "backend/functions/test/rules/familyRead.test.ts"
+  - "backend/functions/test/rules/denyAll.test.ts (regression, unchanged)"
+  - "backend/functions/test/e2e/familySync.test.ts, describe 'household C is isolated from F1' (real emulator ID tokens)"
+  - "Negative controls NC-109 (membership existence only, the condition GAI flagged) CAUGHT and NC-110 (family lifecycle check removed) CAUGHT"
+depths:
+  D2: "local PASS (2026-11-25)"
+  D3: "local PASS for REST reads with Auth-emulator tokens; Android listener NOT_RUN (Step 2)"
+  D4: "NOT_RUN (GAI)"
+notes: "Revocation of an already-open listener is not observable without a listener client; it is a Step 2 Android test and a GAI question on emulator fidelity. Offline-revocation exposure remains an OPEN RELEASE RISK (PL decision 2026-11-25)."
+status: "PARTIAL: rules local D2 PASS; listener behaviour and GAI D4 NOT_RUN"

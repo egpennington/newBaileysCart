@@ -1,0 +1,35 @@
+# New in BC-FAMILY-SYNC-01 Step 1 (Sync Contract Rev 2 §1, §2, §4). Unallocated ID.
+id: PL-PP-WP03-39
+name: "Item commands are idempotent, epoch-bound and authorized by current ACTIVE membership in the same transaction"
+feature: "Server membership gate for invites.create and items.* (BC-FAMILY-SYNC-01), reusing persistence/idempotency.ts"
+suite: PS-OFFLINE-SYNC
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: integration
+slice: "BC-FAMILY-SYNC-01 Step 1 (backend only)"
+slice_coverage: "PARTIAL. Server-side replay, epoch, revocation and isolation behaviour. The Android outbox dispatch, offline queue, retry triggers and purge on revocation are Step 2 and NOT_RUN."
+preconditions:
+  - "Firestore emulator; handlers called directly with a FakeClock; callable wire for the e2e cases"
+steps:
+  - "Replay items.add with the same opId and payload; reuse an opId with a different command or payload"
+  - "Send items.add with a stale familyEpoch"
+  - "Household C sends every item command and invites.create against family F1; C replays A's opId"
+  - "Set a member's state to REVOKED, then send a new command and a replay of an earlier one"
+  - "Family CLOSING; trial expired; unverified email"
+expected:
+  - "Replay returns the original response with no second change; a reused opId is IDEMPOTENCY_KEY_REUSED"
+  - "A stale epoch is STALE_EPOCH_REJECTED with no item or read-model write"
+  - "Non-members get NOT_FOUND with no change and no disclosure; idempotency records are per actor"
+  - "A non-ACTIVE membership is MEMBERSHIP_REVOKED, including for a replay; CLOSING is FAMILY_CLOSING; an expired trial is READ_ONLY; unverified email is EMAIL_VERIFICATION_REQUIRED"
+evidence:
+  - "backend/functions/src/commands/familySync.ts (gateMemberMutation)"
+  - "backend/functions/test/emulator/familySync.test.ts, describes 'idempotency and epoch', 'household isolation: C cannot touch F1', 'revocation and lifecycle'"
+  - "backend/functions/test/e2e/familySync.test.ts, describe 'household C is isolated from F1'"
+  - "Negative controls NC-111 (state not checked), NC-112 (non-members not rejected), NC-114 (replay not returned), NC-116 (stale epoch accepted): all CAUGHT"
+depths:
+  D2: "local PASS (2026-11-25)"
+  D3: "local PASS for the isolation cases over the callable wire"
+  D4: "NOT_RUN (GAI)"
+notes: "families.restore now also writes listMeta/current with the new epoch in the same transaction, so queued client work under the old epoch can be dropped (Rev 2 §1)."
+status: "PARTIAL: Step 1 backend local D2/D3 PASS; Android outbox and GAI D4 NOT_RUN"

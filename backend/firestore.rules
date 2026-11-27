@@ -1,9 +1,39 @@
 rules_version = '2';
 
 // WP-03 Slice 1: no direct client access to any document (Architecture v1.1 R-04 §A).
-// All reads and writes go through authenticated callables using the Admin SDK.
+// All writes go through authenticated callables using the Admin SDK.
+//
+// BC-FAMILY-SYNC-01 (Sync Contract Rev 2 §1; emulator-only milestone): the ONE exception is
+// read-only access to a family's shared-list read model, `families/{fid}/listItems/{itemId}` and
+// `families/{fid}/listMeta/current`, for a signed-in user with a verified email whose membership
+// document in that family has state "ACTIVE", while the family's lifecycleState is "ACTIVE".
+// The existence of a membership document is NOT enough. Clients still cannot write anything.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function familyDoc(fid) {
+      return /databases/$(database)/documents/families/$(fid);
+    }
+    function memberDoc(fid) {
+      return /databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid);
+    }
+    function canReadFamilyList(fid) {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(memberDoc(fid))
+        && get(memberDoc(fid)).data.state == "ACTIVE"
+        && get(familyDoc(fid)).data.lifecycleState == "ACTIVE";
+    }
+
+    match /families/{fid}/listItems/{itemId} {
+      allow get, list: if canReadFamilyList(fid);
+      allow write: if false;
+    }
+    match /families/{fid}/listMeta/{doc} {
+      allow get: if doc == "current" && canReadFamilyList(fid);
+      allow list, write: if false;
+    }
+
+    // Everything else, unchanged: no direct client read or write.
     match /{document=**} {
       allow read, write: if false;
     }
