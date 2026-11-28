@@ -51,12 +51,16 @@ class StorageNamingTest {
         assertTrue("schema directory not found from ${File(".").absolutePath}", schemas.isDirectory)
         assertEquals(listOf("$pkg.AccountDatabase"), schemas.list()!!.sorted())
         val dir = File(schemas, "$pkg.AccountDatabase")
-        assertEquals(listOf("2.json", "3.json"), dir.list()!!.sorted())
+        // BC-FAMILY-SYNC-01 Step 2 adds v4 (two additive `checked` columns); v2 and v3 stay exactly as exported.
+        assertEquals(listOf("2.json", "3.json", "4.json"), dir.list()!!.sorted())
         val v3 = File(dir, "3.json").readText()
         val hash = Regex("\"identityHash\": \"([0-9a-f]+)\"").find(v3)?.groupValues?.get(1)
         assertEquals("45d6613426ecb55fa9fe5b96c39ae013", hash)
         assertTrue(Regex("\"version\": 3,").containsMatchIn(v3))
         val v2 = File(dir, "2.json").readText()
         assertTrue(v2.contains("\"identityHash\": \"ef02cea35459ef1d94811840a88d28e5\""))
+        val v4 = File(dir, "4.json").readText()
+        assertTrue(v4.contains("\"identityHash\": \"f53ee741eba4dc23f997f9a97ec45ef4\""))
+        assertTrue(Regex("\"version\": 4,").containsMatchIn(v4))
     }
 }

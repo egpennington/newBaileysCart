@@ -248,8 +248,13 @@ class F5RegressionTest {
         MigrationFixture.writeV2(dbFile, km.sqlcipherKey, listOf(a, b))
         val v2Rows = MigrationFixture.rawOutbox(dbFile, km.sqlcipherKey)
         assertEquals("non-vacuous: 6 rows in 2 families before migration", 6, v2Rows.size)
-        val s = e.opened(uid) // migrates 2 -> 3
-        assertEquals("every row, every column preserved by v2->v3", v2Rows, MigrationFixture.rawOutbox(dbFile, km.sqlcipherKey))
+        val s = e.opened(uid) // migrates 2 -> 3 -> 4
+        // BC-FAMILY-SYNC-01 Step 2: v3 -> v4 appends exactly one column (outbox.checked); it must be null on every
+        // migrated row and every v2 column must be byte-identical and in the same position.
+        val migrated = MigrationFixture.rawOutbox(dbFile, km.sqlcipherKey)
+        assertEquals("v4 adds exactly one trailing outbox column", v2Rows.map { it.size + 1 }, migrated.map { it.size })
+        assertEquals("every row, every v2 column preserved by v2->v3->v4", v2Rows, migrated.map { it.dropLast(1) })
+        assertTrue("the new checked column is null on every migrated row", migrated.all { it.last() == null })
         val expectedA = (FamilyOutbox.restore(ka, a.currentEpoch, a.access, a.operations) as FamilyOutboxRestore.Restored).outbox
         assertEquals(expectedA, s.stores.outbox.read(ka))
         assertEquals(b, s.stores.outbox.read(kb))
@@ -260,7 +265,7 @@ class F5RegressionTest {
         val after = MigrationFixture.rawOutbox(dbFile, km.sqlcipherKey)
         km.wipe()
         assertEquals(7, after.size)
-        assertEquals("A rows unchanged", v2Rows.filter { it[0] == "demo-fam-a" }, after.filter { it[0] == "demo-fam-a" })
+        assertEquals("A rows unchanged", v2Rows.filter { it[0] == "demo-fam-a" }, after.filter { it[0] == "demo-fam-a" }.map { it.dropLast(1) })
         assertEquals(2, after.count { it[2] == Fx.uuid(1) })
         s.close()
         Fx.evidence("F5 migration v2->v3: 6/6 rows (2 families) byte-identical incl. REJECTED/BLOCKED/IN_FLIGHT/COMMITTED; then colliding opId accepted in B; A unchanged")

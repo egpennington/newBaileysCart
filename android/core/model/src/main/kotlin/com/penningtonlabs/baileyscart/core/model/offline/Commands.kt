@@ -13,9 +13,16 @@ sealed interface ItemCommand {
 
     /**
      * `items.edit {itemId, patch}`. At least one field must be present (checked on enqueue).
-     * If both are present the server applies both; field-level merging is not implied.
+     * If several are present the server applies them all; field-level merging is not implied.
+     * BC-FAMILY-SYNC-01 (Sync Contract Rev 2 section 4): [checked] is an explicit value, never a
+     * toggle, so a replay is harmless. Null means "not part of this edit".
      */
-    data class Edit(override val itemId: ItemId, val name: ItemName?, val category: Category?) : ItemCommand
+    data class Edit(
+        override val itemId: ItemId,
+        val name: ItemName?,
+        val category: Category?,
+        val checked: Boolean? = null,
+    ) : ItemCommand
 
     /** `items.delete {itemId}`. */
     data class Delete(override val itemId: ItemId) : ItemCommand

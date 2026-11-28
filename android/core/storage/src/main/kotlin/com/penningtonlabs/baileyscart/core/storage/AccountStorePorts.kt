@@ -134,6 +134,7 @@ class AccountStorePorts internal constructor(
                 version = it.version,
                 nameKeyId = it.nameKeyId,
                 canonVersion = it.canonVersion,
+                checked = it.checked,
             )
         }
         return ServerSnapshot(key, epoch, items)
@@ -147,7 +148,7 @@ class AccountStorePorts internal constructor(
             dao.deleteSnapshotHeader(family)
             dao.insertSnapshotHeader(SnapshotHeaderRow(family, snapshot.epoch.value, null))
             dao.insertSnapshotItems(
-                snapshot.items.map { SnapshotItemRow(family, it.itemId.value, it.name, it.category.name, it.version, it.nameKeyId, it.canonVersion) },
+                snapshot.items.map { SnapshotItemRow(family, it.itemId.value, it.name, it.category.name, it.version, it.nameKeyId, it.canonVersion, it.checked) },
             )
             txnHook.beforeCommit("snapshot")
         }
@@ -245,9 +246,10 @@ class AccountStorePorts internal constructor(
 
     private fun decodeOp(key: FamilyKey, r: OutboxRow): OutboxOperation {
         val itemId = ItemId.parse(r.itemId) ?: throw StoreCorruptException("bad item id")
+        if (r.checked != null && r.kind != KIND_EDIT) throw StoreCorruptException("checked on a non-edit operation")
         val command = when (r.kind) {
             KIND_ADD -> ItemCommand.Add(itemId, name(r.name ?: throw StoreCorruptException("add without name")), category(r.category))
-            KIND_EDIT -> ItemCommand.Edit(itemId, r.name?.let(::name), r.category?.let(::category))
+            KIND_EDIT -> ItemCommand.Edit(itemId, r.name?.let(::name), r.category?.let(::category), r.checked)
             KIND_DELETE -> ItemCommand.Delete(itemId)
             KIND_UNDO -> ItemCommand.UndoDelete(itemId, opId(r.deleteOpId))
             else -> throw StoreCorruptException("unknown command kind")
@@ -309,6 +311,7 @@ class AccountStorePorts internal constructor(
             preItemId = op.preImage?.itemId?.value,
             preName = op.preImage?.name,
             preCategory = op.preImage?.category?.name,
+            checked = (c as? ItemCommand.Edit)?.checked,
         )
     }
 

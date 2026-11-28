@@ -166,7 +166,7 @@ class FamilyOutbox private constructor(
                 dependsOn = null
             }
             is ItemCommand.Edit -> {
-                if (command.name == null && command.category == null) return Transition.Refused(Refusal.INVALID_INPUT)
+                if (command.name == null && command.category == null && command.checked == null) return Transition.Refused(Refusal.INVALID_INPUT)
                 dependsOn = latestAddOf(command.itemId)?.opId
             }
             is ItemCommand.Delete -> dependsOn = latestAddOf(command.itemId)?.opId

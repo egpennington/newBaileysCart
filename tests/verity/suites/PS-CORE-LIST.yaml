@@ -19,3 +19,6 @@ suite_status: "PARTIAL. D2 is BLOCKED for every ProofPoint in this suite (no Com
 proofpoints_in_bc_family_sync_01:
   # BC-FAMILY-SYNC-01 Step 1 (emulator-only Gate C exception, PL 2026-11-25): server side of the shared family list.
   - PL-PP-WP03-37 (partial)
+scope_note_bc_family_sync_01_step2: "BC-FAMILY-SYNC-01 Step 2 adds the Android debug client: two-emulator UI sync, offline queue and reconciliation, listener lifecycle, revocation purge, household isolation from Android identities and the release boundary. Local only; FORGE and GAI D4 pending."
+proofpoints_in_bc_family_sync_01_step2:
+  - PL-PP-WP03-41 (partial)

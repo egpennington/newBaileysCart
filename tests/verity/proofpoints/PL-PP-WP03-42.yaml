@@ -1,0 +1,34 @@
+# New in BC-FAMILY-SYNC-01 Step 2 (Android; PL GO 2026-11-27; emulator-only Gate C exception).
+# Unallocated ID (next after PL-PP-WP03-41).
+id: PL-PP-WP03-42
+name: "Offline edits queue in the encrypted outbox and reconcile on reconnect; the server list is authoritative and nothing deleted is resurrected"
+feature: "Android family sync engine: SQLCipher outbox (S2a FamilyOutbox, schema v4) and snapshot replaced by server-confirmed listener events"
+suite: PS-OFFLINE-SYNC
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: e2e
+slice: "BC-FAMILY-SYNC-01 Step 2 (Android debug app; Emulator Suite, demo-newbaileyscart)"
+slice_coverage: "PARTIAL. Offline means Wi-Fi and mobile data disabled on the AVD; process death while offline is covered only by the existing LP-1 recovery suites."
+preconditions:
+  - "PL-PP-WP03-41 completed: A and B share family F"
+steps:
+  - "Offline deletion: B offline; A deletes Bread; B checks Eggs offline; B reconnects"
+  - "Edit/delete conflict: B offline; A deletes Eggs; B unchecks Eggs offline; B reconnects"
+  - "JVM: a from-cache listener event, then a server event without the item; a committed add whose item is later deleted"
+expected:
+  - "While offline B shows 'Offline, last synced at ...', keeps Bread and marks its change pending"
+  - "After reconnect B no longer shows Bread; B's Eggs check is applied and appears on A"
+  - "Conflict: the server rejects B's edit with ITEM_DELETED; B shows 'Eggs: ITEM_DELETED'; Eggs is not resurrected on A, B or the server"
+  - "A from-cache event never replaces the saved list; a committed operation never keeps a deleted item on screen"
+evidence:
+  - "C:/dev/bc-family-sync-evidence/step2/pp-b-f/scenarios.json (PP_C_OFFLINE_DELETION, PP_D_EDIT_DELETE_CONFLICT)"
+  - "FamilySyncEngineTest: fromCacheEventsNeverReplaceTheSavedListButServerEventsDo, itemDeletedRejectionIsShownAndTheItemIsNotResurrected, anItemDeletedAfterItsAddWasAcknowledgedIsNotResurrected, checkOffSendsAnExplicitValue"
+  - "Negative controls NC-119, NC-121 (C:/dev/bc-family-sync-evidence/step2/nc)"
+depths:
+  D1: "local PASS (JVM)"
+  D2: "core:storage instrumented suite including the v3->v4 migration: see C:/dev/bc-family-sync-evidence/step2/storage-d2"
+  D3: "local PASS: two AVDs (2026-11-27)"
+  D4: "NOT_RUN (GAI)"
+notes: "Finding for GAI: the S2a projector keeps a COMMITTED overlay until the snapshot shows its version. With Rev 2's live-only read model that resurrects items deleted afterwards (seen on AVD A in the first PP-D run). The debug engine renders without committed operations, so the server list decides (a brief flicker is possible). The :core:model projector is unchanged."
+status: "PARTIAL: Step 2 local PASS; FORGE and GAI D4 NOT_RUN"

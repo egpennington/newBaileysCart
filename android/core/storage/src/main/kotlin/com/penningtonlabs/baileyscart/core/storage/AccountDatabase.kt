@@ -1,5 +1,6 @@
 package com.penningtonlabs.baileyscart.core.storage
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -42,6 +43,8 @@ data class SnapshotItemRow(
     val version: Long,
     val nameKeyId: String?,
     val canonVersion: Int?,
+    /** Added in schema v4 (BC-FAMILY-SYNC-01): the shared check-off state. */
+    @ColumnInfo(defaultValue = "0") val checked: Boolean = false,
 )
 
 @Entity(
@@ -70,6 +73,8 @@ data class OutboxRow(
     val preItemId: String?,
     val preName: String?,
     val preCategory: String?,
+    /** Added in schema v4 (BC-FAMILY-SYNC-01): `items.edit` patch.checked; null = not in the patch. Immutable payload. */
+    val checked: Boolean? = null,
 )
 
 @Dao
@@ -160,7 +165,7 @@ abstract class AccountDatabase : RoomDatabase() {
     abstract fun dao(): AccountDao
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
 
         /** v1 → v2: add a nullable display-only column. Never drops or rewrites outbox rows. */
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -178,6 +183,18 @@ abstract class AccountDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP INDEX IF EXISTS `index_outbox_opId`")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_outbox_familyId_opId` ON `outbox` (`familyId`, `opId`)")
+            }
+        }
+
+        /**
+         * v3 -> v4 (BC-FAMILY-SYNC-01 Step 2): two additive columns for the shared check-off state.
+         * Existing rows keep every value; cached items read as unchecked and existing operations carry
+         * no `checked` patch. No row is read, rewritten, moved or deleted.
+         */
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `snapshot_item` ADD COLUMN `checked` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `outbox` ADD COLUMN `checked` INTEGER")
             }
         }
     }

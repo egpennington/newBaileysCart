@@ -1,0 +1,34 @@
+# New in BC-FAMILY-SYNC-01 Step 2 (Android; PL GO 2026-11-27; emulator-only Gate C exception).
+# Unallocated ID (next after PL-PP-WP03-40).
+id: PL-PP-WP03-41
+name: "Two Android emulators share one family list: an add and a check-off appear on the other phone without polling"
+feature: "Family shared shopping list on Android (debug FamilySyncActivity): Auth emulator sign-in, families.create, invites.create/accept, items.add, items.edit {checked}"
+suite: PS-CORE-LIST
+risk: critical
+owner: CODI
+independent_reviewer: GAI
+level: e2e
+slice: "BC-FAMILY-SYNC-01 Step 2 (Android debug app; Emulator Suite, demo-newbaileyscart)"
+slice_coverage: "PARTIAL. Real debug UI on two API 37 x86_64 AVDs against the local Emulator Suite. No physical device, no real Firebase project."
+preconditions:
+  - "Emulator Suite (auth, firestore, functions; demo-newbaileyscart) on the host; two AVDs reach it at 10.0.2.2"
+  - "Fresh install of the debug APK on both AVDs; app data cleared; autofill service off on the test AVDs"
+steps:
+  - "A signs up, opens the emulator verification link, creates a household and creates an invite"
+  - "B signs up, verifies, and joins with A's 16-character code"
+  - "A adds Milk in the UI; the harness waits for Milk on B's screen"
+  - "B taps Milk's checkbox; the harness waits for the checked state on A's screen"
+expected:
+  - "B shows Milk with no B-initiated call between listener attach and the change (listener push, not polling)"
+  - "A shows Milk checked; server listItems is exactly [Milk, checked=true]; both screens show Online and no pending changes"
+evidence:
+  - "C:/dev/bc-family-sync-evidence/step2/pp-a (result.json, trace-A.txt, trace-B.txt, harness.log)"
+  - "Harness: C:/dev/bc-family-sync-evidence/scripts/fs_milestone.py (adb + uiautomator; Emulator Suite REST only for the verification link)"
+  - "android/app/src/testDebug/kotlin/com/penningtonlabs/baileyscart/family/FamilySyncEngineTest.kt (nothingIsSentUntilTheSessionCheckConfirmsMembership)"
+depths:
+  D1: "local PASS (JVM engine tests)"
+  D2: "not separate"
+  D3: "local PASS: two AVDs, real UI (2026-11-27)"
+  D4: "NOT_RUN (GAI)"
+notes: "Observed on-device latency from send to the other phone's listener event: 2.3 s (add) and 3.3 s (check-off), dominated by Functions-emulator worker cold start. Harness-measured UI latency includes typing and uiautomator dumps. Not a performance claim."
+status: "PARTIAL: Step 2 local PASS; FORGE and GAI D4 NOT_RUN"

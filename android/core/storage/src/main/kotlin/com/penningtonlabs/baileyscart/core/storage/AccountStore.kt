@@ -172,7 +172,7 @@ class AccountStore private constructor(
             val db = try {
                 Room.databaseBuilder(context, AccountDatabase::class.java, dbFile.absolutePath)
                     .openHelperFactory(FullSyncOpenHelperFactory(SupportOpenHelperFactory(key.sqlcipherKey, ConnectionHook(observer), true)))
-                    .addMigrations(AccountDatabase.MIGRATION_1_2, AccountDatabase.MIGRATION_2_3)
+                    .addMigrations(AccountDatabase.MIGRATION_1_2, AccountDatabase.MIGRATION_2_3, AccountDatabase.MIGRATION_3_4)
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .build()
             } catch (e: RuntimeException) {
