@@ -1,0 +1,35 @@
+# New in BC-FAMILY-SYNC-01 Step 2 (Android; PL GO 2026-11-27; emulator-only Gate C exception).
+# Unallocated ID (next after PL-PP-WP03-42).
+id: PL-PP-WP03-43
+name: "Listeners and the Firestore network run only while the app is visible; no requests while idle or backgrounded; Firestore keeps no cache files"
+feature: "FamilySyncActivity onStart/onStop; FirestoreListHub (memory-only cache, enableNetwork/disableNetwork)"
+suite: PS-OFFLINE-SYNC
+risk: high
+owner: CODI
+independent_reviewer: GAI
+level: e2e
+slice: "BC-FAMILY-SYNC-01 Step 2 (Android debug app; Emulator Suite, demo-newbaileyscart)"
+slice_coverage: "PARTIAL. Traffic is observed as established TCP connections from the AVD to 10.0.2.2 and Functions-emulator invocation counts, not packet capture."
+preconditions:
+  - "PL-PP-WP03-41 completed"
+steps:
+  - "Both apps visible and idle for 30 s"
+  - "B to background (HOME); A adds Butter; wait 32 s"
+  - "B back to foreground"
+  - "Search the app data directory on both AVDs for any *firestore* file"
+expected:
+  - "0 callable invocations during the idle window (listeners push; no polling)"
+  - "B trace: ACTIVITY_STOP, LISTENER_DETACH, NETWORK enabled=false; no TCP connection from B to 10.0.2.2:8080 while backgrounded; 0 B callables while backgrounded"
+  - "On resume B attaches, runs account.getSession and shows Butter"
+  - "No Firestore cache files on either AVD"
+evidence:
+  - "C:/dev/bc-family-sync-evidence/step2/pp-b-f/scenarios.json (PP_B_LIFECYCLE, CACHE_NO_FIRESTORE_FILES)"
+  - "FamilySyncEngineTest.hiddenMeansNoListenerNoNetworkNoRetryAndNoSend"
+  - "Negative control NC-120"
+depths:
+  D1: "local PASS (JVM)"
+  D2: "not separate"
+  D3: "local PASS: two AVDs (2026-11-27)"
+  D4: "NOT_RUN (GAI)"
+notes: "Firebase Auth keeps its own token store in app storage (not list data). Google Play services on the AVD system image make their own Google traffic; the app under test makes none."
+status: "PARTIAL: Step 2 local PASS; FORGE and GAI D4 NOT_RUN"

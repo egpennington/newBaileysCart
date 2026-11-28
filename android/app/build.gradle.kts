@@ -62,5 +62,22 @@ dependencies {
     // Room, androidx.sqlite or SQLCipher (NC-98; scripts/check-release-isolation.sh).
     debugImplementation(project(":core:storage"))
 
+    // BC-FAMILY-SYNC-01 Step 2 (PL-approved; Sync Contract Rev 2 section 6): the Firebase Android SDK
+    // for the DEBUG family-sharing app, talking only to the local Emulator Suite. debugImplementation
+    // only: release must contain no com.google.firebase classes (scripts/check-release-isolation.sh).
+    // No firebase-functions SDK: it requires firebase-iid, which calls Google's production
+    // Installations service. Callables are invoked over the callable HTTP protocol instead.
+    debugImplementation(platform(libs.firebase.bom))
+    debugImplementation(libs.firebase.auth)
+    debugImplementation(libs.firebase.firestore)
+    constraints {
+        // Keep the transitive versions resolved and checksummed in the PL-approved fetch session
+        // (2026-11-27): without firebase-functions, conflict resolution would otherwise fall back to
+        // older okio / kotlin-stdlib-jdk7/8 versions that were never fetched or verified.
+        debugImplementation("com.squareup.okio:okio:3.6.0")
+        debugImplementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10")
+        debugImplementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10")
+    }
+
     testImplementation(libs.junit)
 }

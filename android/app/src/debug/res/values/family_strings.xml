@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BC-FAMILY-SYNC-01 Step 2 (debug source set only). -->
+<resources>
+    <string name="family_app_name">BC Family (emulator)</string>
+</resources>

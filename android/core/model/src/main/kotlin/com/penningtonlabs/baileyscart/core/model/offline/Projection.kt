@@ -11,6 +11,8 @@ data class ServerItem(
     val version: Long,
     val nameKeyId: String? = null,
     val canonVersion: Int? = null,
+    /** BC-FAMILY-SYNC-01: the shared check-off state (read model `listItems.checked`). */
+    val checked: Boolean = false,
 )
 
 /** Authoritative server snapshot for exactly one family scope and epoch. Active items only; tombstones are excluded. */
@@ -18,7 +20,13 @@ data class ServerSnapshot(val key: FamilyKey, val epoch: FamilyEpoch, val items:
 
 enum class SyncMark { SYNCED, PENDING }
 
-data class ProjectedItem(val itemId: ItemId, val name: String, val category: Category, val sync: SyncMark)
+data class ProjectedItem(
+    val itemId: ItemId,
+    val name: String,
+    val category: Category,
+    val sync: SyncMark,
+    val checked: Boolean = false,
+)
 
 data class Projection(val items: List<ProjectedItem>, val attention: List<OutboxOperation>)
 
@@ -60,7 +68,7 @@ object ListProjector {
 
         val server = snapshot.items.associateBy { it.itemId }
         val view = LinkedHashMap<ItemId, ProjectedItem>()
-        snapshot.items.forEach { view[it.itemId] = ProjectedItem(it.itemId, it.name, it.category, SyncMark.SYNCED) }
+        snapshot.items.forEach { view[it.itemId] = ProjectedItem(it.itemId, it.name, it.category, SyncMark.SYNCED, it.checked) }
 
         for (op in outbox.operations.sortedBy { it.sequence }) {
             val mark = when {
@@ -95,6 +103,7 @@ object ListProjector {
                 view[c.itemId] = cur.copy(
                     name = c.name?.display ?: cur.name,
                     category = c.category ?: cur.category,
+                    checked = c.checked ?: cur.checked,
                     sync = if (mark == SyncMark.PENDING) SyncMark.PENDING else cur.sync,
                 )
             }
